@@ -193,7 +193,7 @@ export default function App() {
 
   const showToast = (msg, type = 'ok') => {
     setToastData({ msg, type });
-    setTimeout(() => setToastData(null), 4000);
+    setTimeout(() => setToastData(null), 5000); // ให้อยู่หน้าจอนานขึ้น 5 วินาที จะได้อ่านทัน
   };
 
   const handleLogin = (unit, role) => {
@@ -306,9 +306,9 @@ export default function App() {
       </main>
 
       {toastData && (
-        <div className="print-hide fixed top-4 right-4 z-[100] px-4 py-3 rounded-lg shadow-2xl border flex items-center gap-3 fade-in-up bg-slate-800 text-white" style={{ borderColor: toastData.type === 'ok' ? '#10b981' : '#ef4444' }}>
-          {toastData.type === 'ok' ? <CheckCircle className="text-emerald-500" size={20}/> : <AlertTriangle className="text-red-500" size={20}/>}
-          <span className="font-medium text-sm">{toastData.msg}</span>
+        <div className="print-hide fixed top-4 right-4 z-[100] px-4 py-3 rounded-lg shadow-2xl border flex items-center gap-3 fade-in-up bg-slate-800 text-white max-w-sm" style={{ borderColor: toastData.type === 'ok' ? '#10b981' : '#ef4444' }}>
+          {toastData.type === 'ok' ? <CheckCircle className="text-emerald-500 shrink-0" size={20}/> : <AlertTriangle className="text-red-500 shrink-0" size={20}/>}
+          <span className="font-medium text-sm break-words">{toastData.msg}</span>
         </div>
       )}
     </div>
@@ -656,9 +656,15 @@ function Policies({ appDb, user, showToast, refresh }) {
 
   const handleDelete = async (id) => {
     if(window.confirm('ยืนยันการลบข้อสั่งการนี้?')) {
-      if (supabase) await supabase.from('policies').delete().eq('policy_id', id);
-      showToast('ลบข้อสั่งการเรียบร้อย');
-      refresh();
+      if(!supabase) return showToast('ไม่ได้เชื่อมต่อฐานข้อมูล', 'error');
+      try {
+        const { error } = await supabase.from('policies').delete().eq('policy_id', id);
+        if (error) throw error;
+        showToast('ลบข้อสั่งการเรียบร้อย', 'ok');
+        refresh();
+      } catch (err) {
+        showToast('ลบไม่สำเร็จ: ' + err.message, 'error');
+      }
     }
   };
 
@@ -674,6 +680,7 @@ function Policies({ appDb, user, showToast, refresh }) {
     setSecUnits(prev => prev.includes(uName) ? prev.filter(x => x !== uName) : [...prev, uName]);
   };
 
+  // 🔴 เพิ่มการดัก Error ที่นี่
   const handleSave = async (e) => {
     e.preventDefault();
     if(!supabase) return showToast('ไม่ได้เชื่อมต่อ Supabase Database', 'error');
@@ -689,24 +696,31 @@ function Policies({ appDb, user, showToast, refresh }) {
       data.meeting = '-';
     }
     
-    if (editData) {
-      data.policy_id = editData.policy_id;
-      await supabase.from('policies').upsert(data);
-      
-      if (data.policy_no !== editData.policy_no) {
-        const relatedReports = appDb.reports.filter(r => r.policy_id === data.policy_id);
-        for(const r of relatedReports) {
-          await supabase.from('reports').upsert({ ...r, policy_no: data.policy_no });
+    try {
+      if (editData) {
+        data.policy_id = editData.policy_id;
+        const { error } = await supabase.from('policies').upsert(data);
+        if (error) throw error;
+        
+        if (data.policy_no !== editData.policy_no) {
+          const relatedReports = appDb.reports.filter(r => r.policy_id === data.policy_id);
+          for(const r of relatedReports) {
+            await supabase.from('reports').upsert({ ...r, policy_no: data.policy_no });
+          }
         }
+        showToast('แก้ไขข้อสั่งการเรียบร้อย', 'ok');
+      } else {
+        data.policy_id = `POL-${Date.now()}`;
+        const { error } = await supabase.from('policies').upsert(data);
+        if (error) throw error;
+        showToast('เพิ่มข้อสั่งการใหม่เรียบร้อย', 'ok');
       }
-      showToast('แก้ไขข้อสั่งการเรียบร้อย');
-    } else {
-      data.policy_id = `POL-${Date.now()}`;
-      await supabase.from('policies').upsert(data);
-      showToast('เพิ่มข้อสั่งการใหม่เรียบร้อย');
+      setModalOpen(false);
+      refresh();
+    } catch (err) {
+      console.error(err);
+      showToast('บันทึกไม่สำเร็จ: ' + err.message, 'error');
     }
-    setModalOpen(false);
-    refresh();
   };
 
   return (
@@ -880,9 +894,15 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
 
   const handleDelete = async (id) => {
     if(window.confirm('ยืนยันการลบภารกิจ/งานนี้?')) {
-      if (supabase) await supabase.from('tasks').delete().eq('task_id', id);
-      showToast('ลบงานเรียบร้อย');
-      refresh();
+      if(!supabase) return showToast('ไม่ได้เชื่อมต่อฐานข้อมูล', 'error');
+      try {
+        const { error } = await supabase.from('tasks').delete().eq('task_id', id);
+        if (error) throw error;
+        showToast('ลบงานเรียบร้อย', 'ok');
+        refresh();
+      } catch (err) {
+        showToast('ลบไม่สำเร็จ: ' + err.message, 'error');
+      }
     }
   };
 
@@ -897,6 +917,7 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
     setSecUnits(prev => prev.includes(uName) ? prev.filter(x => x !== uName) : [...prev, uName]);
   };
 
+  // 🔴 เพิ่มการดัก Error ที่นี่
   const handleSave = async (e) => {
     e.preventDefault();
     if(!supabase) return showToast('ไม่ได้เชื่อมต่อ Supabase Database', 'error');
@@ -914,18 +935,20 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
     try {
       if (editData) {
         data.task_id = editData.task_id;
-        await supabase.from('tasks').upsert(data);
-        showToast('อัปเดตงานเรียบร้อย');
+        const { error } = await supabase.from('tasks').upsert(data);
+        if (error) throw error;
+        showToast('อัปเดตงานเรียบร้อย', 'ok');
       } else {
         data.task_id = `TSK-${Date.now()}`;
-        await supabase.from('tasks').upsert(data);
-        showToast('เพิ่มงานใหม่เรียบร้อย');
+        const { error } = await supabase.from('tasks').upsert(data);
+        if (error) throw error;
+        showToast('เพิ่มงานใหม่เรียบร้อย', 'ok');
       }
       setModalOpen(false);
       refresh();
     } catch (error) {
       console.error(error);
-      showToast('เกิดข้อผิดพลาดในการบันทึกข้อมูล: ' + error.message, 'error');
+      showToast('บันทึกไม่สำเร็จ: ' + error.message, 'error');
     }
   };
 
@@ -978,7 +1001,6 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
                   </td>
                   <td className="p-4 text-xs whitespace-nowrap">
                     <div className="text-slate-400 mb-1">{formatDate(t.start_date)} - {formatDate(t.end_date)}</div>
-                    {/* ระบบแจ้งเตือน Deadline */}
                     <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] border ${deadline.color}`}>
                       <Clock size={10} /> {deadline.label}
                     </span>
@@ -999,11 +1021,9 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
                   <td className="p-4 text-xs text-slate-400">{t.assignee || '-'}</td>
                   {user.role !== 'executive' && (
                     <td className="p-4 text-xs space-x-3 text-center whitespace-nowrap">
-                      {/* Allow edit if admin or if user is part of the task */}
                       {(user.role === 'admin' || t.primary_unit === user.unitName || t.secondary_units?.includes(user.unitName)) && (
                         <button onClick={() => openModal(t)} className="text-sky-400 hover:text-sky-300 transition-colors"><Edit size={16}/></button>
                       )}
-                      {/* Only Admin or Primary Unit can delete */}
                       {(user.role === 'admin' || t.primary_unit === user.unitName) && (
                         <button onClick={() => handleDelete(t.task_id)} className="text-red-400 hover:text-red-300 transition-colors"><Trash2 size={16}/></button>
                       )}
@@ -1101,22 +1121,30 @@ function UnitsConfig({ appDb, showToast, refresh }) {
 
   const unitsList = appDb.units.length > 0 ? appDb.units : INITIAL_DATA.units;
 
+  // 🔴 เพิ่มการดัก Error ที่นี่
   const saveGlobalSettings = async () => {
     if(!supabase) return;
     try {
-      await supabase.from('settings').upsert({ id: 'global', adminPasscode: adminPass, execPasscode: execPass });
+      const { error } = await supabase.from('settings').upsert({ id: 'global', adminPasscode: adminPass, execPasscode: execPass });
+      if (error) throw error;
       showToast('อัปเดตรหัสผ่านส่วนกลางเรียบร้อย', 'ok');
       refresh();
     } catch (err) {
-      showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      showToast('บันทึกไม่สำเร็จ: ' + err.message, 'error');
     }
   };
 
   const handleDelete = async (id) => {
-    if(window.confirm('ยืนยันการลบหน่วยงานนี้? ข้อมูลรายงานที่เกี่ยวข้องจะไม่ถูกลบ แต่จะแสดงผลชื่อหน่วยงานเดิม')) {
-      if (supabase) await supabase.from('units').delete().eq('id', id);
-      showToast('ลบหน่วยงานเรียบร้อย');
-      refresh();
+    if(window.confirm('ยืนยันการลบหน่วยงานนี้?')) {
+      if(!supabase) return;
+      try {
+        const { error } = await supabase.from('units').delete().eq('id', id);
+        if (error) throw error;
+        showToast('ลบหน่วยงานเรียบร้อย', 'ok');
+        refresh();
+      } catch (err) {
+        showToast('ลบไม่สำเร็จ: ' + err.message, 'error');
+      }
     }
   };
 
@@ -1132,19 +1160,21 @@ function UnitsConfig({ appDb, showToast, refresh }) {
       return;
     }
 
-    if (editData) {
-      const id = editData.id;
-      const oldName = editData.name;
-      await supabase.from('units').upsert({ id, name: newName, passcode: newPasscode });
-      
-      showToast('แก้ไขหน่วยงานเรียบร้อย');
-    } else {
-      const id = `U-${Date.now()}`;
-      await supabase.from('units').upsert({ id, name: newName, passcode: newPasscode });
-      showToast('เพิ่มหน่วยงานเรียบร้อย');
+    try {
+      if (editData) {
+        const { error } = await supabase.from('units').upsert({ id: editData.id, name: newName, passcode: newPasscode });
+        if (error) throw error;
+        showToast('แก้ไขหน่วยงานเรียบร้อย', 'ok');
+      } else {
+        const { error } = await supabase.from('units').upsert({ id: `U-${Date.now()}`, name: newName, passcode: newPasscode });
+        if (error) throw error;
+        showToast('เพิ่มหน่วยงานเรียบร้อย', 'ok');
+      }
+      setModalOpen(false);
+      refresh();
+    } catch (err) {
+      showToast('บันทึกไม่สำเร็จ: ' + err.message, 'error');
     }
-    setModalOpen(false);
-    refresh();
   };
 
   return (
@@ -1277,6 +1307,7 @@ function ReportForm({ appDb, user, showToast, setView, refresh }) {
     }
   };
 
+  // 🔴 เพิ่มการดัก Error ที่นี่
   const handleSubmit = async (e) => {
     e.preventDefault();
     if(!supabase) return showToast('ไม่ได้เชื่อมต่อ Supabase Database', 'error');
@@ -1308,10 +1339,16 @@ function ReportForm({ appDb, user, showToast, setView, refresh }) {
       created_at: new Date().toISOString()
     };
 
-    await supabase.from('reports').upsert(report);
-    showToast('บันทึกรายงานความคืบหน้าเรียบร้อย', 'ok');
-    refresh();
-    setView('HISTORY');
+    try {
+      const { error } = await supabase.from('reports').upsert(report);
+      if (error) throw error;
+      showToast('บันทึกรายงานความคืบหน้าเรียบร้อย', 'ok');
+      refresh();
+      setView('HISTORY');
+    } catch (err) {
+      console.error(err);
+      showToast('บันทึกไม่สำเร็จ: ' + err.message, 'error');
+    }
   };
 
   return (
@@ -1396,11 +1433,18 @@ function History({ appDb, user, showToast, refresh }) {
     .filter(r => (r.policy_snippet + r.unit_name + r.past_result).toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => new Date(b.created_at || b.report_date) - new Date(a.created_at || a.report_date));
 
+  // 🔴 เพิ่มการดัก Error ที่นี่
   const handleDelete = async (id) => {
     if(window.confirm('ยืนยันการลบรายงานฉบับนี้ถาวร?')) {
-      if (supabase) await supabase.from('reports').delete().eq('report_id', id);
-      showToast('ลบรายงานเรียบร้อย');
-      refresh();
+      if(!supabase) return;
+      try {
+        const { error } = await supabase.from('reports').delete().eq('report_id', id);
+        if (error) throw error;
+        showToast('ลบรายงานเรียบร้อย', 'ok');
+        refresh();
+      } catch (err) {
+        showToast('ลบไม่สำเร็จ: ' + err.message, 'error');
+      }
     }
   };
 
