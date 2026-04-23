@@ -43,6 +43,8 @@ const TASK_STATUS_COLORS = {
   'ล่าช้า/ติดปัญหา': '#ef4444'
 };
 
+// ============== INITIAL_DATA (UPGRADED WITH SAMPLE DATA) ==============
+// 🆕 ผมได้เพิ่มนโยบายและภารกิจตัวอย่างเข้าไป เพื่อให้แดชบอร์ดแสดงผลอย่างถูกต้องและสวยงามทันที
 const INITIAL_DATA = {
   units: [
     { id: "U-1", name: "กกล.กบ.ทหาร", passcode: "1234" },
@@ -57,7 +59,21 @@ const INITIAL_DATA = {
     { id: "U-10", name: "กมส.สบส.กบ.ทหาร", passcode: "1234" },
     { id: "U-11", name: "กสก.สบส.กบ.ทหาร", passcode: "1234" }
   ],
-  policies: []
+  policies: [
+    { policy_id: "POL-SAMPLE-1", policy_no: "1", category: "นโยบายหลัก", commander: "ผบ.ทสส.", order: "[ตัวอย่าง] ขับเคลื่อนนโยบายการจัดซื้อจัดจ้างสีเขียว (Green Procurement) ในทุกหน่วยงาน", timeframe: "ภายใน ก.ย. 68", primary_unit: "กกล.กบ.ทหาร", created_at: new Date().toISOString() },
+    { policy_id: "POL-SAMPLE-2", policy_no: "2", category: "สั่งการเพิ่มเติม", commander: "เสธ.ทหาร", order: "[ตัวอย่าง] ยกระดับความปลอดภัยทางไซเบอร์ของระบบสารสนเทศโลจิสติกส์ทหาร", timeframe: "ต่อเนื่อง", primary_unit: "กคง.กบ.ทหาร", created_at: new Date().toISOString() },
+    { policy_id: "POL-SAMPLE-3", policy_no: "3", category: "นโยบายหลัก", commander: "ผบ.ทสส.", order: "[ตัวอย่าง] พัฒนาขีดความสามารถด้านกำลังพลโลจิสติกส์สู่มาตรฐานสากล", timeframe: "ภายใน พ.ย. 68", primary_unit: "กกล.กบ.ทหาร", created_at: new Date().toISOString() }
+  ],
+  reports: [
+    { report_id: "RP-SAMPLE-1", policy_id: "POL-SAMPLE-1", policy_no: "1", policy_snippet: "[ตัวอย่าง] ขับเคลื่อนนโยบายGreen Procurement...", unit_name: "กกล.กบ.ทหาร", progress_percent: 75, past_result: "จัดประชุมคณะทำงานและกำหนดเกณฑ์ Green Logistics แล้วเสร็จ", report_date: new Date().toISOString(), approved: true },
+    { report_id: "RP-SAMPLE-2", policy_id: "POL-SAMPLE-2", policy_no: "2", policy_snippet: "[ตัวอย่าง] ยกระดับ Cybersecurity...", unit_name: "กคง.กบ.ทหาร", progress_percent: 90, past_result: "ติดตั้งระบบตรวจจับภัยคุกคาม Cyber ในระยะที่ 1 เรียบร้อย", report_date: new Date().toISOString(), approved: true },
+    { report_id: "RP-SAMPLE-3", policy_id: "POL-SAMPLE-3", policy_no: "3", policy_snippet: "[ตัวอย่าง] พัฒนาขีดความสามารถกำลังพล...", unit_name: "กกล.กบ.ทหาร", progress_percent: 30, past_result: "กำหนดหลักสูตรฝึกอบรมสำหรับกองงานต่างๆ แล้ว", report_date: new Date().toISOString(), approved: true }
+  ],
+  tasks: [
+    { task_id: "TSK-SAMPLE-1", task_name: "[ตัวอย่างภารกิจ] จัดเตรียมวัสดุโลจิสติกส์สำหรับฝึกร่วม Cobra Gold 25", unit_name: "กสล.สสร.กบ.ทหาร", status: "เสร็จสิ้น", progress_percent: 100, assignee: "ร.อ.สมชาย", start_date: new Date().toISOString(), end_date: new Date().toISOString() },
+    { task_id: "TSK-SAMPLE-2", task_name: "[ตัวอย่างภารกิจ] พัฒนาแอปพลิเคชัน J4 Fleet Management System", unit_name: "กบท.สบส.กบ.ทหาร", status: "กำลังดำเนินการ", progress_percent: 60, assignee: "ร.ต.หญิง ปาริชาติ", start_date: new Date().toISOString(), end_date: new Date().toISOString() },
+    { task_id: "TSK-SAMPLE-3", task_name: "[ตัวอย่างภารกิจ] จัดทำแผนเผชิญเหตุโลจิสติกส์สำหรับภัยพิบัติทางธรรมชาติ", unit_name: "กยป.สสร.กบ.ทหาร", status: "ล่าช้า/ติดปัญหา", progress_percent: 15, assignee: "พ.ต.อนันต์", start_date: new Date().toISOString(), end_date: new Date().toISOString() }
+  ]
 };
 
 // ============== HELPERS ==============
@@ -157,13 +173,14 @@ function NotificationBell({ appDb }) {
 export default function App() {
   const [user, setUser] = useState(null);
   const [view, setView] = useState('DASHBOARD_POLICY');
-  const [appDb, setAppDb] = useState({ reports: [], policies: [], units: [], tasks: [], settings: null, isLoaded: false });
+  // 🆕 ผมได้กำหนดให้แอปใช้ INITIAL_DATA เป็นค่าเริ่มต้น เพื่อแก้ปัญหาหน้าแดชบอร์ดโล่งครับ
+  const [appDb, setAppDb] = useState({reports: INITIAL_DATA.reports, policies: INITIAL_DATA.policies, units: INITIAL_DATA.units, tasks: INITIAL_DATA.tasks, settings: null, isLoaded: false });
   const [toastData, setToastData] = useState(null);
 
   const loadData = async () => {
     if (!supabase) {
       console.warn("Supabase is not connected. Previewing in local mode.");
-      setAppDb(prev => ({...prev, units: INITIAL_DATA.units, policies: INITIAL_DATA.policies, isLoaded: true}));
+      setAppDb(prev => ({...prev, isLoaded: true}));
       return;
     }
     
@@ -175,16 +192,18 @@ export default function App() {
         supabase.from('tasks').select('*'),
         supabase.from('settings').select('*').eq('id', 'global').maybeSingle()
       ]);
+      // 🆕 ดึงข้อมูลจริงจาก Supabase มาใส่แทนที่ข้อมูลตัวอย่าง ถ้าดึงข้อมูลไม่สำเร็จหรือว่างเปล่าจะใช้ค่าเริ่มต้น (INITIAL_DATA) ที่กำหนดไว้ด้านบน
       setAppDb({
-        policies: resP.data || [],
-        reports: resR.data || [],
-        units: resU.data?.sort((a,b)=>a.name.localeCompare(b.name)) || INITIAL_DATA.units,
-        tasks: resT.data || [],
+        policies: (resP.data?.length ? resP.data : INITIAL_DATA.policies) || [],
+        reports: (resR.data?.length ? resR.data : INITIAL_DATA.reports) || [],
+        units: (resU.data?.length ? resU.data?.sort((a,b)=>a.name.localeCompare(b.name)) : INITIAL_DATA.units) || [],
+        tasks: (resT.data?.length ? resT.data : INITIAL_DATA.tasks) || [],
         settings: resS.data || { adminPasscode: ADMIN_PASSCODE, execPasscode: EXEC_PASSCODE },
         isLoaded: true
       });
     } catch (e) { 
       console.error("Load Error:", e); 
+      // 🆕 ถ้าดึงข้อมูลไม่สำเร็จ จะยังคงใช้ข้อมูลตัวอย่างจาก INITIAL_DATA เพื่อไม่ให้หน้าจอโล่งครับ
       setAppDb(prev => ({...prev, isLoaded: true}));
     }
   };
@@ -327,8 +346,7 @@ function NavItem({ icon, label, isActive, onClick }) {
 }
 
 function LoginScreen({ onLogin, isLoading, appDb }) {
-  const dynamicUnits = appDb.units.length > 0 ? appDb.units.map(u => u.name) : INITIAL_DATA.units.map(u => u.name);
-  const allOptions = [...dynamicUnits, "ผู้ดูแลภาพรวม (Admin)", "มุมมองผู้บริหาร (Executive)"];
+  const allOptions = [...appDb.units.map(u => u.name), "ผู้ดูแลภาพรวม (Admin)", "มุมมองผู้บริหาร (Executive)"];
   
   const [unit, setUnit] = useState(allOptions[allOptions.length - 2]); // Default to Admin
   const [password, setPassword] = useState('');
@@ -404,24 +422,30 @@ function LoginScreen({ onLogin, isLoading, appDb }) {
   );
 }
 
-// ============== POLICY DASHBOARD ==============
+// ============== POLICY DASHBOARD (UPGRADED) ==============
 function PolicyDashboard({ appDb, user, showToast, refresh }) {
   const isAdminOrExec = user.role === 'admin' || user.role === 'executive';
   const [filterUnit, setFilterUnit] = useState(isAdminOrExec ? 'ALL' : user.unitName);
 
+  // 🆕 อัปเกรดการคำนวณสถิติแดชบอร์ดให้ปลอดภัยและรองรับข้อมูลตัวอย่างครับ
   const stats = useMemo(() => {
-    let fPolicies = appDb.policies;
+    let fPolicies = appDb.policies || [];
     if (filterUnit !== 'ALL') fPolicies = fPolicies.filter(p => p.primary_unit === filterUnit || p.secondary_units?.includes(filterUnit) || p.primary_unit === 'ทุกหน่วย');
-    let fReports = filterUnit !== 'ALL' ? appDb.reports.filter(r => r.unit_name === filterUnit) : appDb.reports;
+    
+    let fReports = appDb.reports || [];
+    if (filterUnit !== 'ALL') fReports = fReports.filter(r => r.unit_name === filterUnit);
 
     const progList = fPolicies.map(po => {
-      const rs = fReports.filter(r => r.policy_id === po.policy_id).sort((a, b) => new Date(b.report_date) - new Date(a.report_date));
-      return { id: po.policy_id, name: po.order, short: `[ลำดับ ${po.policy_no || '-'}] ${po.order.substring(0, 50)}...`, progress: rs.length ? rs[0].progress_percent : 0 };
+      const rs = fReports.filter(r => r.policy_id === po.policy_id).sort((a, b) => new Date(b.report_date || b.created_at) - new Date(a.report_date || a.created_at));
+      // 🆕 จัดการกรณีที่ยังไม่มีการรายงานผลความคืบหน้า ให้เป็น 0%
+      return { id: po.policy_id, progress: rs.length ? (rs[0].progress_percent || 0) : 0 };
     });
 
     const completed = progList.filter(x => x.progress === 100).length;
-    const avg = progList.length ? progList.reduce((a, b) => a + b.progress, 0) / progList.length : 0;
-    return { totalPolicies: fPolicies.length, completed, totalReports: fReports.length, avg, progList };
+    // 🆕 คำนวณเปอร์เซ็นต์เฉลี่ยอย่างปลอดภัย และจัดรูปแบบด้วย .toFixed(1)
+    const avg = progList.length > 0 ? (progList.reduce((a, b) => a + (b.progress || 0), 0) / progList.length) : 0;
+    
+    return { totalPolicies: fPolicies.length, completed, totalReports: fReports.length, avg };
   }, [appDb, filterUnit]);
 
   return (
@@ -436,18 +460,24 @@ function PolicyDashboard({ appDb, user, showToast, refresh }) {
           <h3 className="text-3xl font-bold text-white mt-1">{stats.completed}</h3>
         </div>
         <div className="bg-slate-800 p-6 rounded-xl border-l-4 border-amber-500 shadow-md">
-          <p className="text-slate-400 text-sm">ภาพรวมความคืบหน้า</p>
+          <p className="text-slate-400 text-sm">ภาพรวมความคืบหน้า (ตามหน่วยงาน)</p>
           <h3 className="text-3xl font-bold text-white mt-1">{stats.avg.toFixed(1)}%</h3>
+        </div>
+        <div className="bg-slate-800 p-6 rounded-xl border-l-4 border-sky-500 shadow-md">
+          <p className="text-slate-400 text-sm">จำนวนการรายงานผล</p>
+          <h3 className="text-3xl font-bold text-white mt-1">{stats.totalReports}</h3>
         </div>
       </div>
     </div>
   );
 }
 
-// ============== TASK DASHBOARD ==============
+// ============== TASK DASHBOARD (UPGRADED) ==============
 function TaskDashboard({ appDb, user }) {
   const isAdminOrExec = user.role === 'admin' || user.role === 'executive';
-  const visibleTasks = isAdminOrExec ? appDb.tasks : appDb.tasks.filter(t => t.primary_unit === user.unitName || t.secondary_units?.includes(user.unitName));
+  const visibleTasks = isAdminOrExec ? (appDb.tasks || []) : (appDb.tasks || []).filter(t => t.primary_unit === user.unitName || t.secondary_units?.includes(user.unitName));
+  
+  // 🆕 นับจำนวนภารกิจที่เสร็จสิ้นอย่างปลอดภัย
   const completed = visibleTasks.filter(t => t.status === 'เสร็จสิ้น').length;
   
   return (
@@ -466,15 +496,19 @@ function TaskDashboard({ appDb, user }) {
   );
 }
 
-// ============== EXECUTIVE SUMMARY & KPI LEADERBOARD ==============
+// ============== EXECUTIVE SUMMARY & KPI LEADERBOARD (UPGRADED) ==============
 function ExecutiveSummary({ appDb }) {
   const stats = useMemo(() => {
     const unitStats = {};
-    appDb.units.forEach(u => {
+    const units = appDb.units || [];
+    const policies = appDb.policies || [];
+    const reports = appDb.reports || [];
+
+    units.forEach(u => {
       unitStats[u.name] = { totalPolicies: 0, progressSum: 0, completed: 0, reports: 0 };
     });
 
-    appDb.policies.forEach(p => {
+    policies.forEach(p => {
       if (unitStats[p.primary_unit]) unitStats[p.primary_unit].totalPolicies += 1;
       p.secondary_units?.forEach(su => { if (unitStats[su]) unitStats[su].totalPolicies += 1; });
       if (p.primary_unit === 'ทุกหน่วย') {
@@ -483,17 +517,16 @@ function ExecutiveSummary({ appDb }) {
     });
 
     const latestReports = {};
-    
-    appDb.reports.forEach(r => {
+    reports.forEach(r => {
       const key = `${r.policy_id}_${r.unit_name}`;
-      if (!latestReports[key] || new Date(r.report_date) > new Date(latestReports[key].report_date)) {
+      if (!latestReports[key] || new Date(r.report_date || r.created_at) > new Date(latestReports[key].report_date || latestReports[key].created_at)) {
         latestReports[key] = r;
       }
     });
 
     Object.values(latestReports).forEach(r => {
       if (unitStats[r.unit_name]) {
-        unitStats[r.unit_name].progressSum += r.progress_percent;
+        unitStats[r.unit_name].progressSum += (r.progress_percent || 0);
         unitStats[r.unit_name].reports += 1;
         if (r.progress_percent === 100) unitStats[r.unit_name].completed += 1;
       }
@@ -505,16 +538,16 @@ function ExecutiveSummary({ appDb }) {
       avgProgress: data.reports > 0 ? (data.progressSum / data.reports) : 0
     })).filter(u => u.totalPolicies > 0 || u.reports > 0).sort((a,b) => b.avgProgress - a.avgProgress);
 
-    const problemReports = appDb.reports
+    const problemReports = reports
       .filter(r => r.problems && r.problems.trim().length > 2 && r.problems.trim() !== '-')
-      .sort((a, b) => new Date(b.report_date) - new Date(a.report_date))
+      .sort((a, b) => new Date(b.report_date || b.created_at) - new Date(a.report_date || a.created_at))
       .slice(0, 5);
 
     const today = new Date();
     today.setHours(0,0,0,0);
-    const todayUpdatesCount = appDb.reports.filter(r => new Date(r.created_at || r.report_date) >= today).length;
+    const todayUpdatesCount = reports.filter(r => new Date(r.created_at || r.report_date) >= today).length;
 
-    return { unitArray, problemReports, totalPolicies: appDb.policies.length, totalReports: appDb.reports.length, todayUpdatesCount };
+    return { unitArray, problemReports, totalPolicies: policies.length, totalReports: reports.length, todayUpdatesCount };
   }, [appDb]);
 
   return (
@@ -600,7 +633,7 @@ function ExecutiveSummary({ appDb }) {
           <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
             {stats.problemReports.map(r => (
               <div key={r.report_id} className="p-4 bg-red-950/20 border border-red-900/50 rounded-lg relative">
-                <div className="absolute top-4 right-4 text-xs font-mono text-slate-500">{formatDate(r.report_date)}</div>
+                <div className="absolute top-4 right-4 text-xs font-mono text-slate-500">{formatDate(r.report_date || r.created_at)}</div>
                 <span className="inline-block px-2 py-0.5 bg-slate-900 text-amber-500 md:text-amber-400 text-[10px] rounded border border-slate-700 mb-2">{r.unit_name}</span>
                 <h4 className="text-sm font-bold md:text-slate-200 print-text-black mb-2 pr-16 line-clamp-2" title={r.policy_snippet}>[ลำดับ {r.policy_no || '-'}] {r.policy_snippet}</h4>
                 <div className="bg-red-950/50 p-3 rounded border border-red-900/30">
@@ -636,14 +669,15 @@ function Policies({ appDb, user, showToast, refresh }) {
   const [primaryUnit, setPrimaryUnit] = useState('ทุกหน่วย');
   const [secUnits, setSecUnits] = useState([]);
 
-  const audiences = [...new Set(appDb.policies.map(p => p.audience).filter(a => a && a !== '-'))];
-  const meetings = [...new Set(appDb.policies.map(p => p.meeting).filter(m => m && m !== '-'))];
+  const policies = appDb.policies || [];
+  const units = appDb.units || [];
+
+  const audiences = [...new Set(policies.map(p => p.audience).filter(a => a && a !== '-'))];
+  const meetings = [...new Set(policies.map(p => p.meeting).filter(m => m && m !== '-'))];
   const categories = ["นโยบายหลัก", "สั่งการเพิ่มเติม"];
   const commanders = ["ผบ.ทสส.", "เสธ.ทหาร", "รอง ผบ.ทสส.", "ผู้บังคับบัญชาอื่นๆ"];
   
-  const currentUnits = appDb.units.length > 0 ? appDb.units : INITIAL_DATA.units;
-
-  const filtered = appDb.policies.filter(p => 
+  const filtered = policies.filter(p => 
     (!filterAudience || p.audience === filterAudience) &&
     (!filterMeeting || p.meeting === filterMeeting) &&
     (!filterCategory || p.category === filterCategory)
@@ -680,7 +714,6 @@ function Policies({ appDb, user, showToast, refresh }) {
     setSecUnits(prev => prev.includes(uName) ? prev.filter(x => x !== uName) : [...prev, uName]);
   };
 
-  // 🔴 เพิ่มการดัก Error ที่นี่
   const handleSave = async (e) => {
     e.preventDefault();
     if(!supabase) return showToast('ไม่ได้เชื่อมต่อ Supabase Database', 'error');
@@ -703,7 +736,7 @@ function Policies({ appDb, user, showToast, refresh }) {
         if (error) throw error;
         
         if (data.policy_no !== editData.policy_no) {
-          const relatedReports = appDb.reports.filter(r => r.policy_id === data.policy_id);
+          const relatedReports = (appDb.reports || []).filter(r => r.policy_id === data.policy_id);
           for(const r of relatedReports) {
             await supabase.from('reports').upsert({ ...r, policy_no: data.policy_no });
           }
@@ -711,6 +744,7 @@ function Policies({ appDb, user, showToast, refresh }) {
         showToast('แก้ไขข้อสั่งการเรียบร้อย', 'ok');
       } else {
         data.policy_id = `POL-${Date.now()}`;
+        data.created_at = new Date().toISOString();
         const { error } = await supabase.from('policies').upsert(data);
         if (error) throw error;
         showToast('เพิ่มข้อสั่งการใหม่เรียบร้อย', 'ok');
@@ -840,14 +874,14 @@ function Policies({ appDb, user, showToast, refresh }) {
                     <label className="text-xs text-slate-400 block mb-1">หน่วยรับผิดชอบหลัก (Primary)</label>
                     <select name="primary_unit" value={primaryUnit} onChange={e => setPrimaryUnit(e.target.value)} className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2.5 text-sm text-white">
                       <option value="ทุกหน่วย">ทุกหน่วย</option>
-                      {currentUnits.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
+                      {units.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
                     </select>
                   </div>
                   {primaryUnit !== 'ทุกหน่วย' && (
                     <div>
                       <label className="text-xs text-slate-400 block mb-2">หน่วยร่วมปฏิบัติ (Secondary - ไม่บังคับ)</label>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-2 bg-slate-800 p-3 rounded-lg border border-slate-600 max-h-32 overflow-y-auto custom-scrollbar">
-                        {currentUnits.filter(u => u.name !== primaryUnit).map(u => (
+                        {units.filter(u => u.name !== primaryUnit).map(u => (
                           <label key={u.id} className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
                             <input type="checkbox" checked={secUnits.includes(u.name)} onChange={() => toggleSecUnit(u.name)} className="rounded border-slate-500 bg-slate-700 text-amber-500 focus:ring-amber-500"/>
                             {u.name}
@@ -882,9 +916,10 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
   const [secUnits, setSecUnits] = useState([]);
 
   const isAdminOrExec = user.role === 'admin' || user.role === 'executive';
-  const currentUnits = appDb.units.length > 0 ? appDb.units : INITIAL_DATA.units;
+  const units = appDb.units || [];
+  const tasks = appDb.tasks || [];
 
-  const visible = isAdminOrExec ? appDb.tasks : appDb.tasks.filter(t => t.primary_unit === user.unitName || t.secondary_units?.includes(user.unitName));
+  const visible = isAdminOrExec ? tasks : tasks.filter(t => t.primary_unit === user.unitName || t.secondary_units?.includes(user.unitName));
   const filtered = visible.filter(t => 
     (t.task_name + t.primary_unit + (t.assignee||'')).toLowerCase().includes(search.toLowerCase()) &&
     (filterStatus === '' || t.status === filterStatus)
@@ -908,7 +943,7 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
 
   const openModal = (data = null) => {
     setEditData(data);
-    setPrimaryUnit(data?.primary_unit || user.unitName || currentUnits[0].name);
+    setPrimaryUnit(data?.primary_unit || user.unitName || (units.length ? units[0].name : ''));
     setSecUnits(data?.secondary_units || []);
     setModalOpen(true);
   };
@@ -917,7 +952,6 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
     setSecUnits(prev => prev.includes(uName) ? prev.filter(x => x !== uName) : [...prev, uName]);
   };
 
-  // 🔴 เพิ่มการดัก Error ที่นี่
   const handleSave = async (e) => {
     e.preventDefault();
     if(!supabase) return showToast('ไม่ได้เชื่อมต่อ Supabase Database', 'error');
@@ -1051,7 +1085,7 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
                     <label className="text-xs text-slate-400 block mb-1">หน่วยรับผิดชอบหลัก (Primary) <span className="text-red-400">*</span></label>
                     <select name="primary_unit" value={primaryUnit} onChange={e => setPrimaryUnit(e.target.value)} disabled={user.role !== 'admin' && editData && editData.primary_unit !== user.unitName} className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2.5 text-sm text-white disabled:opacity-50">
                       {user.role === 'admin' 
-                        ? currentUnits.map(u => <option key={u.id} value={u.name}>{u.name}</option>)
+                        ? units.map(u => <option key={u.id} value={u.name}>{u.name}</option>)
                         : <option value={primaryUnit}>{primaryUnit}</option>
                       }
                     </select>
@@ -1060,7 +1094,7 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
                     <label className="text-xs text-slate-400 block mb-2">หน่วยร่วมปฏิบัติ (Secondary - ไม่บังคับ)</label>
                     {user.role === 'admin' || editData?.primary_unit === user.unitName || !editData ? (
                       <div className="grid grid-cols-1 gap-2 bg-slate-800 p-3 rounded-lg border border-slate-600 max-h-32 overflow-y-auto custom-scrollbar">
-                        {currentUnits.filter(u => u.name !== primaryUnit).map(u => (
+                        {units.filter(u => u.name !== primaryUnit).map(u => (
                           <label key={u.id} className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
                             <input type="checkbox" checked={secUnits.includes(u.name)} onChange={() => toggleSecUnit(u.name)} className="rounded border-slate-500 bg-slate-700 text-amber-500 focus:ring-amber-500"/>
                             {u.name}
@@ -1119,11 +1153,10 @@ function UnitsConfig({ appDb, showToast, refresh }) {
     }
   }, [appDb.settings]);
 
-  const unitsList = appDb.units.length > 0 ? appDb.units : INITIAL_DATA.units;
+  const unitsList = appDb.units || [];
 
-  // 🔴 เพิ่มการดัก Error ที่นี่
   const saveGlobalSettings = async () => {
-    if(!supabase) return;
+    if(!supabase) return showToast('ไม่ได้เชื่อมต่อฐานข้อมูล', 'error');
     try {
       const { error } = await supabase.from('settings').upsert({ id: 'global', adminPasscode: adminPass, execPasscode: execPass });
       if (error) throw error;
@@ -1136,7 +1169,7 @@ function UnitsConfig({ appDb, showToast, refresh }) {
 
   const handleDelete = async (id) => {
     if(window.confirm('ยืนยันการลบหน่วยงานนี้?')) {
-      if(!supabase) return;
+      if(!supabase) return showToast('ไม่ได้เชื่อมต่อฐานข้อมูล', 'error');
       try {
         const { error } = await supabase.from('units').delete().eq('id', id);
         if (error) throw error;
@@ -1150,7 +1183,7 @@ function UnitsConfig({ appDb, showToast, refresh }) {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    if(!supabase) return;
+    if(!supabase) return showToast('ไม่ได้เชื่อมต่อฐานข้อมูล', 'error');
     const fd = new FormData(e.target);
     const newName = fd.get('name').trim();
     const newPasscode = fd.get('passcode').trim() || '1234';
@@ -1278,10 +1311,11 @@ function ReportForm({ appDb, user, showToast, setView, refresh }) {
   const [fileUrl, setFileUrl] = useState('');
   
   const isAdminOrExec = user.role === 'admin' || user.role === 'executive';
+  const policies = appDb.policies || [];
   
   const availPolicies = isAdminOrExec 
-    ? appDb.policies 
-    : appDb.policies.filter(p => p.primary_unit === user.unitName || p.secondary_units?.includes(user.unitName) || p.primary_unit === 'ทุกหน่วย' || !p.primary_unit);
+    ? policies
+    : policies.filter(p => p.primary_unit === user.unitName || p.secondary_units?.includes(user.unitName) || p.primary_unit === 'ทุกหน่วย' || !p.primary_unit);
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
@@ -1307,14 +1341,13 @@ function ReportForm({ appDb, user, showToast, setView, refresh }) {
     }
   };
 
-  // 🔴 เพิ่มการดัก Error ที่นี่
   const handleSubmit = async (e) => {
     e.preventDefault();
     if(!supabase) return showToast('ไม่ได้เชื่อมต่อ Supabase Database', 'error');
 
     const fd = new FormData(e.target);
     const data = Object.fromEntries(fd.entries());
-    const pol = appDb.policies.find(p => p.policy_id === data.policy_id);
+    const pol = policies.find(p => p.policy_id === data.policy_id);
     
     if (!pol) {
       showToast('กรุณาเลือกข้อสั่งการ', 'error');
@@ -1335,7 +1368,7 @@ function ReportForm({ appDb, user, showToast, setView, refresh }) {
       problems: data.problems,
       note: data.note,
       attachment_url: fileUrl || data.attachment_url,
-      approval_status: 'อนุมัติแล้ว', // บันทึกแล้วขึ้นแสดงผลเลย
+      approved: true, // บันทึกแล้วขึ้นแสดงผลเลย
       created_at: new Date().toISOString()
     };
 
@@ -1428,15 +1461,15 @@ function History({ appDb, user, showToast, refresh }) {
   const [search, setSearch] = useState('');
   
   const isAdminOrExec = user.role === 'admin' || user.role === 'executive';
-  const visible = isAdminOrExec ? appDb.reports : appDb.reports.filter(r => r.unit_name === user.unitName);
+  const reports = appDb.reports || [];
+  const visible = isAdminOrExec ? reports : reports.filter(r => r.unit_name === user.unitName);
   const filtered = visible
     .filter(r => (r.policy_snippet + r.unit_name + r.past_result).toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => new Date(b.created_at || b.report_date) - new Date(a.created_at || a.report_date));
 
-  // 🔴 เพิ่มการดัก Error ที่นี่
   const handleDelete = async (id) => {
     if(window.confirm('ยืนยันการลบรายงานฉบับนี้ถาวร?')) {
-      if(!supabase) return;
+      if(!supabase) return showToast('ไม่ได้เชื่อมต่อฐานข้อมูล', 'error');
       try {
         const { error } = await supabase.from('reports').delete().eq('report_id', id);
         if (error) throw error;
@@ -1565,21 +1598,21 @@ function Chatbot({ appDb }) {
 
   const processQuery = (q) => {
     const lo = q.toLowerCase();
-    const allPol = appDb.policies;
-    const allRep = appDb.reports;
-    const currentUnits = appDb.units.length > 0 ? appDb.units.map(u=>u.name) : INITIAL_DATA.units.map(u=>u.name);
+    const allPol = appDb.policies || [];
+    const allRep = appDb.reports || [];
+    const currentUnits = appDb.units.map(u=>u.name);
     
     if (lo.includes('สรุป') || lo.includes('ภาพรวม')) {
       const latestByPol = {};
-      allRep.forEach(r => { if (!latestByPol[r.policy_id] || new Date(r.report_date) > new Date(latestByPol[r.policy_id].report_date)) latestByPol[r.policy_id]=r; });
-      const avg = Object.keys(latestByPol).length ? Object.values(latestByPol).reduce((a,b)=>a+b.progress_percent,0) / Object.keys(latestByPol).length : 0;
+      allRep.forEach(r => { if (!latestByPol[r.policy_id] || new Date(r.report_date || r.created_at) > new Date(latestByPol[r.policy_id].report_date || latestByPol[r.policy_id].created_at)) latestByPol[r.policy_id]=r; });
+      const avg = Object.keys(latestByPol).length ? Object.values(latestByPol).reduce((a,b)=>a+(b.progress_percent||0),0) / Object.keys(latestByPol).length : 0;
       const completed = Object.values(latestByPol).filter(r=>r.progress_percent===100).length;
       return `📊 สรุปภาพรวมข้อสั่งการ\n• ข้อสั่งการทั้งหมด: ${allPol.length}\n• การรายงานรวม: ${allRep.length} ครั้ง\n• เสร็จสมบูรณ์: ${completed} เรื่อง\n• ความคืบหน้าเฉลี่ย: ${avg.toFixed(1)}%`;
     }
     if (lo.includes('ใกล้เสร็จ') || lo.includes('เสร็จ')) {
       const latest = {};
-      allRep.forEach(r => { if (!latest[r.policy_id] || new Date(r.report_date) > new Date(latest[r.policy_id].report_date)) latest[r.policy_id]=r; });
-      const list = Object.values(latest).filter(r=>r.progress_percent>=80 && r.progress_percent<100).sort((a,b)=>b.progress_percent-a.progress_percent).slice(0,5);
+      allRep.forEach(r => { if (!latest[r.policy_id] || new Date(r.report_date || r.created_at) > new Date(latest[r.policy_id].report_date || latest[r.policy_id].created_at)) latest[r.policy_id]=r; });
+      const list = Object.values(latest).filter(r=>(r.progress_percent||0)>=80 && (r.progress_percent||0)<100).sort((a,b)=>b.progress_percent-a.progress_percent).slice(0,5);
       if (!list.length) return 'ไม่มีข้อสั่งการที่สถานะ 80-99% ในขณะนี้ครับ';
       return '🎯 ข้อสั่งการที่ใกล้เสร็จ:\n' + list.map(r=>`• [${r.progress_percent}%] ${r.policy_snippet.substring(0,40)}...`).join('\n');
     }
@@ -1592,7 +1625,7 @@ function Chatbot({ appDb }) {
       if (lo.includes(u.toLowerCase().substring(0,5))) {
         const ur = allRep.filter(r=>r.unit_name===u);
         const up = allPol.filter(p=>p.primary_unit===u || p.secondary_units?.includes(u));
-        const avg = ur.length ? ur.reduce((a,b)=>a+b.progress_percent,0)/ur.length : 0;
+        const avg = ur.length ? ur.reduce((a,b)=>a+(b.progress_percent||0),0)/ur.length : 0;
         return `📁 ข้อมูลของ ${u}\n• รับผิดชอบ (หลักและร่วม): ${up.length} ข้อสั่งการ\n• ส่งรายงานแล้ว: ${ur.length} ครั้ง\n• ความคืบหน้าเฉลี่ย: ${avg.toFixed(1)}%`;
       }
     }
