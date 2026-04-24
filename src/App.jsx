@@ -7,16 +7,15 @@ import {
   UploadCloud, Clock, Trophy, Calendar, Paperclip, Bell
 } from 'lucide-react';
 
-// ⚠️ คำแนะนำ: สำหรับการนำไปใช้งานจริงในโปรแกรม VS Code ให้เอาเครื่องหมาย // ออกจากบรรทัดด้านล่างนี้นะครับ
-// import { createClient } from '@supabase/supabase-js';
-
 // ============== SUPABASE SETUP ==============
-// ⚠️ คำแนะนำ: เอาเครื่องหมาย // ออกเมื่อรันในเครื่องของคุณ (ที่มีไฟล์ .env)
+// 🔴 สำคัญมากสำหรับการเอาขึ้นเว็บจริง (Railway/Vite/GitHub):
+// กรุณาลบเครื่องหมาย // ออกจาก 4 บรรทัดด้านล่างนี้ เพื่อเปิดใช้งานฐานข้อมูล
+// import { createClient } from '@supabase/supabase-js';
 // const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 // const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 // const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
 
-// โหมดจำลอง (Preview) สำหรับแสดงผลในหน้าต่างนี้
+// สำหรับโหมดแสดงผลหน้าต่าง Preview
 const supabase = null;
 
 // ============== CONFIG ==============
@@ -67,8 +66,8 @@ const INITIAL_DATA = {
     { policy_id: "POL-SAMPLE-2", policy_no: "2", category: "สั่งการเพิ่มเติม", commander: "เสธ.ทหาร", order: "[ตัวอย่าง] ยกระดับความปลอดภัยทางไซเบอร์ของระบบโลจิสติกส์ทหาร", timeframe: "ต่อเนื่อง", primary_unit: "กคง.กบ.ทหาร", created_at: new Date().toISOString() }
   ],
   reports: [
-    { report_id: "RP-SAMPLE-1", policy_id: "POL-SAMPLE-1", policy_no: "1", policy_snippet: "[ตัวอย่าง] ขับเคลื่อนนโยบายGreen Procurement...", unit_name: "กกล.กบ.ทหาร", progress_percent: 75, past_result: "จัดประชุมคณะทำงานเรียบร้อย", report_date: new Date().toISOString(), approved: true },
-    { report_id: "RP-SAMPLE-2", policy_id: "POL-SAMPLE-2", policy_no: "2", policy_snippet: "[ตัวอย่าง] ยกระดับ Cybersecurity...", unit_name: "กคง.กบ.ทหาร", progress_percent: 90, past_result: "ติดตั้งระบบระยะที่ 1 เรียบร้อย", report_date: new Date().toISOString(), approved: true }
+    { report_id: "RP-SAMPLE-1", policy_id: "POL-SAMPLE-1", policy_no: "1", policy_snippet: "[ตัวอย่าง] ขับเคลื่อนนโยบายGreen Procurement...", unit_name: "กกล.กบ.ทหาร", progress_percent: 75, past_result: "จัดประชุมคณะทำงานเรียบร้อย", report_date: new Date().toISOString(), approval_status: 'อนุมัติแล้ว', created_at: new Date().toISOString() },
+    { report_id: "RP-SAMPLE-2", policy_id: "POL-SAMPLE-2", policy_no: "2", policy_snippet: "[ตัวอย่าง] ยกระดับ Cybersecurity...", unit_name: "กคง.กบ.ทหาร", progress_percent: 90, past_result: "ติดตั้งระบบระยะที่ 1 เรียบร้อย", report_date: new Date().toISOString(), approval_status: 'อนุมัติแล้ว', created_at: new Date().toISOString() }
   ],
   tasks: [
     { task_id: "TSK-SAMPLE-1", task_name: "[ตัวอย่างภารกิจ] จัดเตรียมวัสดุสำหรับฝึกร่วม Cobra Gold 25", unit_name: "กสล.สสร.กบ.ทหาร", primary_unit: "กสล.สสร.กบ.ทหาร", status: "เสร็จสิ้น", progress_percent: 100, assignee: "ร.อ.สมชาย", start_date: new Date().toISOString(), end_date: new Date().toISOString() },
@@ -178,7 +177,7 @@ export default function App() {
 
   const loadData = async () => {
     if (!supabase) {
-      console.warn("Supabase is not connected. Check your .env file.");
+      console.warn("Supabase is not connected. Missing Environment Variables.");
       setAppDb(prev => ({...prev, isLoaded: true}));
       return;
     }
@@ -295,6 +294,11 @@ export default function App() {
             <LogOut size={20} className="shrink-0" />
             <span className="hidden lg:block ml-3 font-medium">ออกจากระบบ</span>
           </button>
+          
+          <div className="mt-5 text-center hidden lg:block opacity-60 hover:opacity-100 transition-opacity">
+            <p className="text-[10px] text-slate-500 tracking-wider">ออกแบบและพัฒนาโดย</p>
+            <p className="text-[11px] font-bold text-amber-500 mt-1">จ.ส.อ. ปริยวิศว์ ทองใบอ่อน</p>
+          </div>
         </div>
       </aside>
 
@@ -309,11 +313,11 @@ export default function App() {
           </div>
 
           {!supabase && (
-            <div className="mb-6 bg-red-900/30 border border-red-500 p-4 rounded-xl flex items-center gap-3">
-              <AlertTriangle className="text-red-500 shrink-0" size={24}/>
+            <div className="mb-6 bg-amber-900/30 border border-amber-500 p-4 rounded-xl flex items-center gap-3">
+              <AlertTriangle className="text-amber-500 shrink-0" size={24}/>
               <div>
-                <h3 className="font-bold text-red-400">คำเตือน: ยังไม่ได้เชื่อมต่อฐานข้อมูล Supabase</h3>
-                <p className="text-sm text-red-300 mt-1">ระบบกำลังทำงานในโหมดจำลอง <b>คุณจะไม่สามารถบันทึกหรือเพิ่มข้อมูลใดๆ ได้</b> กรุณาตรวจสอบไฟล์ <code>.env</code> ให้เรียบร้อยครับ</p>
+                <h3 className="font-bold text-amber-400">โหมดจำลองระบบ (Preview Mode)</h3>
+                <p className="text-sm text-amber-300 mt-1">กำลังใช้งานในโหมดดูตัวอย่าง การบันทึกข้อมูลจะไม่ถูกบันทึกลงฐานข้อมูลจริง สำหรับการใช้งานจริงกรุณาลบคอมเมนต์ในโค้ด <b>SUPABASE SETUP</b></p>
               </div>
             </div>
           )}
@@ -433,7 +437,7 @@ function PolicyDashboard({ appDb, user }) {
   const isAdminOrExec = user.role === 'admin' || user.role === 'executive';
   const [filterUnit, setFilterUnit] = useState(isAdminOrExec ? 'ALL' : user.unitName);
 
-  const stats = useMemo(() => {
+  const { fPolicies, fReports, stats } = useMemo(() => {
     let fPolicies = appDb.policies || [];
     if (filterUnit !== 'ALL') fPolicies = fPolicies.filter(p => p.primary_unit === filterUnit || p.secondary_units?.includes(filterUnit) || p.primary_unit === 'ทุกหน่วย');
     
@@ -453,31 +457,62 @@ function PolicyDashboard({ appDb, user }) {
     const completed = progList.filter(x => x.progress === 100).length;
     const avg = progList.length > 0 ? (progList.reduce((a, b) => a + (b.progress || 0), 0) / progList.length) : 0;
     
-    const statusCount = [
-      { name: 'เสร็จแล้ว (100%)', value: progList.filter(x => x.progress === 100).length },
-      { name: 'กำลังจะแล้วเสร็จ (91-99%)', value: progList.filter(x => x.progress >= 91 && x.progress <= 99).length },
-      { name: 'ดำเนินการต่อเนื่อง (51-90%)', value: progList.filter(x => x.progress >= 51 && x.progress <= 90).length },
-      { name: 'อยู่ระหว่างดำเนินการ (21-50%)', value: progList.filter(x => x.progress >= 21 && x.progress <= 50).length },
-      { name: 'ต่ำกว่าเกณฑ์ (0-20%)', value: progList.filter(x => x.progress <= 20).length }
-    ].filter(x => x.value > 0);
-
-    return { totalPolicies: fPolicies.length, completed, totalReports: fReports.length, avg, progList, statusCount };
+    return { fPolicies, fReports, stats: { totalPolicies: fPolicies.length, completed, totalReports: fReports.length, avg } };
   }, [appDb, filterUnit]);
 
-  let cumulativePercent = 0;
-  const donutGradientStops = stats.statusCount.length > 0 ? stats.statusCount.map(d => {
-    const start = cumulativePercent;
-    const slicePercent = (d.value / stats.totalPolicies) * 100;
-    cumulativePercent += slicePercent;
-    return `${STATUS_COLORS[d.name]} ${start}% ${cumulativePercent}%`;
-  }).join(', ') : 'transparent 0% 100%';
+  // จัดกลุ่มข้อมูลตาม "ผู้สั่งการ" (Commander)
+  const groupedByCommander = useMemo(() => {
+    const cmds = [...new Set(fPolicies.map(p => p.commander || 'ไม่ระบุผู้สั่งการ'))];
+    
+    return cmds.map(cmd => {
+      const cPols = fPolicies.filter(p => (p.commander || 'ไม่ระบุผู้สั่งการ') === cmd);
+      const cProgList = cPols.map(po => {
+        const rs = fReports.filter(r => r.policy_id === po.policy_id).sort((a, b) => new Date(b.report_date || b.created_at) - new Date(a.report_date || a.created_at));
+        return {
+          id: po.policy_id,
+          name: po.order,
+          short: `[ลำดับ ${po.policy_no || '-'}] ${po.order.length > 50 ? po.order.substring(0, 50) + '...' : po.order}`,
+          progress: rs.length ? (rs[0].progress_percent || 0) : 0
+        };
+      });
+      
+      const cCompleted = cProgList.filter(x => x.progress === 100).length;
+      const cAvg = cProgList.length > 0 ? (cProgList.reduce((a, b) => a + (b.progress || 0), 0) / cProgList.length) : 0;
+      
+      const cStatusCount = [
+        { name: 'เสร็จแล้ว (100%)', value: cProgList.filter(x => x.progress === 100).length },
+        { name: 'กำลังจะแล้วเสร็จ (91-99%)', value: cProgList.filter(x => x.progress >= 91 && x.progress <= 99).length },
+        { name: 'ดำเนินการต่อเนื่อง (51-90%)', value: cProgList.filter(x => x.progress >= 51 && x.progress <= 90).length },
+        { name: 'อยู่ระหว่างดำเนินการ (21-50%)', value: cProgList.filter(x => x.progress >= 21 && x.progress <= 50).length },
+        { name: 'ต่ำกว่าเกณฑ์ (0-20%)', value: cProgList.filter(x => x.progress <= 20).length }
+      ].filter(x => x.value > 0);
+
+      let cumulativePercent = 0;
+      const donutGradientStops = cStatusCount.length > 0 ? cStatusCount.map(d => {
+        const start = cumulativePercent;
+        const slicePercent = (d.value / cPols.length) * 100;
+        cumulativePercent += slicePercent;
+        return `${STATUS_COLORS[d.name]} ${start}% ${cumulativePercent}%`;
+      }).join(', ') : 'transparent 0% 100%';
+
+      return {
+        commander: cmd,
+        total: cPols.length,
+        completed: cCompleted,
+        avg: cAvg,
+        progList: cProgList,
+        statusCount: cStatusCount,
+        donutGradientStops
+      };
+    }).sort((a, b) => b.total - a.total);
+  }, [fPolicies, fReports]);
 
   return (
     <div className="space-y-6 fade-in-up">
       <div className="bg-slate-800 p-5 rounded-xl border border-slate-700 print-hide flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-2 text-amber-400">
           <LayoutDashboard size={20} />
-          <h3 className="font-semibold text-lg">ภาพรวมนโยบายและข้อสั่งการ</h3>
+          <h3 className="font-semibold text-lg">ภาพรวมนโยบายและข้อสั่งการของผู้บังคับบัญชา</h3>
         </div>
         <div>
            <select value={filterUnit} onChange={e => setFilterUnit(e.target.value)} disabled={!isAdminOrExec} className="w-full md:w-64 bg-slate-900 border border-slate-700 rounded-lg text-white p-2.5 text-sm disabled:opacity-50">
@@ -489,22 +524,22 @@ function PolicyDashboard({ appDb, user }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-slate-800 p-6 rounded-xl border-l-4 border-blue-500 shadow-md">
-          <p className="text-slate-400 text-sm">จำนวนข้อสั่งการ</p>
+          <p className="text-slate-400 text-sm">จำนวนข้อสั่งการรวม</p>
           <h3 className="text-3xl font-bold text-white mt-1">{stats.totalPolicies}</h3>
           <p className="text-xs text-slate-500 mt-2">เรื่องที่รับผิดชอบ</p>
         </div>
         <div className="bg-slate-800 p-6 rounded-xl border-l-4 border-emerald-500 shadow-md">
-          <p className="text-slate-400 text-sm">เสร็จสมบูรณ์</p>
+          <p className="text-slate-400 text-sm">เสร็จสมบูรณ์รวม</p>
           <h3 className="text-3xl font-bold text-white mt-1">{stats.completed}</h3>
           <p className="text-xs text-slate-500 mt-2">เรื่อง (100%)</p>
         </div>
         <div className="bg-slate-800 p-6 rounded-xl border-l-4 border-sky-500 shadow-md">
-          <p className="text-slate-400 text-sm">การรายงานความคืบหน้า</p>
+          <p className="text-slate-400 text-sm">การรายงานความคืบหน้ารวม</p>
           <h3 className="text-3xl font-bold text-white mt-1">{stats.totalReports}</h3>
           <p className="text-xs text-slate-500 mt-2">ฉบับ (ทั้งหมด)</p>
         </div>
         <div className="bg-slate-800 p-6 rounded-xl border-l-4 border-amber-500 shadow-md">
-          <p className="text-slate-400 text-sm">ภาพรวมความคืบหน้าเฉลี่ย</p>
+          <p className="text-slate-400 text-sm">ความคืบหน้าเฉลี่ยรวม</p>
           <h3 className="text-3xl font-bold text-white mt-1">{stats.avg.toFixed(1)}%</h3>
           <div className="w-full bg-slate-900 h-2 rounded-full mt-2 overflow-hidden border border-slate-700">
             <div className="bg-amber-500 h-full rounded-full transition-all duration-1000" style={{ width: `${stats.avg}%` }}></div>
@@ -512,49 +547,67 @@ function PolicyDashboard({ appDb, user }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-4 bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-md flex flex-col items-center">
-          <h3 className="text-lg font-semibold mb-6 flex items-center gap-2 w-full"><PieChart size={20} className="text-slate-400"/> สถานะการดำเนินงาน</h3>
-          <div className="relative w-48 h-48 rounded-full mb-6" style={{ background: stats.totalPolicies > 0 ? `conic-gradient(${donutGradientStops})` : '#1e293b' }}>
-            <div className="absolute inset-0 m-auto w-32 h-32 bg-slate-800 rounded-full flex items-center justify-center border-[8px] border-slate-800">
-              <div className="text-center">
-                <div className="text-2xl font-bold">{stats.totalPolicies}</div>
-                <div className="text-[10px] text-slate-400">ข้อสั่งการ</div>
+      {groupedByCommander.map((group, index) => (
+        <div key={index} className="mt-8 pt-8 border-t border-slate-700/50">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
+            <h3 className="text-xl font-bold text-amber-400 flex items-center gap-2">
+              <ShieldCheck size={24} /> ข้อสั่งการของ: {group.commander}
+            </h3>
+            <div className="flex items-center gap-3">
+              <span className="bg-slate-800 text-slate-300 px-3 py-1 rounded-full text-sm border border-slate-700">
+                ทั้งหมด {group.total} เรื่อง | เสร็จแล้ว {group.completed} เรื่อง
+              </span>
+              <span className="bg-amber-500/20 text-amber-400 px-3 py-1 rounded-full text-sm font-bold border border-amber-500/30">
+                คืบหน้าเฉลี่ย {group.avg.toFixed(1)}%
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-4 bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-md flex flex-col items-center">
+              <h3 className="text-lg font-semibold mb-6 flex items-center gap-2 w-full"><PieChart size={20} className="text-slate-400"/> สถานะการดำเนินงาน</h3>
+              <div className="relative w-48 h-48 rounded-full mb-6" style={{ background: group.total > 0 ? `conic-gradient(${group.donutGradientStops})` : '#1e293b' }}>
+                <div className="absolute inset-0 m-auto w-32 h-32 bg-slate-800 rounded-full flex items-center justify-center border-[8px] border-slate-800">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold">{group.total}</div>
+                    <div className="text-[10px] text-slate-400">ข้อสั่งการ</div>
+                  </div>
+                </div>
+              </div>
+              <div className="w-full space-y-2 mt-auto">
+                {group.statusCount.map(s => (
+                  <div key={s.name} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full" style={{ background: STATUS_COLORS[s.name] }}></span>
+                      <span className="text-slate-300">{s.name}</span>
+                    </div>
+                    <span className="font-medium">{s.value}</span>
+                  </div>
+                ))}
+                {group.total === 0 && <p className="text-center text-sm text-slate-500">ไม่มีข้อมูล</p>}
+              </div>
+            </div>
+
+            <div className="lg:col-span-8 bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-md flex flex-col">
+              <h3 className="text-lg font-semibold mb-6 flex items-center gap-2"><BarChart size={20} className="text-slate-400"/> ความคืบหน้ารายข้อสั่งการ</h3>
+              <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-5" style={{ maxHeight: '350px' }}>
+                {group.progList.map(p => (
+                  <div key={p.id} className="relative group">
+                    <div className="flex justify-between text-xs mb-1.5">
+                      <span className="text-slate-300 font-medium truncate pr-4" title={p.name}>{p.short}</span>
+                      <span className="font-bold font-mono" style={{ color: getBarColor(p.progress) }}>{p.progress}%</span>
+                    </div>
+                    <div className="w-full h-3 bg-slate-900 rounded-full overflow-hidden border border-slate-700">
+                      <div className="h-full rounded-full transition-all duration-1000 relative" style={{ width: `${p.progress}%`, backgroundColor: getBarColor(p.progress) }}></div>
+                    </div>
+                  </div>
+                ))}
+                {group.progList.length === 0 && <p className="text-center text-sm text-slate-500 mt-10">ไม่มีข้อมูล</p>}
               </div>
             </div>
           </div>
-          <div className="w-full space-y-2 mt-auto">
-            {stats.statusCount.map(s => (
-              <div key={s.name} className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-full" style={{ background: STATUS_COLORS[s.name] }}></span>
-                  <span className="text-slate-300">{s.name}</span>
-                </div>
-                <span className="font-medium">{s.value}</span>
-              </div>
-            ))}
-            {stats.totalPolicies === 0 && <p className="text-center text-sm text-slate-500">ไม่มีข้อมูล</p>}
-          </div>
         </div>
-
-        <div className="lg:col-span-8 bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-md flex flex-col">
-          <h3 className="text-lg font-semibold mb-6 flex items-center gap-2"><BarChart size={20} className="text-slate-400"/> ความคืบหน้ารายข้อสั่งการ</h3>
-          <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-5" style={{ maxHeight: '350px' }}>
-            {stats.progList.map(p => (
-              <div key={p.id} className="relative group">
-                <div className="flex justify-between text-xs mb-1.5">
-                  <span className="text-slate-300 font-medium truncate pr-4" title={p.name}>{p.short}</span>
-                  <span className="font-bold font-mono" style={{ color: getBarColor(p.progress) }}>{p.progress}%</span>
-                </div>
-                <div className="w-full h-3 bg-slate-900 rounded-full overflow-hidden border border-slate-700">
-                  <div className="h-full rounded-full transition-all duration-1000 relative" style={{ width: `${p.progress}%`, backgroundColor: getBarColor(p.progress) }}></div>
-                </div>
-              </div>
-            ))}
-            {stats.progList.length === 0 && <p className="text-center text-sm text-slate-500 mt-10">ไม่มีข้อมูล</p>}
-          </div>
-        </div>
-      </div>
+      ))}
     </div>
   );
 }
@@ -900,7 +953,7 @@ function Policies({ appDb, user, showToast, refresh }) {
   const audiences = [...new Set(policies.map(p => p.audience).filter(a => a && a !== '-'))];
   const meetings = [...new Set(policies.map(p => p.meeting).filter(m => m && m !== '-'))];
   const categories = ["นโยบายหลัก", "สั่งการเพิ่มเติม"];
-  const commanders = ["ผบ.ทสส.", "เสธ.ทหาร", "รอง ผบ.ทสส.", "ผู้บังคับบัญชาอื่นๆ"];
+  const commanders = ["ผบ.ทสส.", "รอง ผบ.ทสส.", "เสธ.ทหาร", "จก.กบ.ทหาร", "ผู้บังคับบัญชาอื่นๆ"];
   
   const filtered = policies.filter(p => 
     (!filterAudience || p.audience === filterAudience) &&
@@ -1253,6 +1306,7 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
             <tbody className="divide-y divide-slate-700/50">
               {filtered.map(t => {
                 const deadline = getDeadlineStatus(t.end_date, t.status);
+                // ทำไฮไลท์สีสำหรับงานที่ล่าช้า หรือ ทำตัวจางสำหรับงานที่เสร็จแล้ว
                 const rowClass = t.status === 'เสร็จสิ้น' ? 'opacity-50 hover:opacity-100' : t.status === 'ล่าช้า/ติดปัญหา' ? 'bg-red-950/20' : 'hover:bg-slate-700/30';
                 
                 return (
