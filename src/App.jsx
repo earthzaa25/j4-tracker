@@ -8,15 +8,16 @@ import {
 } from 'lucide-react';
 
 // ============== SUPABASE SETUP ==============
-// 🔴 สำคัญมากสำหรับการเอาขึ้นเว็บจริง (Railway/Vite/GitHub):
-// กรุณาลบเครื่องหมาย // ออกจาก 4 บรรทัดด้านล่างนี้ เพื่อเปิดใช้งานฐานข้อมูล
-// import { createClient } from '@supabase/supabase-js';
-// const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-// const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-// const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
+let supabaseUrl = '';
+let supabaseKey = '';
+try {
+  supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+  supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+} catch (e) {
+  // Fallback สำหรับโหมดพรีวิว
+}
 
-// สำหรับโหมดแสดงผลหน้าต่าง Preview
-const supabase = null;
+let supabase = null;
 
 // ============== CONFIG ==============
 const ADMIN_PASSCODE = "5721118";
@@ -204,7 +205,23 @@ export default function App() {
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    const initAndLoad = () => {
+      if (!supabase && typeof window !== 'undefined' && window.supabase && supabaseUrl && supabaseKey) {
+        supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+      }
+      loadData();
+    };
+
+    if (typeof window !== 'undefined' && !window.supabase) {
+      const script = document.createElement('script');
+      script.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+      script.onload = initAndLoad;
+      document.head.appendChild(script);
+    } else {
+      initAndLoad();
+    }
+  }, []);
 
   const showToast = (msg, type = 'ok') => {
     setToastData({ msg, type });
@@ -316,8 +333,8 @@ export default function App() {
             <div className="mb-6 bg-amber-900/30 border border-amber-500 p-4 rounded-xl flex items-center gap-3">
               <AlertTriangle className="text-amber-500 shrink-0" size={24}/>
               <div>
-                <h3 className="font-bold text-amber-400">โหมดจำลองระบบ (Preview Mode)</h3>
-                <p className="text-sm text-amber-300 mt-1">กำลังใช้งานในโหมดดูตัวอย่าง การบันทึกข้อมูลจะไม่ถูกบันทึกลงฐานข้อมูลจริง สำหรับการใช้งานจริงกรุณาลบคอมเมนต์ในโค้ด <b>SUPABASE SETUP</b></p>
+                <h3 className="font-bold text-amber-400">คำเตือน: ยังไม่ได้เชื่อมต่อฐานข้อมูล</h3>
+                <p className="text-sm text-amber-300 mt-1">คุณจำเป็นต้องตั้งค่า Environment Variables (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`) ให้เรียบร้อยเพื่อบันทึกข้อมูลได้</p>
               </div>
             </div>
           )}
