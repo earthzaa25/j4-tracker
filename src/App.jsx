@@ -1641,6 +1641,10 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
     data.primary_unit = primaryUnit;
     data.secondary_units = secUnits;
     if (formStatus !== 'ล่าช้า/ติดปัญหา') data.root_cause = null; // Clear if not delayed
+
+    // Fix for Schema Cache Error: remove empty policy_id and root_cause if they are empty
+    if (!data.policy_id) delete data.policy_id;
+    if (!data.root_cause) delete data.root_cause;
     
     try {
       if (editData) {
@@ -1658,7 +1662,11 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
       refresh();
     } catch (error) {
       console.error(error);
-      showToast('บันทึกไม่สำเร็จ: ' + error.message, 'error');
+      if (error.message && (error.message.includes('schema') || error.message.includes('column'))) {
+         showToast('ระบบใหม่ต้องการคอลัมน์ policy_id และ root_cause กรุณาเพิ่มในตาราง tasks บน Supabase', 'error');
+      } else {
+         showToast('บันทึกไม่สำเร็จ: ' + error.message, 'error');
+      }
     }
   };
 
