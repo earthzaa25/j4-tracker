@@ -1678,7 +1678,7 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
     } catch (error) {
       console.error(error);
       if (error.message && (error.message.includes('schema') || error.message.includes('column'))) {
-         showToast('ระบบใหม่ต้องการคอลัมน์ policy_id และ root_cause กรุณาเพิ่มในตาราง tasks บน Supabase', 'error');
+         showToast('ต้องเพิ่มคอลัมน์ "policy_id" และ "root_cause" (ชนิด text) ในตาราง tasks บน Supabase ก่อนครับ', 'error');
       } else {
          showToast('บันทึกไม่สำเร็จ: ' + error.message, 'error');
       }
@@ -2025,6 +2025,157 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
   );
 }
 
+// ============== REPORT FORM ==============
+function ReportForm({ appDb, user, showToast, setView, refresh }) {
+  const [uploading, setUploading] = useState(false);
+  const [fileUrl, setFileUrl] = useState('');
+  
+  const isAdminOrExec = user.role === 'admin' || user.role === 'executive';
+  const policies = appDb.policies || [];
+  
+  const availPolicies = isAdminOrExec 
+    ? policies
+    : policies.filter(p => p.primary_unit === user.unitName || p.secondary_units?.includes(user.unitName) || p.primary_unit === 'ทุกหน่วย' || !p.primary_unit);
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if(!file || !supabase) return;
+
+    setUploading(true);
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+    try {
+      const { data, error } = await supabase.storage.from('attachments').upload(fileName, file);
+      if (error) {
+        showToast('ไม่สามารถอัปโหลดไฟล์ได้ โปรดตรวจสอบว่าสร้าง Bucket ชื่อ attachments แล้ว', 'error');
+      } else {
+        const { data: linkData } = supabase.storage.from('attachments').getPublicUrl(fileName);
+        setFileUrl(linkData.publicUrl);
+        showToast('อัปโหลดไฟล์สำเร็จ', 'ok');
+      }
+    } catch (err) {
+      showToast('Error uploading: ' + err.message, 'error');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if(!supabase) return showToast('ไม่ได้เชื่อมต่อ Supabase Database', 'error');
+
+    const fd = new FormData(e.target);
+    const data = Object.fromEntries(fd.entries());
+    const pol = policies.find(p => p.policy_id === data.policy_id);
+    
+    if (!pol) {
+      showToast('กรุณาเลือกข้อสั่งการ', 'error');
+      return;
+    }
+
+    const reportId = `RP-${Date.now()}`;
+    const report = {
+      report_id: reportId,
+      policy_id: data.policy_id,
+      policy_no: pol.policy_no || '-',
+      policy_snippet: pol.order.substring(0, 150),
+      unit_name: user.unitName,
+      report_date: data.report_date,
+      past_result: data.past_result,
+      next_plan: data.next_plan,
+      progress_percent: Number(data.progress_percent) || 0,
+      problems: data.problems,
+      note: data.note,
+      attachment_url: fileUrl || data.attachment_url,
+      approval_status: 'อนุมัติแล้ว',
+      created_at: new Date().toISOString()
+    };
+
+    try {
+      const { error } = await supabase.from('reports').upsert(report);
+      if (error) throw error;
+      showToast('บันทึกรายงานความคืบหน้าเรียบร้อย', 'ok');
+      refresh();
+      setView('HISTORY');
+    } catch (err) {
+      console.error(err);
+      showToast('บันทึกไม่สำเร็จ: ' + err.message, 'error');
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto fade-in-up text-slate-100">
+      <div className="bg-slate-800 p-6 md:p-8 rounded-2xl border border-slate-700 shadow-xl relative overflow-hidden theme-transition">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2"></div>
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="bg-amber-500/20 p-2 rounded-lg text-amber-500">
+              <FilePlus size={24} />
+            </div>
+            <h2 className="text-2xl font-bold">บันทึกรายงานผลการดำเนินการ (ข้อสั่งการ)</h2>
+          </div>
+          <p className="text-sm text-slate-400 mb-8 border-b border-slate-700 pb-4">
+            เข้าใช้งานในนามหน่วยงาน: <span className="text-amber-600 dark:text-amber-400 font-medium px-2 py-1 bg-amber-500/10 rounded">{user.unitName}</span>
+          </p>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label className="text-sm font-medium text-slate-500 dark:text-slate-300 block mb-2">อ้างอิงข้อสั่งการ/นโยบาย ที่ต้องการรายงาน <span className="text-red-500">*</span></label>
+              <select name="policy_id" required className="w-full bg-slate-900 border border-slate-600 focus:border-amber-500 rounded-xl p-3 text-sm text-slate-100 outline-none theme-transition">
+                <option value="">-- เลือกข้อสั่งการ (ที่มีชื่อหน่วยท่านเกี่ยวข้อง) --</option>
+                {availPolicies.sort((a,b) => parseInt(a.policy_no||0) - parseInt(b.policy_no||0)).map(p => (
+                  <option key={p.policy_id} value={p.policy_id}>
+                    [ลำดับ {p.policy_no || '-'}] {p.order.substring(0, 100)}{p.order.length > 100 ? '...' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div><label className="text-sm font-medium text-slate-500 dark:text-slate-300 block mb-2">วันที่รายงาน <span className="text-red-500">*</span></label><input name="report_date" type="date" required defaultValue={new Date().toISOString().substring(0,10)} className="w-full bg-slate-900 border border-slate-600 focus:border-amber-500 rounded-xl p-3 text-sm text-slate-100 outline-none theme-transition" style={{colorScheme:'auto'}}/></div>
+              <div><label className="text-sm font-medium text-slate-500 dark:text-slate-300 block mb-2">ความคืบหน้าสะสม (%) <span className="text-red-500">*</span></label><input name="progress_percent" type="number" min="0" max="100" required defaultValue="0" className="w-full bg-slate-900 border border-slate-600 focus:border-amber-500 rounded-xl p-3 text-sm text-slate-100 outline-none theme-transition"/></div>
+            </div>
+            
+            <div className="space-y-4">
+              <div><label className="text-sm font-medium text-slate-500 dark:text-slate-300 block mb-2">ผลการดำเนินการที่ผ่านมา <span className="text-red-500">*</span></label><textarea name="past_result" rows="3" required placeholder="สรุปผลการปฏิบัติตามข้อสั่งการในห้วงที่ผ่านมา..." className="w-full bg-slate-900 border border-slate-600 focus:border-amber-500 rounded-xl p-3 text-sm text-slate-100 outline-none theme-transition"></textarea></div>
+              <div><label className="text-sm font-medium text-slate-500 dark:text-slate-300 block mb-2">แผนดำเนินการต่อไป</label><textarea name="next_plan" rows="3" placeholder="สิ่งที่จะดำเนินการในก้าวถัดไป..." className="w-full bg-slate-900 border border-slate-600 focus:border-amber-500 rounded-xl p-3 text-sm text-slate-100 outline-none theme-transition"></textarea></div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-700/50 theme-transition">
+              <div><label className="text-sm font-medium text-slate-500 dark:text-slate-300 block mb-2 text-red-500">ปัญหา/ข้อขัดข้อง</label><textarea name="problems" rows="2" placeholder="ระบุข้อขัดข้องที่ทำให้งานล่าช้า..." className="w-full bg-slate-900 border border-slate-600 focus:border-red-500/50 rounded-xl p-3 text-sm text-slate-100 outline-none theme-transition"></textarea></div>
+              <div><label className="text-sm font-medium text-slate-500 dark:text-slate-300 block mb-2">ข้อพิจารณา/หมายเหตุ</label><textarea name="note" rows="2" className="w-full bg-slate-900 border border-slate-600 focus:border-amber-500 rounded-xl p-3 text-sm text-slate-100 outline-none theme-transition"></textarea></div>
+            </div>
+            
+            {/* ระบบอัปโหลดไฟล์ */}
+            <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700 theme-transition">
+              <label className="text-sm font-medium text-slate-500 dark:text-slate-300 block mb-2">เอกสารแนบ (อัปโหลด หรือ แปะ URL)</label>
+              <div className="flex flex-col md:flex-row gap-3">
+                <div className="flex-1 relative">
+                  <input name="attachment_url" value={fileUrl} onChange={e=>setFileUrl(e.target.value)} placeholder="URL ไฟล์เอกสารอ้างอิง" className="w-full bg-slate-900 border border-slate-600 focus:border-amber-500 rounded-lg p-3 pl-10 text-sm text-slate-100 outline-none theme-transition"/>
+                  <Paperclip size={16} className="absolute left-3 top-3.5 text-slate-400"/>
+                </div>
+                <div className="relative overflow-hidden shrink-0">
+                  <button type="button" className="bg-slate-700 hover:bg-slate-600 text-white w-full md:w-auto px-4 py-3 rounded-lg text-sm font-medium flex items-center justify-center gap-2 border border-slate-600">
+                    {uploading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <UploadCloud size={16} />}
+                    {uploading ? 'กำลังอัปโหลด...' : 'เลือกไฟล์อัปโหลด'}
+                  </button>
+                  <input type="file" onChange={handleFileUpload} disabled={uploading} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"/>
+                </div>
+              </div>
+              <p className="text-[10px] text-slate-500 mt-2">* หากต้องการอัปโหลดไฟล์ ต้องตั้งค่าสร้าง Bucket ชื่อ <b>attachments</b> ใน Supabase Storage ก่อน</p>
+            </div>
+            
+            <button type="submit" className="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-amber-500/25 transition-all text-lg mt-4 flex items-center justify-center gap-2">
+              <Send size={20} /> บันทึกและอัปเดตความคืบหน้า
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ============== UNITS CONFIG ==============
 function UnitsConfig({ appDb, showToast, refresh }) {
   const [isModalOpen, setModalOpen] = useState(false);
@@ -2075,7 +2226,11 @@ function UnitsConfig({ appDb, showToast, refresh }) {
       setModalOpen(false);
       refresh();
     } catch (err) {
-      showToast('บันึกไม่สำเร็จ: ' + err.message, 'error');
+      if (err.message && err.message.includes('role')) {
+        showToast('ต้องเพิ่มคอลัมน์ "role" (ชนิด text) ในตาราง units บน Supabase ก่อนครับ', 'error');
+      } else {
+        showToast('บันทึกไม่สำเร็จ: ' + err.message, 'error');
+      }
     }
   };
 
@@ -2158,157 +2313,6 @@ function UnitsConfig({ appDb, showToast, refresh }) {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-// ============== REPORT FORM ==============
-function ReportForm({ appDb, user, showToast, setView, refresh }) {
-  const [uploading, setUploading] = useState(false);
-  const [fileUrl, setFileUrl] = useState('');
-  
-  const isAdminOrExec = user.role === 'admin' || user.role === 'executive';
-  const policies = appDb.policies || [];
-  
-  const availPolicies = isAdminOrExec 
-    ? policies
-    : policies.filter(p => p.primary_unit === user.unitName || p.secondary_units?.includes(user.unitName) || p.primary_unit === 'ทุกหน่วย' || !p.primary_unit);
-
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if(!file || !supabase) return;
-
-    setUploading(true);
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-
-    try {
-      const { data, error } = await supabase.storage.from('attachments').upload(fileName, file);
-      if (error) {
-        showToast('ไม่สามารถอัปโหลดไฟล์ได้ โปรดตรวจสอบว่าสร้าง Bucket ชื่อ attachments แล้ว', 'error');
-      } else {
-        const { data: linkData } = supabase.storage.from('attachments').getPublicUrl(fileName);
-        setFileUrl(linkData.publicUrl);
-        showToast('อัปโหลดไฟล์สำเร็จ', 'ok');
-      }
-    } catch (err) {
-      showToast('Error uploading: ' + err.message, 'error');
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if(!supabase) return showToast('ไม่ได้เชื่อมต่อ Supabase Database', 'error');
-
-    const fd = new FormData(e.target);
-    const data = Object.fromEntries(fd.entries());
-    const pol = policies.find(p => p.policy_id === data.policy_id);
-    
-    if (!pol) {
-      showToast('กรุณาเลือกข้อสั่งการ', 'error');
-      return;
-    }
-
-    const reportId = `RP-${Date.now()}`;
-    const report = {
-      report_id: reportId,
-      policy_id: data.policy_id,
-      policy_no: pol.policy_no || '-',
-      policy_snippet: pol.order.substring(0, 150),
-      unit_name: user.unitName,
-      report_date: data.report_date,
-      past_result: data.past_result,
-      next_plan: data.next_plan,
-      progress_percent: Number(data.progress_percent) || 0,
-      problems: data.problems,
-      note: data.note,
-      attachment_url: fileUrl || data.attachment_url,
-      approval_status: 'รอตรวจสอบ',
-      created_at: new Date().toISOString()
-    };
-
-    try {
-      const { error } = await supabase.from('reports').upsert(report);
-      if (error) throw error;
-      showToast('บันทึกรายงานความคืบหน้าและส่งรอตรวจสอบเรียบร้อย', 'ok');
-      refresh();
-      setView('HISTORY');
-    } catch (err) {
-      console.error(err);
-      showToast('บันทึกไม่สำเร็จ: ' + err.message, 'error');
-    }
-  };
-
-  return (
-    <div className="max-w-4xl mx-auto fade-in-up text-slate-100">
-      <div className="bg-slate-800 p-6 md:p-8 rounded-2xl border border-slate-700 shadow-xl relative overflow-hidden theme-transition">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2"></div>
-        <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="bg-amber-500/20 p-2 rounded-lg text-amber-500">
-              <FilePlus size={24} />
-            </div>
-            <h2 className="text-2xl font-bold">บันทึกรายงานผลการดำเนินการ (ข้อสั่งการ)</h2>
-          </div>
-          <p className="text-sm text-slate-400 mb-8 border-b border-slate-700 pb-4">
-            เข้าใช้งานในนามหน่วยงาน: <span className="text-amber-600 dark:text-amber-400 font-medium px-2 py-1 bg-amber-500/10 rounded">{user.unitName}</span>
-          </p>
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="text-sm font-medium text-slate-500 dark:text-slate-300 block mb-2">อ้างอิงข้อสั่งการ/นโยบาย ที่ต้องการรายงาน <span className="text-red-500">*</span></label>
-              <select name="policy_id" required className="w-full bg-slate-900 border border-slate-600 focus:border-amber-500 rounded-xl p-3 text-sm text-slate-100 outline-none theme-transition">
-                <option value="">-- เลือกข้อสั่งการ (ที่มีชื่อหน่วยท่านเกี่ยวข้อง) --</option>
-                {availPolicies.sort((a,b) => parseInt(a.policy_no||0) - parseInt(b.policy_no||0)).map(p => (
-                  <option key={p.policy_id} value={p.policy_id}>
-                    [ลำดับ {p.policy_no || '-'}] {p.order.substring(0, 100)}{p.order.length > 100 ? '...' : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div><label className="text-sm font-medium text-slate-500 dark:text-slate-300 block mb-2">วันที่รายงาน <span className="text-red-500">*</span></label><input name="report_date" type="date" required defaultValue={new Date().toISOString().substring(0,10)} className="w-full bg-slate-900 border border-slate-600 focus:border-amber-500 rounded-xl p-3 text-sm text-slate-100 outline-none theme-transition" style={{colorScheme:'auto'}}/></div>
-              <div><label className="text-sm font-medium text-slate-500 dark:text-slate-300 block mb-2">ความคืบหน้าสะสม (%) <span className="text-red-500">*</span></label><input name="progress_percent" type="number" min="0" max="100" required defaultValue="0" className="w-full bg-slate-900 border border-slate-600 focus:border-amber-500 rounded-xl p-3 text-sm text-slate-100 outline-none theme-transition"/></div>
-            </div>
-            
-            <div className="space-y-4">
-              <div><label className="text-sm font-medium text-slate-500 dark:text-slate-300 block mb-2">ผลการดำเนินการที่ผ่านมา <span className="text-red-500">*</span></label><textarea name="past_result" rows="3" required placeholder="สรุปผลการปฏิบัติตามข้อสั่งการในห้วงที่ผ่านมา..." className="w-full bg-slate-900 border border-slate-600 focus:border-amber-500 rounded-xl p-3 text-sm text-slate-100 outline-none theme-transition"></textarea></div>
-              <div><label className="text-sm font-medium text-slate-500 dark:text-slate-300 block mb-2">แผนดำเนินการต่อไป</label><textarea name="next_plan" rows="3" placeholder="สิ่งที่จะดำเนินการในก้าวถัดไป..." className="w-full bg-slate-900 border border-slate-600 focus:border-amber-500 rounded-xl p-3 text-sm text-slate-100 outline-none theme-transition"></textarea></div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-700/50 theme-transition">
-              <div><label className="text-sm font-medium text-slate-500 dark:text-slate-300 block mb-2 text-red-500">ปัญหา/ข้อขัดข้อง</label><textarea name="problems" rows="2" placeholder="ระบุข้อขัดข้องที่ทำให้งานล่าช้า..." className="w-full bg-slate-900 border border-slate-600 focus:border-red-500/50 rounded-xl p-3 text-sm text-slate-100 outline-none theme-transition"></textarea></div>
-              <div><label className="text-sm font-medium text-slate-500 dark:text-slate-300 block mb-2">ข้อพิจารณา/หมายเหตุ</label><textarea name="note" rows="2" className="w-full bg-slate-900 border border-slate-600 focus:border-amber-500 rounded-xl p-3 text-sm text-slate-100 outline-none theme-transition"></textarea></div>
-            </div>
-            
-            {/* ระบบอัปโหลดไฟล์ */}
-            <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700 theme-transition">
-              <label className="text-sm font-medium text-slate-500 dark:text-slate-300 block mb-2">เอกสารแนบ (อัปโหลด หรือ แปะ URL)</label>
-              <div className="flex flex-col md:flex-row gap-3">
-                <div className="flex-1 relative">
-                  <input name="attachment_url" value={fileUrl} onChange={e=>setFileUrl(e.target.value)} placeholder="URL ไฟล์เอกสารอ้างอิง" className="w-full bg-slate-900 border border-slate-600 focus:border-amber-500 rounded-lg p-3 pl-10 text-sm text-slate-100 outline-none theme-transition"/>
-                  <Paperclip size={16} className="absolute left-3 top-3.5 text-slate-400"/>
-                </div>
-                <div className="relative overflow-hidden shrink-0">
-                  <button type="button" className="bg-slate-700 hover:bg-slate-600 text-white w-full md:w-auto px-4 py-3 rounded-lg text-sm font-medium flex items-center justify-center gap-2 border border-slate-600">
-                    {uploading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <UploadCloud size={16} />}
-                    {uploading ? 'กำลังอัปโหลด...' : 'เลือกไฟล์อัปโหลด'}
-                  </button>
-                  <input type="file" onChange={handleFileUpload} disabled={uploading} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"/>
-                </div>
-              </div>
-              <p className="text-[10px] text-slate-500 mt-2">* หากต้องการอัปโหลดไฟล์ ต้องตั้งค่าสร้าง Bucket ชื่อ <b>attachments</b> ใน Supabase Storage ก่อน</p>
-            </div>
-            
-            <button type="submit" className="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-amber-500/25 transition-all text-lg mt-4 flex items-center justify-center gap-2">
-              <Send size={20} /> บันทึกและอัปเดตความคืบหน้า
-            </button>
-          </form>
-        </div>
-      </div>
     </div>
   );
 }
