@@ -2,10 +2,10 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   ShieldCheck, LayoutDashboard, ScrollText, FilePlus, 
   History as HistoryIcon, LogOut, Bot, MessageCircle, Send, 
-  Filter, PieChart, BarChart, Plus, Edit, Trash2, Download, CloudUpload, ClipboardList, Building2,
-  Briefcase, AlertTriangle, TrendingUp, CheckCircle, FileText, CheckSquare, ListTodo, Activity, Printer, Check, X, Lock, Key,
-  UploadCloud, Clock, Trophy, Calendar, Paperclip, Bell, Sun, Moon, ChevronLeft, ChevronRight, Search,
-  Kanban, Columns, List, Target, AlertOctagon, GitMerge, Users, CheckCircle2, Circle, Star, Sparkles
+  PieChart, BarChart, Plus, Edit, Trash2, Download, CloudUpload, 
+  Briefcase, AlertTriangle, TrendingUp, CheckCircle, CheckCircle2, FileText, CheckSquare, ListTodo, Activity, Printer, Check, X, Lock, 
+  UploadCloud, Clock, Trophy, Paperclip, Bell, Sun, Moon, ChevronLeft, ChevronRight, Search,
+  Kanban, Columns, List, Target, AlertOctagon, GitMerge, Users, Circle, Star, Sparkles
 } from 'lucide-react';
 
 import { createClient } from '@supabase/supabase-js';
@@ -13,12 +13,12 @@ import { createClient } from '@supabase/supabase-js';
 // ============== CONFIG & SETUP ==============
 let supabaseUrl = '';
 let supabaseKey = '';
-let geminiApiKey = ''; // เพิ่มตัวแปรสำหรับรับ Gemini API Key
+let geminiApiKey = ''; 
 
 try {
   supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
   supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-  geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY || ''; // พยายามดึง Key จาก environment
+  geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY || ''; 
 } catch (error) {
   console.warn("ไม่พบการตั้งค่า Environment Variables");
 }
@@ -224,6 +224,109 @@ function NotificationBell({ appDb }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function NavItem({ icon, label, isActive, onClick }) {
+  return (
+    <button onClick={onClick} className={`flex items-center lg:px-4 py-3 rounded-lg justify-center lg:justify-start theme-transition ${isActive ? 'bg-amber-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-700'}`}>
+      <span className="shrink-0">{icon}</span>
+      <span className="hidden lg:block ml-3 font-medium whitespace-nowrap">{label}</span>
+    </button>
+  );
+}
+
+function LoginScreen({ onLogin, isLoading, appDb }) {
+  const accounts = appDb.units.length > 0 ? appDb.units : INITIAL_DATA.units;
+  
+  const [accountId, setAccountId] = useState(accounts[0]?.id || '');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (accounts.length > 0 && !accounts.find(a => a.id === accountId)) {
+      setAccountId(accounts[0].id);
+    }
+  }, [accounts, accountId]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setError('');
+    
+    const account = accounts.find(a => a.id === accountId);
+    if (!account) return;
+
+    if (password !== account.passcode) { 
+      setError('รหัสผ่านไม่ถูกต้อง'); 
+      return; 
+    }
+    
+    onLogin(account.name, account.role || 'user');
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4">
+        <div className="w-16 h-16 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-amber-400 font-medium">กำลังโหลดข้อมูลระบบ...</p>
+      </div>
+    );
+  }
+
+  const adminAccounts = accounts.filter(a => a.role === 'admin');
+  const execAccounts = accounts.filter(a => a.role === 'executive');
+  const userAccounts = accounts.filter(a => a.role === 'user' || !a.role);
+
+  return (
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 dark-mode">
+      <div className="bg-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-md border border-slate-700 fade-in-up relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl transform translate-x-10 -translate-y-10"></div>
+        <div className="text-center mb-8 relative z-10">
+          <div className="bg-white w-24 h-24 rounded-2xl flex items-center justify-center mx-auto mb-5 border border-amber-500/50 overflow-hidden p-2 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+            <img src={LOGO_URL} alt="J4 Logo" className="w-full h-full object-contain" onError={(e)=>{e.target.onerror=null; e.target.src='https://placehold.co/100x100/1e293b/f59e0b?text=J4'}} />
+          </div>
+          <h1 className="text-2xl font-bold text-slate-100 tracking-wide">ระบบติดตามผลการปฏิบัติ</h1>
+          <p className="text-amber-400/80 mt-2 text-sm font-medium">ข้อสั่งการ นโยบาย และ ภารกิจ</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-5 relative z-10">
+          <div>
+            <label className="block text-slate-400 text-sm mb-2 font-medium">เลือกบัญชีผู้ใช้งาน (Account)</label>
+            <select value={accountId} onChange={(e) => { setAccountId(e.target.value); setError(''); setPassword(''); }} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3.5 text-slate-100 focus:ring-2 focus:ring-amber-500 outline-none transition-all appearance-none">
+              {adminAccounts.length > 0 && (
+                <optgroup label="=== ผู้ดูแลระบบกลาง ===">
+                  {adminAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </optgroup>
+              )}
+              {execAccounts.length > 0 && (
+                <optgroup label="=== ผู้บริหารระดับสูง ===">
+                  {execAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </optgroup>
+              )}
+              {userAccounts.length > 0 && (
+                <optgroup label="=== หน่วยงานปฏิบัติการ ===">
+                  {userAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </optgroup>
+              )}
+            </select>
+          </div>
+          
+          <div className="fade-in-up">
+            <label className="block text-slate-400 text-sm mb-2 font-medium flex items-center gap-2"><Lock size={14}/> รหัสผ่านเข้าสู่ระบบ</label>
+            <input 
+              type="password" 
+              value={password} 
+              onChange={(e) => setPassword(e.target.value)} 
+              className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3.5 text-slate-100 focus:ring-2 focus:ring-amber-500 outline-none transition-all" 
+              placeholder="ระบุรหัสผ่านของบัญชีนี้..." 
+            />
+          </div>
+          
+          {error && <p className="text-red-400 text-sm text-center bg-red-400/10 py-2 rounded-lg">{error}</p>}
+          <button type="submit" className="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-3.5 rounded-xl shadow-[0_4px_14px_0_rgba(245,158,11,0.39)] transition-all mt-4">เข้าสู่ระบบ</button>
+        </form>
+      </div>
     </div>
   );
 }
@@ -494,111 +597,6 @@ export default function App() {
           <span className="font-medium text-sm">{toastData.msg}</span>
         </div>
       )}
-    </div>
-  );
-}
-
-// ============== SUB-COMPONENTS ==============
-
-function NavItem({ icon, label, isActive, onClick }) {
-  return (
-    <button onClick={onClick} className={`flex items-center lg:px-4 py-3 rounded-lg justify-center lg:justify-start theme-transition ${isActive ? 'bg-amber-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-700'}`}>
-      <span className="shrink-0">{icon}</span>
-      <span className="hidden lg:block ml-3 font-medium whitespace-nowrap">{label}</span>
-    </button>
-  );
-}
-
-function LoginScreen({ onLogin, isLoading, appDb }) {
-  const accounts = appDb.units.length > 0 ? appDb.units : INITIAL_DATA.units;
-  
-  const [accountId, setAccountId] = useState(accounts[0]?.id || '');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (accounts.length > 0 && !accounts.find(a => a.id === accountId)) {
-      setAccountId(accounts[0].id);
-    }
-  }, [accounts, accountId]);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setError('');
-    
-    const account = accounts.find(a => a.id === accountId);
-    if (!account) return;
-
-    if (password !== account.passcode) { 
-      setError('รหัสผ่านไม่ถูกต้อง'); 
-      return; 
-    }
-    
-    onLogin(account.name, account.role || 'user');
-  };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4">
-        <div className="w-16 h-16 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-amber-400 font-medium">กำลังโหลดข้อมูลระบบ...</p>
-      </div>
-    );
-  }
-
-  const adminAccounts = accounts.filter(a => a.role === 'admin');
-  const execAccounts = accounts.filter(a => a.role === 'executive');
-  const userAccounts = accounts.filter(a => a.role === 'user' || !a.role);
-
-  return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 dark-mode">
-      <div className="bg-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-md border border-slate-700 fade-in-up relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl transform translate-x-10 -translate-y-10"></div>
-        <div className="text-center mb-8 relative z-10">
-          <div className="bg-white w-24 h-24 rounded-2xl flex items-center justify-center mx-auto mb-5 border border-amber-500/50 overflow-hidden p-2 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
-            <img src={LOGO_URL} alt="J4 Logo" className="w-full h-full object-contain" onError={(e)=>{e.target.onerror=null; e.target.src='https://placehold.co/100x100/1e293b/f59e0b?text=J4'}} />
-          </div>
-          <h1 className="text-2xl font-bold text-slate-100 tracking-wide">ระบบติดตามผลการปฏิบัติ</h1>
-          <p className="text-amber-400/80 mt-2 text-sm font-medium">ข้อสั่งการ นโยบาย และ ภารกิจ</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-5 relative z-10">
-          <div>
-            <label className="block text-slate-400 text-sm mb-2 font-medium">เลือกบัญชีผู้ใช้งาน (Account)</label>
-            <select value={accountId} onChange={(e) => { setAccountId(e.target.value); setError(''); setPassword(''); }} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3.5 text-slate-100 focus:ring-2 focus:ring-amber-500 outline-none transition-all appearance-none">
-              {adminAccounts.length > 0 && (
-                <optgroup label="=== ผู้ดูแลระบบกลาง ===">
-                  {adminAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                </optgroup>
-              )}
-              {execAccounts.length > 0 && (
-                <optgroup label="=== ผู้บริหารระดับสูง ===">
-                  {execAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                </optgroup>
-              )}
-              {userAccounts.length > 0 && (
-                <optgroup label="=== หน่วยงานปฏิบัติการ ===">
-                  {userAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                </optgroup>
-              )}
-            </select>
-          </div>
-          
-          <div className="fade-in-up">
-            <label className="block text-slate-400 text-sm mb-2 font-medium flex items-center gap-2"><Lock size={14}/> รหัสผ่านเข้าสู่ระบบ</label>
-            <input 
-              type="password" 
-              value={password} 
-              onChange={(e) => setPassword(e.target.value)} 
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3.5 text-slate-100 focus:ring-2 focus:ring-amber-500 outline-none transition-all" 
-              placeholder="ระบุรหัสผ่านของบัญชีนี้..." 
-            />
-          </div>
-          
-          {error && <p className="text-red-400 text-sm text-center bg-red-400/10 py-2 rounded-lg">{error}</p>}
-          <button type="submit" className="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-3.5 rounded-xl shadow-[0_4px_14px_0_rgba(245,158,11,0.39)] transition-all mt-4">เข้าสู่ระบบ</button>
-        </form>
-      </div>
     </div>
   );
 }
@@ -1999,7 +1997,7 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
               <List size={16}/> ตาราง
             </button>
             <button onClick={() => setViewMode('kanban')} className={`p-1.5 rounded-md flex items-center gap-1 text-sm font-medium transition-colors ${viewMode === 'kanban' ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}>
-              <Columns size={16}/> บอร์ด
+              <Kanban size={16}/> บอร์ด
             </button>
           </div>
 
@@ -2088,7 +2086,7 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
                       )}
                       
                       {t.status === 'ล่าช้า/ติดปัญหา' && (
-                         <div className="mt-1 ml-6 text-[10px] text-red-500 font-bold flex items-center gap-1"><AlertOctagon size={12}/> สาเหตุ: {t.root_cause || 'ไม่ระบุ'}</div>
+                         <div className="mt-1 ml-6 text-[10px] text-red-500 font-bold flex items-center gap-1"><AlertTriangle size={12}/> สาเหตุ: {t.root_cause || 'ไม่ระบุ'}</div>
                       )}
                     </td>
                     <td className="p-4 text-xs text-slate-500 dark:text-slate-400">
@@ -2213,7 +2211,7 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
                            </div>
 
                            {statusCol === 'ล่าช้า/ติดปัญหา' && (
-                             <div className="mb-2 bg-red-950/30 border border-red-900/50 p-1.5 rounded text-[10px] text-red-400 font-medium line-clamp-1"><AlertOctagon size={10} className="inline mr-1"/> {t.root_cause || 'ไม่ระบุ'}</div>
+                             <div className="mb-2 bg-red-950/30 border border-red-900/50 p-1.5 rounded text-[10px] text-red-400 font-medium line-clamp-1"><AlertTriangle size={10} className="inline mr-1"/> {t.root_cause || 'ไม่ระบุ'}</div>
                            )}
 
                            <div className="flex justify-between items-center border-t border-slate-800 pt-2 mt-2">
@@ -2844,7 +2842,7 @@ function Chatbot({ appDb }) {
 
   // Gemini API Function
   const callGeminiAPI = async (userMessage, contextData) => {
-    if (!geminiApiKey) return null;
+    if (!geminiApiKey || geminiApiKey === 'your_api_key_here') return null; // เพิ่มการตรวจสอบคีย์หลอก
     
     const prompt = `
       คุณคือ "Assistant J4" ผู้ช่วยอัจฉริยะสำหรับระบบติดตามงาน J4 Tracker ของกรมส่งกำลังบำรุงทหาร
@@ -2868,7 +2866,7 @@ function Chatbot({ appDb }) {
         })
       });
       const data = await response.json();
-      return data.candidates[0].content.parts[0].text;
+      return data?.candidates?.[0]?.content?.parts?.[0]?.text || null;
     } catch (error) {
       console.error("Gemini API Error:", error);
       return null;
@@ -2877,9 +2875,9 @@ function Chatbot({ appDb }) {
 
   useEffect(() => {
     if (isOpen && messages.length === 0) {
-      const initMsg = geminiApiKey 
+      const initMsg = (geminiApiKey && geminiApiKey !== 'your_api_key_here')
         ? 'สวัสดีครับ! ผมคือ Assistant อัจฉริยะที่ขับเคลื่อนด้วย Gemini AI ✨ สามารถถามลึกๆ ได้เลย เช่น "งานไหนล่าช้าที่สุดและเพราะอะไร?" หรือ "สรุปภาพรวมงบประมาณให้หน่อย"'
-        : 'สวัสดีครับ! ผมคือ Assistant (โหมดพื้นฐาน) \nลองถามผมเช่น: "สรุปภาพรวม", "ข้อสั่งการใกล้เสร็จ", หรือพิมพ์ชื่อหน่วยงาน เช่น "กกล."\n\n(หากต้องการความฉลาดระดับ AI กรุณาตั้งค่า VITE_GEMINI_API_KEY)';
+        : 'สวัสดีครับ! ผมคือ Assistant (โหมดพื้นฐาน) \nลองถามผมเช่น: "สรุปภาพรวม", "ข้อสั่งการใกล้เสร็จ", หรือพิมพ์ชื่อหน่วยงาน เช่น "กกล."';
       
       setMessages([{ sender: 'bot', text: initMsg }]);
     }
@@ -2934,7 +2932,7 @@ function Chatbot({ appDb }) {
         return `📁 ข้อมูลของ ${u}\n• รับผิดชอบ (หลักและร่วม): ${up.length} ข้อสั่งการ\n• ส่งรายงานแล้ว: ${ur.length} ครั้ง\n• ความคืบหน้าเฉลี่ย: ${avg.toFixed(1)}%`;
       }
     }
-    return 'ขออภัยครับ ไม่เข้าใจคำถาม ลองพิมพ์ "สรุปภาพรวม", "ใกล้เสร็จ", หรือ "ปัญหา" ดูนะครับ (ระบบยังไม่ได้เชื่อมต่อ AI แบบเต็มรูปแบบ)';
+    return 'ขออภัยครับ ไม่เข้าใจคำถาม ลองพิมพ์ "สรุปภาพรวม", "ใกล้เสร็จ", หรือ "ปัญหา" ดูนะครับ';
   };
 
   const handleSend = async (e) => {
@@ -2946,18 +2944,17 @@ function Chatbot({ appDb }) {
     setInput('');
     setIsTyping(true);
 
-    if (geminiApiKey) {
-      // โหมด AI อัจฉริยะ
+    if (geminiApiKey && geminiApiKey !== 'your_api_key_here') {
       const context = getSystemContext();
       const aiResponse = await callGeminiAPI(userMsg, context);
       setIsTyping(false);
       if (aiResponse) {
         setMessages(prev => [...prev, { sender: 'bot', text: aiResponse }]);
       } else {
-        setMessages(prev => [...prev, { sender: 'bot', text: 'ขออภัยครับ เกิดข้อผิดพลาดในการเชื่อมต่อกับ AI' }]);
+        // Fallback to basic mode if API fails
+        setMessages(prev => [...prev, { sender: 'bot', text: processQueryBasic(userMsg) }]);
       }
     } else {
-      // โหมดพื้นฐาน (Fallback)
       setTimeout(() => {
         setIsTyping(false);
         setMessages(prev => [...prev, { sender: 'bot', text: processQueryBasic(userMsg) }]);
@@ -2972,12 +2969,11 @@ function Chatbot({ appDb }) {
           <div className="bg-slate-900 p-4 border-b border-amber-500/20 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="bg-amber-500/20 p-2 rounded-full relative">
-                <Bot className="text-amber-500" size={20}/>
-                {geminiApiKey && <Sparkles size={10} className="absolute -top-1 -right-1 text-sky-400 animate-pulse"/>}
+                <MessageCircle className="text-amber-500" size={20}/>
               </div>
               <div>
                 <h3 className="font-bold text-white text-sm flex items-center gap-1">
-                  Policy Assistant {geminiApiKey && <span className="bg-sky-500/20 text-sky-400 text-[9px] px-1.5 py-0.5 rounded">AI Powered</span>}
+                  Policy Assistant {geminiApiKey && geminiApiKey !== 'your_api_key_here' && <span className="bg-sky-500/20 text-sky-400 text-[9px] px-1.5 py-0.5 rounded">AI Powered</span>}
                 </h3>
                 <p className="text-[10px] text-amber-500">ออนไลน์พร้อมให้ข้อมูล</p>
               </div>
@@ -3024,7 +3020,7 @@ function Chatbot({ appDb }) {
         onClick={() => setIsOpen(!isOpen)} 
         className={`${isOpen ? 'bg-slate-700' : 'bg-amber-600 hover:bg-amber-500'} text-white rounded-full p-4 shadow-xl hover:shadow-amber-500/30 transition-all hover:scale-105 active:scale-95`}
       >
-        {isOpen ? <LogOut size={24} className="rotate-90"/> : <MessageCircle size={24}/>}
+        {isOpen ? <X size={24}/> : <MessageCircle size={24}/>}
       </button>
     </div>
   );
