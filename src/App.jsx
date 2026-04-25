@@ -5,7 +5,7 @@ import {
   Filter, PieChart, BarChart, Plus, Edit, Trash2, Download, CloudUpload, ClipboardList, Building2,
   Briefcase, AlertTriangle, TrendingUp, CheckCircle, FileText, CheckSquare, ListTodo, Activity, Printer, Check, X, Lock, Key,
   UploadCloud, Clock, Trophy, Calendar, Paperclip, Bell, Sun, Moon, ChevronLeft, ChevronRight, Search,
-  Kanban, List, Target, AlertOctagon, GitMerge
+  Kanban, List, Target, AlertOctagon, GitMerge, Users
 } from 'lucide-react';
 
 import { createClient } from '@supabase/supabase-js';
@@ -24,10 +24,6 @@ try {
 let supabase = null;
 
 // ============== CONFIG ==============
-const ADMIN_PASSCODE = "5721118";
-const EXEC_PASSCODE = "1111";
-const UNIT_PASSCODE = "1234";
-
 const LOGO_URL = "/S__22413315.jpg";
 
 const STATUS_COLORS = {
@@ -64,19 +60,25 @@ const ROOT_CAUSES = [
 
 const ITEMS_PER_PAGE = 10;
 
+// ปรับปรุง INITIAL_DATA ให้รวมบัญชีแอดมินและผู้บริหารไว้ใน units (Accounts)
 const INITIAL_DATA = {
   units: [
-    { id: "U-1", name: "กกล.กบ.ทหาร", passcode: "1234" },
-    { id: "U-2", name: "กคง.กบ.ทหาร", passcode: "1234" },
-    { id: "U-3", name: "กนผ.สสร.กบ.ทหาร", passcode: "1234" },
-    { id: "U-4", name: "กสล.สสร.กบ.ทหาร", passcode: "1234" },
-    { id: "U-5", name: "กบก.สสร.กบ.ทหาร", passcode: "1234" },
-    { id: "U-6", name: "กยป.สสร.กบ.ทหาร", passcode: "1234" },
-    { id: "U-7", name: "กบท.สบส.กบ.ทหาร", passcode: "1234" },
-    { id: "U-8", name: "กจก.สบส.กบ.ทหาร", passcode: "1234" },
-    { id: "U-9", name: "กขค.สบส.กบ.ทหาร", passcode: "1234" },
-    { id: "U-10", name: "กมส.สบส.กบ.ทหาร", passcode: "1234" },
-    { id: "U-11", name: "กสก.สบส.กบ.ทหาร", passcode: "1234" }
+    { id: "A-1", name: "ผู้ดูแลระบบกลาง (Admin)", passcode: "5721118", role: "admin" },
+    { id: "E-1", name: "ผู้บริหาร: ผบ.ทสส.", passcode: "1111", role: "executive" },
+    { id: "E-2", name: "ผู้บริหาร: รอง ผบ.ทสส.", passcode: "1111", role: "executive" },
+    { id: "E-3", name: "ผู้บริหาร: เสธ.ทหาร", passcode: "1111", role: "executive" },
+    { id: "E-4", name: "ผู้บริหาร: จก.กบ.ทหาร", passcode: "1111", role: "executive" },
+    { id: "U-1", name: "กกล.กบ.ทหาร", passcode: "1234", role: "user" },
+    { id: "U-2", name: "กคง.กบ.ทหาร", passcode: "1234", role: "user" },
+    { id: "U-3", name: "กนผ.สสร.กบ.ทหาร", passcode: "1234", role: "user" },
+    { id: "U-4", name: "กสล.สสร.กบ.ทหาร", passcode: "1234", role: "user" },
+    { id: "U-5", name: "กบก.สสร.กบ.ทหาร", passcode: "1234", role: "user" },
+    { id: "U-6", name: "กยป.สสร.กบ.ทหาร", passcode: "1234", role: "user" },
+    { id: "U-7", name: "กบท.สบส.กบ.ทหาร", passcode: "1234", role: "user" },
+    { id: "U-8", name: "กจก.สบส.กบ.ทหาร", passcode: "1234", role: "user" },
+    { id: "U-9", name: "กขค.สบส.กบ.ทหาร", passcode: "1234", role: "user" },
+    { id: "U-10", name: "กมส.สบส.กบ.ทหาร", passcode: "1234", role: "user" },
+    { id: "U-11", name: "กสก.สบส.กบ.ทหาร", passcode: "1234", role: "user" }
   ],
   policies: [
     { policy_id: "POL-SAMPLE-1", policy_no: "1", category: "นโยบายหลัก", commander: "ผบ.ทสส.", order: "[ตัวอย่าง] ขับเคลื่อนนโยบายการจัดซื้อจัดจ้างสีเขียว (Green Procurement)", timeframe: "ภายใน ก.ย. 68", primary_unit: "กกล.กบ.ทหาร", created_at: new Date().toISOString() },
@@ -217,11 +219,11 @@ function NotificationBell({ appDb }) {
 }
 
 // ============== MAIN COMPONENT ==============
-export default function App() {
+function App() {
   const [user, setUser] = useState(null);
   const [view, setView] = useState('DASHBOARD_POLICY');
   const [theme, setTheme] = useState('dark');
-  const [appDb, setAppDb] = useState({ reports: [], policies: [], units: [], tasks: [], settings: null, isLoaded: false });
+  const [appDb, setAppDb] = useState({ reports: [], policies: [], units: [], tasks: [], isLoaded: false });
   const [toastData, setToastData] = useState(null);
 
   const loadData = async () => {
@@ -243,12 +245,11 @@ export default function App() {
     }
     
     try {
-      const [resP, resR, resU, resT, resS] = await Promise.all([
+      const [resP, resR, resU, resT] = await Promise.all([
         supabase.from('policies').select('*'),
         supabase.from('reports').select('*').order('created_at', { ascending: false }),
-        supabase.from('units').select('*'),
-        supabase.from('tasks').select('*'),
-        supabase.from('settings').select('*').eq('id', 'global').maybeSingle()
+        supabase.from('units').select('*').order('role', { ascending: true }),
+        supabase.from('tasks').select('*')
       ]);
 
       const today = new Date();
@@ -265,9 +266,8 @@ export default function App() {
       setAppDb({
         policies: resP.data || [],
         reports: resR.data || [],
-        units: resU.data?.sort((a,b)=>a.name.localeCompare(b.name)) || [],
+        units: resU.data || [],
         tasks: processedTasks,
-        settings: resS.data || { adminPasscode: ADMIN_PASSCODE, execPasscode: EXEC_PASSCODE },
         isLoaded: true
       });
     } catch (e) { 
@@ -301,8 +301,8 @@ export default function App() {
     setTimeout(() => setToastData(null), 3000);
   };
 
-  const handleLogin = (unit, role) => {
-    setUser({ id: role === 'admin' ? 'admin' : role === 'executive' ? 'exec' : `user-${Date.now()}`, unitName: unit, role });
+  const handleLogin = (unitName, role) => {
+    setUser({ id: `session-${Date.now()}`, unitName, role: role || 'user' });
     setView(role === 'executive' ? 'EXEC_SUMMARY' : 'DASHBOARD_POLICY');
   };
 
@@ -382,8 +382,8 @@ export default function App() {
         </div>
         
         <div className="hidden lg:block p-4 border-b border-slate-700 bg-slate-800/50 theme-transition">
-          <p className="text-xs text-slate-400 uppercase tracking-wider mb-1">สถานะผู้ใช้งาน</p>
-          <p className="text-sm font-bold text-amber-500 truncate">{user.unitName}</p>
+          <p className="text-xs text-slate-400 uppercase tracking-wider mb-1">สถานะผู้ใช้งาน ({user.role})</p>
+          <p className="text-sm font-bold text-amber-500 truncate" title={user.unitName}>{user.unitName}</p>
         </div>
 
         <nav className="flex-1 overflow-y-auto py-4 flex flex-col gap-2 px-2 custom-scrollbar">
@@ -407,8 +407,8 @@ export default function App() {
 
           {user.role === 'admin' && (
             <>
-              <p className="px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-4 hidden lg:block">ตั้งค่า (Settings)</p>
-              <NavItem icon={<Building2 size={20}/>} label="จัดการหน่วยงาน" isActive={view === 'UNITS_CONFIG'} onClick={() => setView('UNITS_CONFIG')} />
+              <p className="px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-4 hidden lg:block">ตั้งค่าส่วนกลาง</p>
+              <NavItem icon={<Users size={20}/>} label="บัญชีและสิทธิ์ใช้งาน" isActive={view === 'UNITS_CONFIG'} onClick={() => setView('UNITS_CONFIG')} />
             </>
           )}
         </nav>
@@ -485,37 +485,33 @@ function NavItem({ icon, label, isActive, onClick }) {
 }
 
 function LoginScreen({ onLogin, isLoading, appDb }) {
-  const dynamicUnits = appDb.units.length > 0 ? appDb.units.map(u => u.name) : INITIAL_DATA.units.map(u => u.name);
-  const allOptions = [...dynamicUnits, "ผู้ดูแลภาพรวม (Admin)", "มุมมองผู้บริหาร (Executive)"];
+  // ดึงบัญชีทั้งหมดจากตาราง units (รองรับโครงสร้างใหม่ที่รวม Admin/Exec ไว้แล้ว)
+  const accounts = appDb.units.length > 0 ? appDb.units : INITIAL_DATA.units;
   
-  const [unit, setUnit] = useState(allOptions[0]);
+  const [accountId, setAccountId] = useState(accounts[0]?.id || '');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!allOptions.includes(unit)) setUnit(allOptions[0]);
-  }, [allOptions, unit]);
+    if (accounts.length > 0 && !accounts.find(a => a.id === accountId)) {
+      setAccountId(accounts[0].id);
+    }
+  }, [accounts, accountId]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
     
-    const currentAdminPass = appDb.settings?.adminPasscode || ADMIN_PASSCODE;
-    const currentExecPass = appDb.settings?.execPasscode || EXEC_PASSCODE;
+    const account = accounts.find(a => a.id === accountId);
+    if (!account) return;
 
-    if (unit === 'ผู้ดูแลภาพรวม (Admin)') {
-      if (password !== currentAdminPass) { setError('รหัสผ่านไม่ถูกต้อง'); return; }
-      onLogin(unit, 'admin');
-    } else if (unit === 'มุมมองผู้บริหาร (Executive)') {
-      if (password !== currentExecPass) { setError('รหัสผ่านไม่ถูกต้อง'); return; }
-      onLogin(unit, 'executive');
-    } else {
-      const selectedUnitData = appDb.units.find(u => u.name === unit);
-      const unitPass = selectedUnitData?.passcode || UNIT_PASSCODE;
-      
-      if (password !== unitPass) { setError('รหัสผ่านไม่ถูกต้อง'); return; }
-      onLogin(unit, 'user');
+    if (password !== account.passcode) { 
+      setError('รหัสผ่านไม่ถูกต้อง'); 
+      return; 
     }
+    
+    // role: 'admin', 'executive', 'user'
+    onLogin(account.name, account.role || 'user');
   };
 
   if (isLoading) {
@@ -526,6 +522,11 @@ function LoginScreen({ onLogin, isLoading, appDb }) {
       </div>
     );
   }
+
+  // Group accounts by role for nicer dropdown
+  const adminAccounts = accounts.filter(a => a.role === 'admin');
+  const execAccounts = accounts.filter(a => a.role === 'executive');
+  const userAccounts = accounts.filter(a => a.role === 'user' || !a.role);
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 dark-mode">
@@ -541,9 +542,23 @@ function LoginScreen({ onLogin, isLoading, appDb }) {
 
         <form onSubmit={handleSubmit} className="space-y-5 relative z-10">
           <div>
-            <label className="block text-slate-400 text-sm mb-2 font-medium">เลือกหน่วยงาน หรือ สิทธิ์การเข้าถึง</label>
-            <select value={unit} onChange={(e) => { setUnit(e.target.value); setError(''); setPassword(''); }} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3.5 text-slate-100 focus:ring-2 focus:ring-amber-500 outline-none transition-all appearance-none">
-              {allOptions.map(u => <option key={u} value={u}>{u}</option>)}
+            <label className="block text-slate-400 text-sm mb-2 font-medium">เลือกบัญชีผู้ใช้งาน (Account)</label>
+            <select value={accountId} onChange={(e) => { setAccountId(e.target.value); setError(''); setPassword(''); }} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3.5 text-slate-100 focus:ring-2 focus:ring-amber-500 outline-none transition-all appearance-none">
+              {adminAccounts.length > 0 && (
+                <optgroup label="=== ผู้ดูแลระบบกลาง ===">
+                  {adminAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </optgroup>
+              )}
+              {execAccounts.length > 0 && (
+                <optgroup label="=== ผู้บริหารระดับสูง ===">
+                  {execAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </optgroup>
+              )}
+              {userAccounts.length > 0 && (
+                <optgroup label="=== หน่วยงานปฏิบัติการ ===">
+                  {userAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </optgroup>
+              )}
             </select>
           </div>
           
@@ -554,11 +569,7 @@ function LoginScreen({ onLogin, isLoading, appDb }) {
               value={password} 
               onChange={(e) => setPassword(e.target.value)} 
               className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3.5 text-slate-100 focus:ring-2 focus:ring-amber-500 outline-none transition-all" 
-              placeholder={
-                unit === 'ผู้ดูแลภาพรวม (Admin)' ? "รหัสผ่าน Admin" : 
-                unit === 'มุมมองผู้บริหาร (Executive)' ? "รหัสผ่านผู้บริหาร" : 
-                "รหัสผ่านหน่วยงาน (ค่าเริ่มต้น: 1234)"
-              } 
+              placeholder="ระบุรหัสผ่านของบัญชีนี้..." 
             />
           </div>
           
@@ -577,7 +588,10 @@ function PolicyDashboard({ appDb, user, showToast, refresh }) {
   const [filterStart, setFilterStart] = useState('');
   const [filterEnd, setFilterEnd] = useState('');
 
-  const currentUnits = appDb.units.length > 0 ? appDb.units : INITIAL_DATA.units;
+  // กรองเฉพาะหน่วยงานปฏิบัติการ (User) สำหรับให้กรองดูข้อมูล
+  const currentUnits = useMemo(() => {
+     return appDb.units.filter(u => u.role === 'user' || !u.role);
+  }, [appDb.units]);
 
   const basePolicies = useMemo(() => {
     let f = appDb.policies || [];
@@ -791,10 +805,9 @@ function PolicyDashboard({ appDb, user, showToast, refresh }) {
 
   const handleSyncInitialData = async () => {
     if (!supabase) return showToast('ยังไม่ได้เชื่อมต่อฐานข้อมูล', 'error');
-    if (window.confirm("ระบบจะทำการสร้างข้อมูล 'หน่วยงาน' และ 'ข้อสั่งการ' ตั้งต้น คุณแน่ใจหรือไม่? (ข้อมูลเดิมจะถูกทับ)")) {
+    if (window.confirm("ระบบจะทำการสร้างข้อมูล 'บัญชีและสิทธิ์' รวมถึง 'ข้อสั่งการ' ตั้งต้น คุณแน่ใจหรือไม่? (ข้อมูลเดิมจะถูกทับ)")) {
       showToast('กำลังตั้งค่าระบบ...', 'ok');
       try {
-        await supabase.from('settings').upsert({ id: 'global', adminPasscode: ADMIN_PASSCODE, execPasscode: EXEC_PASSCODE });
         for (const u of INITIAL_DATA.units) await supabase.from('units').upsert(u);
         for (const p of INITIAL_DATA.policies) await supabase.from('policies').upsert(p);
         showToast('ตั้งค่าระบบเริ่มต้นสำเร็จ!', 'ok');
@@ -871,7 +884,9 @@ function TaskDashboard({ appDb, user }) {
   const [filterStart, setFilterStart] = useState('');
   const [filterEnd, setFilterEnd] = useState('');
 
-  const currentUnits = appDb.units.length > 0 ? appDb.units : INITIAL_DATA.units;
+  const currentUnits = useMemo(() => {
+     return appDb.units.filter(u => u.role === 'user' || !u.role);
+  }, [appDb.units]);
 
   const stats = useMemo(() => {
     let fTasks = appDb.tasks || [];
@@ -1086,7 +1101,7 @@ function TaskDashboard({ appDb, user }) {
 function ExecutiveSummary({ appDb }) {
   const stats = useMemo(() => {
     const unitStats = {};
-    const currentUnits = appDb.units.length > 0 ? appDb.units : INITIAL_DATA.units;
+    const currentUnits = appDb.units.filter(u => u.role === 'user' || !u.role);
     
     currentUnits.forEach(u => {
       unitStats[u.name] = { totalPolicies: 0, progressSum: 0, completed: 0, reports: 0, policyNames: [] };
@@ -1315,7 +1330,7 @@ function Policies({ appDb, user, showToast, refresh }) {
   const [secUnits, setSecUnits] = useState([]);
 
   const policies = appDb.policies || [];
-  const currentUnits = appDb.units.length > 0 ? appDb.units : INITIAL_DATA.units;
+  const currentUnits = appDb.units.filter(u => u.role === 'user' || !u.role); // ดึงเฉพาะหน่วยงานมาผูก
 
   const audiences = [...new Set(policies.map(p => p.audience).filter(a => a && a !== '-'))];
   const meetings = [...new Set(policies.map(p => p.meeting).filter(m => m && m !== '-'))];
@@ -1577,7 +1592,7 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
   const [formStatus, setFormStatus] = useState('รอดำเนินการ');
 
   const isAdminOrExec = user.role === 'admin' || user.role === 'executive';
-  const currentUnits = appDb.units.length > 0 ? appDb.units : INITIAL_DATA.units;
+  const currentUnits = appDb.units.filter(u => u.role === 'user' || !u.role); // ดึงเฉพาะหน่วยปฏิบัติการมาให้เลือก
   const tasks = appDb.tasks || [];
   const policies = appDb.policies || []; // FEATURE 1: Link task to policy
 
@@ -1614,7 +1629,7 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
 
   const openModal = (data = null) => {
     setEditData(data);
-    setPrimaryUnit(data?.primary_unit || user.unitName || currentUnits[0].name);
+    setPrimaryUnit(data?.primary_unit || (user.role === 'user' ? user.unitName : currentUnits[0]?.name));
     setSecUnits(data?.secondary_units || []);
     setFormStatus(data?.status || 'รอดำเนินการ');
     setModalOpen(true);
@@ -2010,6 +2025,143 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
   );
 }
 
+// ============== UNITS CONFIG ==============
+function UnitsConfig({ appDb, showToast, refresh }) {
+  const [isModalOpen, setModalOpen] = useState(false);
+  const [editData, setEditData] = useState(null);
+
+  const unitsList = appDb.units || [];
+
+  const handleDelete = async (id) => {
+    if(window.confirm('ยืนยันการลบบัญชีนี้?')) {
+      if(!supabase) return showToast('ไม่ได้เชื่อมต่อฐานข้อมูล', 'error');
+      try {
+        const { error } = await supabase.from('units').delete().eq('id', id);
+        if (error) throw error;
+        showToast('ลบบัญชีเรียบร้อย', 'ok');
+        refresh();
+      } catch (err) {
+        showToast('ลบไม่สำเร็จ: ' + err.message, 'error');
+      }
+    }
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    if(!supabase) {
+      showToast('ทำงานแบบออฟไลน์ ไม่สามารถบันทึกลงฐานข้อมูลได้', 'error');
+      return;
+    }
+    const fd = new FormData(e.target);
+    const newName = fd.get('name').trim();
+    const newPasscode = fd.get('passcode').trim();
+    const newRole = fd.get('role');
+    
+    if (!newName) {
+      showToast('กรุณากรอกชื่อบัญชีผู้ใช้งาน', 'error');
+      return;
+    }
+
+    try {
+      if (editData) {
+        const { error } = await supabase.from('units').upsert({ id: editData.id, name: newName, passcode: newPasscode, role: newRole });
+        if (error) throw error;
+        showToast('แก้ไขบัญชีเรียบร้อย', 'ok');
+      } else {
+        const { error } = await supabase.from('units').upsert({ id: `ACC-${Date.now()}`, name: newName, passcode: newPasscode, role: newRole });
+        if (error) throw error;
+        showToast('เพิ่มบัญชีเรียบร้อย', 'ok');
+      }
+      setModalOpen(false);
+      refresh();
+    } catch (err) {
+      showToast('บันึกไม่สำเร็จ: ' + err.message, 'error');
+    }
+  };
+
+  return (
+    <div className="space-y-6 max-w-5xl mx-auto fade-in-up">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-slate-800 p-5 rounded-xl border border-slate-700 theme-transition">
+        <div>
+          <h2 className="text-xl font-bold flex items-center gap-2 text-amber-500">
+            <Users size={24} /> จัดการบัญชีและสิทธิ์ผู้ใช้งาน ({unitsList.length})
+          </h2>
+          <p className="text-sm text-slate-400 mt-1">ใช้เพิ่มผู้บริหาร, แอดมิน หรือหน่วยงานใหม่ และกำหนดรหัสผ่านเฉพาะบุคคล</p>
+        </div>
+        <button onClick={() => { setEditData(null); setModalOpen(true); }} className="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 shadow-lg shrink-0">
+          <Plus size={16}/> เพิ่มบัญชีใหม่
+        </button>
+      </div>
+
+      <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-xl theme-transition">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-900 border-b border-slate-700 text-slate-400 text-left theme-transition">
+            <tr>
+              <th className="p-4 font-medium w-24">ID</th>
+              <th className="p-4 font-medium">ชื่อบัญชี / หน่วยงาน</th>
+              <th className="p-4 font-medium text-center">สิทธิ์การใช้งาน (Role)</th>
+              <th className="p-4 font-medium text-center">รหัสผ่าน (Passcode)</th>
+              <th className="p-4 font-medium text-center w-32">จัดการ</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-700/50">
+            {unitsList.map(u => (
+              <tr key={u.id} className="hover:bg-slate-700/30 transition-colors theme-transition">
+                <td className="p-4 text-xs font-mono text-slate-500">{u.id}</td>
+                <td className="p-4 text-slate-700 dark:text-slate-200 font-bold">{u.name}</td>
+                <td className="p-4 text-center">
+                  <span className={`px-2.5 py-1 rounded text-[10px] font-bold border ${u.role === 'admin' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' : u.role === 'executive' ? 'bg-amber-500/20 text-amber-500 border-amber-500/30' : 'bg-sky-500/20 text-sky-400 border-sky-500/30'}`}>
+                    {u.role === 'admin' ? 'Admin' : u.role === 'executive' ? 'Executive' : 'User (หน่วยงาน)'}
+                  </span>
+                </td>
+                <td className="p-4 text-emerald-600 dark:text-emerald-400 font-mono tracking-widest text-center">{u.passcode || '1234'}</td>
+                <td className="p-4 text-xs space-x-3 text-center whitespace-nowrap">
+                  <button onClick={() => { setEditData(u); setModalOpen(true); }} className="text-sky-600 dark:text-sky-400 hover:text-sky-500 dark:hover:text-sky-300 transition-colors"><Edit size={16}/></button>
+                  <button onClick={() => handleDelete(u.id)} className="text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors"><Trash2 size={16}/></button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-md fade-in-up shadow-2xl theme-transition text-slate-100">
+            <h3 className="text-xl font-bold mb-5 flex items-center gap-2">{editData ? <Edit size={20}/> : <Plus size={20}/>} {editData ? 'แก้ไขบัญชีผู้ใช้งาน' : 'เพิ่มบัญชีใหม่'}</h3>
+            <form onSubmit={handleSave} className="space-y-5">
+              <div>
+                <label className="text-sm text-slate-400 block mb-2 font-bold">ชื่อผู้ใช้งาน หรือ ชื่อหน่วยงาน <span className="text-red-500">*</span></label>
+                <input name="name" defaultValue={editData?.name} required placeholder="เช่น ผู้บริหาร: ผบ.ทสส. หรือ กองกลาง" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-slate-100 focus:border-amber-500 outline-none theme-transition"/>
+              </div>
+              
+              <div>
+                <label className="text-sm text-slate-400 block mb-2 font-bold">ระดับสิทธิ์ (Role) <span className="text-red-500">*</span></label>
+                <select name="role" defaultValue={editData?.role || 'user'} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-slate-100 focus:border-amber-500 outline-none theme-transition">
+                  <option value="user">หน่วยงานปฏิบัติการ (เพิ่มงานและรายงานผลได้)</option>
+                  <option value="executive">ผู้บริหาร (ดู Dashboard ได้อย่างเดียว)</option>
+                  <option value="admin">ผู้ดูแลระบบกลาง (Admin) (จัดการได้ทุกเมนู)</option>
+                </select>
+                <p className="text-[10px] text-slate-500 mt-2">* หมายเหตุ: ถ้าใช้ฐานข้อมูลจริง โปรดมั่นใจว่าสร้างตารางคอลัมน์ชื่อ <b>role</b> ไว้ในตาราง <b>units</b> แล้ว</p>
+              </div>
+
+              <div>
+                <label className="text-sm text-slate-400 block mb-2 font-bold">รหัสผ่าน (Passcode) <span className="text-red-500">*</span></label>
+                <input name="passcode" defaultValue={editData?.passcode || ''} required placeholder="กำหนดรหัสผ่าน..." className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-emerald-500 font-mono focus:border-amber-500 outline-none theme-transition"/>
+              </div>
+
+              <div className="flex gap-3 justify-end pt-4 border-t border-slate-700 mt-6 theme-transition">
+                <button type="button" onClick={() => setModalOpen(false)} className="px-5 py-2.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-medium transition-colors">ยกเลิก</button>
+                <button type="submit" className="px-5 py-2.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-medium shadow-lg transition-colors">บันทึกข้อมูล</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ============== REPORT FORM ==============
 function ReportForm({ appDb, user, showToast, setView, refresh }) {
   const [uploading, setUploading] = useState(false);
@@ -2157,173 +2309,6 @@ function ReportForm({ appDb, user, showToast, setView, refresh }) {
           </form>
         </div>
       </div>
-    </div>
-  );
-}
-
-// ============== UNITS CONFIG ==============
-function UnitsConfig({ appDb, showToast, refresh }) {
-  const [isModalOpen, setModalOpen] = useState(false);
-  const [editData, setEditData] = useState(null);
-  
-  const [adminPass, setAdminPass] = useState(ADMIN_PASSCODE);
-  const [execPass, setExecPass] = useState(EXEC_PASSCODE);
-
-  useEffect(() => {
-    if (appDb.settings) {
-      setAdminPass(appDb.settings.adminPasscode || ADMIN_PASSCODE);
-      setExecPass(appDb.settings.execPasscode || EXEC_PASSCODE);
-    }
-  }, [appDb.settings]);
-
-  const unitsList = appDb.units || [];
-
-  const saveGlobalSettings = async () => {
-    if(!supabase) return showToast('ไม่ได้เชื่อมต่อฐานข้อมูล', 'error');
-    try {
-      const { error } = await supabase.from('settings').upsert({ id: 'global', adminPasscode: adminPass, execPasscode: execPass });
-      if (error) throw error;
-      showToast('อัปเดตรหัสผ่านส่วนกลางเรียบร้อย', 'ok');
-      refresh();
-    } catch (err) {
-      showToast('บันึกไม่สำเร็จ: ' + err.message, 'error');
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if(window.confirm('ยืนยันการลบหน่วยงานนี้?')) {
-      if(!supabase) return showToast('ไม่ได้เชื่อมต่อฐานข้อมูล', 'error');
-      try {
-        const { error } = await supabase.from('units').delete().eq('id', id);
-        if (error) throw error;
-        showToast('ลบหน่วยงานเรียบร้อย', 'ok');
-        refresh();
-      } catch (err) {
-        showToast('ลบไม่สำเร็จ: ' + err.message, 'error');
-      }
-    }
-  };
-
-  const handleSave = async (e) => {
-    e.preventDefault();
-    if(!supabase) return showToast('ไม่ได้เชื่อมต่อฐานข้อมูล', 'error');
-    const fd = new FormData(e.target);
-    const newName = fd.get('name').trim();
-    const newPasscode = fd.get('passcode').trim() || '1234';
-    
-    if (!newName) {
-      showToast('กรุณากรอกชื่อหน่วยงาน', 'error');
-      return;
-    }
-
-    try {
-      if (editData) {
-        const { error } = await supabase.from('units').upsert({ id: editData.id, name: newName, passcode: newPasscode });
-        if (error) throw error;
-        showToast('แก้ไขหน่วยงานเรียบร้อย', 'ok');
-      } else {
-        const { error } = await supabase.from('units').upsert({ id: `U-${Date.now()}`, name: newName, passcode: newPasscode });
-        if (error) throw error;
-        showToast('เพิ่มหน่วยงานเรียบร้อย', 'ok');
-      }
-      setModalOpen(false);
-      refresh();
-    } catch (err) {
-      showToast('บันึกไม่สำเร็จ: ' + err.message, 'error');
-    }
-  };
-
-  return (
-    <div className="space-y-6 max-w-4xl mx-auto fade-in-up">
-      
-      {/* Global Passwords Section */}
-      <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl theme-transition">
-        <h2 className="text-xl font-bold flex items-center gap-2 text-amber-500 mb-6">
-          <Key size={24} /> ตั้งค่ารหัสผ่านส่วนกลาง (Global Passwords)
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="text-sm text-slate-500 dark:text-slate-400 block mb-2">รหัสผ่าน ผู้ดูแลภาพรวม (Admin)</label>
-            <input 
-              type="text" 
-              value={adminPass} 
-              onChange={(e) => setAdminPass(e.target.value)} 
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-emerald-600 dark:text-emerald-400 font-mono focus:border-amber-500 outline-none theme-transition"
-            />
-          </div>
-          <div>
-            <label className="text-sm text-slate-500 dark:text-slate-400 block mb-2">รหัสผ่าน มุมมองผู้บริหาร (Executive)</label>
-            <input 
-              type="text" 
-              value={execPass} 
-              onChange={(e) => setExecPass(e.target.value)} 
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-emerald-600 dark:text-emerald-400 font-mono focus:border-amber-500 outline-none theme-transition"
-            />
-          </div>
-        </div>
-        <div className="flex justify-end mt-4">
-          <button onClick={saveGlobalSettings} className="bg-amber-600 hover:bg-amber-500 text-white px-6 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 shadow-lg transition-all">
-            บันทึกรหัสผ่านส่วนกลาง
-          </button>
-        </div>
-      </div>
-
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-slate-800 p-5 rounded-xl border border-slate-700 theme-transition">
-        <h2 className="text-xl font-bold flex items-center gap-2 text-amber-500">
-          <Building2 size={24} /> จัดการรายชื่อและรหัสผ่านหน่วยงาน ({unitsList.length})
-        </h2>
-        <button onClick={() => { setEditData(null); setModalOpen(true); }} className="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 shadow-lg">
-          <Plus size={16}/> เพิ่มหน่วยงานใหม่
-        </button>
-      </div>
-
-      <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-xl theme-transition">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-900 border-b border-slate-700 text-slate-400 text-left theme-transition">
-            <tr>
-              <th className="p-4 font-medium w-24">ID</th>
-              <th className="p-4 font-medium">ชื่อหน่วยงาน</th>
-              <th className="p-4 font-medium">รหัสผ่านเข้าสู่ระบบ</th>
-              <th className="p-4 font-medium text-center w-32">จัดการ</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-700/50">
-            {unitsList.map(u => (
-              <tr key={u.id} className="hover:bg-slate-700/30 transition-colors theme-transition">
-                <td className="p-4 text-xs font-mono text-amber-600 dark:text-amber-400/80">{u.id}</td>
-                <td className="p-4 text-slate-700 dark:text-slate-200 font-medium">{u.name}</td>
-                <td className="p-4 text-emerald-600 dark:text-emerald-400 font-mono tracking-widest">{u.passcode || '1234'}</td>
-                <td className="p-4 text-xs space-x-3 text-center whitespace-nowrap">
-                  <button onClick={() => { setEditData(u); setModalOpen(true); }} className="text-sky-600 dark:text-sky-400 hover:text-sky-500 dark:hover:text-sky-300 transition-colors"><Edit size={16}/></button>
-                  <button onClick={() => handleDelete(u.id)} className="text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors"><Trash2 size={16}/></button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-md fade-in-up shadow-2xl theme-transition text-slate-100">
-            <h3 className="text-xl font-bold mb-5 flex items-center gap-2">{editData ? <Edit size={20}/> : <Plus size={20}/>} {editData ? 'แก้ไขข้อมูลหน่วยงาน' : 'เพิ่มหน่วยงานใหม่'}</h3>
-            <form onSubmit={handleSave} className="space-y-4">
-              <div>
-                <label className="text-sm text-slate-400 block mb-2">ชื่อหน่วยงาน</label>
-                <input name="name" defaultValue={editData?.name} required placeholder="ระบุชื่อหน่วยงาน" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-slate-100 focus:border-amber-500 outline-none theme-transition"/>
-              </div>
-              <div>
-                <label className="text-sm text-slate-400 block mb-2">รหัสผ่านสำหรับเข้าสู่ระบบ (ค่าเริ่มต้น 1234)</label>
-                <input name="passcode" defaultValue={editData?.passcode || '1234'} required placeholder="ตั้งรหัสผ่านให้กองงานนี้" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-emerald-500 font-mono focus:border-amber-500 outline-none theme-transition"/>
-              </div>
-              <div className="flex gap-3 justify-end pt-4 border-t border-slate-700 mt-6 theme-transition">
-                <button type="button" onClick={() => setModalOpen(false)} className="px-5 py-2.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-medium transition-colors">ยกเลิก</button>
-                <button type="submit" className="px-5 py-2.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-medium shadow-lg transition-colors">บันทึกข้อมูล</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -2598,3 +2583,5 @@ function Chatbot({ appDb }) {
     </div>
   );
 }
+
+export default App;
