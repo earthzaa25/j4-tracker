@@ -5,25 +5,26 @@ import {
   Filter, PieChart, BarChart, Plus, Edit, Trash2, Download, CloudUpload, ClipboardList, Building2,
   Briefcase, AlertTriangle, TrendingUp, CheckCircle, FileText, CheckSquare, ListTodo, Activity, Printer, Check, X, Lock, Key,
   UploadCloud, Clock, Trophy, Calendar, Paperclip, Bell, Sun, Moon, ChevronLeft, ChevronRight, Search,
-  Kanban, List, Target, AlertOctagon, GitMerge, Users, CheckCircle2, Circle, Star
+  Kanban, Columns, List, Target, AlertOctagon, GitMerge, Users, CheckCircle2, Circle, Star, Sparkles
 } from 'lucide-react';
 
 import { createClient } from '@supabase/supabase-js';
 
-// ============== SUPABASE SETUP ==============
+// ============== CONFIG & SETUP ==============
 let supabaseUrl = '';
 let supabaseKey = '';
+let geminiApiKey = ''; // เพิ่มตัวแปรสำหรับรับ Gemini API Key
 
 try {
   supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
   supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+  geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY || ''; // พยายามดึง Key จาก environment
 } catch (error) {
   console.warn("ไม่พบการตั้งค่า Environment Variables");
 }
 
 let supabase = null;
 
-// ============== CONFIG ==============
 const LOGO_URL = "/S__22413315.jpg";
 
 const STATUS_COLORS = {
@@ -925,7 +926,6 @@ function PolicyDashboard({ appDb, user, showToast, refresh }) {
   );
 }
 
-// ============== TASK DASHBOARD ==============
 function TaskDashboard({ appDb, user }) {
   const isAdminOrExec = user.role === 'admin' || user.role === 'executive';
   const [filterUnit, setFilterUnit] = useState(isAdminOrExec ? 'ALL' : user.unitName);
@@ -1414,6 +1414,7 @@ function ExecutiveSummary({ appDb }) {
                     <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${u.avgProgress}%`, backgroundColor: getBarColor(u.avgProgress) }}></div>
                   </div>
                   
+                  {/* แสดงรายชื่อแผนงานที่หน่วยรับผิดชอบ */}
                   {u.policyNames && u.policyNames.length > 0 && (
                     <div className="mt-3 pt-2 border-t border-slate-700/50">
                       <p className="text-[11px] text-amber-600 dark:text-amber-400/80 font-bold mb-1">แผนงาน/ข้อสั่งการที่รับผิดชอบ:</p>
@@ -1998,7 +1999,7 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
               <List size={16}/> ตาราง
             </button>
             <button onClick={() => setViewMode('kanban')} className={`p-1.5 rounded-md flex items-center gap-1 text-sm font-medium transition-colors ${viewMode === 'kanban' ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}>
-              <Kanban size={16}/> บอร์ด
+              <Columns size={16}/> บอร์ด
             </button>
           </div>
 
@@ -2312,7 +2313,7 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
                       {subtasks.map(st => (
                         <div key={st.id} className="flex items-center gap-2">
                           <button type="button" onClick={() => toggleSubtask(st.id)} className={`shrink-0 ${st.done ? 'text-emerald-500' : 'text-slate-500'}`}>
-                             {st.done ? <CheckCircle2 size={18}/> : <Circle size={18}/>}
+                             {st.done ? <CheckCircle size={18}/> : <Circle size={18}/>}
                           </button>
                           <span className={`flex-1 text-sm ${st.done ? 'text-slate-500 line-through' : 'text-slate-200'}`}>{st.text}</span>
                           <button type="button" onClick={() => removeSubtask(st.id)} className="text-slate-600 hover:text-red-400 p-1"><Trash2 size={14}/></button>
@@ -2838,11 +2839,49 @@ function Chatbot({ appDb }) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
+
+  // Gemini API Function
+  const callGeminiAPI = async (userMessage, contextData) => {
+    if (!geminiApiKey) return null;
+    
+    const prompt = `
+      คุณคือ "Assistant J4" ผู้ช่วยอัจฉริยะสำหรับระบบติดตามงาน J4 Tracker ของกรมส่งกำลังบำรุงทหาร
+      จงตอบคำถามผู้ใช้โดยอ้างอิงจากข้อมูลในระบบต่อไปนี้เท่านั้น:
+      === ข้อมูลในระบบปัจจุบัน ===
+      ${contextData}
+      =============================
+      คำถามผู้ใช้: ${userMessage}
+      
+      เงื่อนไข:
+      1. ตอบสั้น กระชับ ตรงประเด็น ใช้ภาษาทางการแต่เป็นมิตร
+      2. ถ้าคำถามไม่เกี่ยวกับข้อมูลในระบบ ให้ตอบว่า "ผมเป็นผู้ช่วยสำหรับระบบ J4 Tracker เท่านั้นครับ มีเรื่องงานใดให้ผมช่วยไหมครับ?"
+    `;
+
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
+      });
+      const data = await response.json();
+      return data.candidates[0].content.parts[0].text;
+    } catch (error) {
+      console.error("Gemini API Error:", error);
+      return null;
+    }
+  };
 
   useEffect(() => {
     if (isOpen && messages.length === 0) {
-      setMessages([{ sender: 'bot', text: 'สวัสดีครับ! ผมคือ Assistant ช่วยสรุปข้อมูลระบบติดตามข้อสั่งการ \n\nลองถามผมเช่น:\n• "สรุปภาพรวม"\n• "ข้อสั่งการใกล้เสร็จ"\n• "ปัญหา"\n• หรือพิมพ์ชื่อหน่วยงาน เช่น "กกล."' }]);
+      const initMsg = geminiApiKey 
+        ? 'สวัสดีครับ! ผมคือ Assistant อัจฉริยะที่ขับเคลื่อนด้วย Gemini AI ✨ สามารถถามลึกๆ ได้เลย เช่น "งานไหนล่าช้าที่สุดและเพราะอะไร?" หรือ "สรุปภาพรวมงบประมาณให้หน่อย"'
+        : 'สวัสดีครับ! ผมคือ Assistant (โหมดพื้นฐาน) \nลองถามผมเช่น: "สรุปภาพรวม", "ข้อสั่งการใกล้เสร็จ", หรือพิมพ์ชื่อหน่วยงาน เช่น "กกล."\n\n(หากต้องการความฉลาดระดับ AI กรุณาตั้งค่า VITE_GEMINI_API_KEY)';
+      
+      setMessages([{ sender: 'bot', text: initMsg }]);
     }
   }, [isOpen]);
 
@@ -2850,7 +2889,19 @@ function Chatbot({ appDb }) {
     if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const processQuery = (q) => {
+  const getSystemContext = () => {
+    const activeTasks = (appDb.tasks || []).filter(t => t.status !== 'เสร็จสิ้น');
+    const delayedTasks = activeTasks.filter(t => t.status === 'ล่าช้า/ติดปัญหา');
+    const completedTasks = (appDb.tasks || []).filter(t => t.status === 'เสร็จสิ้น');
+    
+    return `
+      งานทั้งหมดที่ยังไม่เสร็จ: ${activeTasks.length} งาน
+      งานที่ล่าช้า: ${delayedTasks.length} งาน ได้แก่ ${delayedTasks.map(t => `${t.task_name} (สาเหตุ: ${t.root_cause || 'ไม่ระบุ'})`).join(', ')}
+      งานที่เสร็จแล้ว: ${completedTasks.length} งาน
+    `;
+  };
+
+  const processQueryBasic = (q) => {
     const lo = q.toLowerCase();
     const allPol = appDb.policies || [];
     const allRep = (appDb.reports || []).filter(r => r.approval_status === 'อนุมัติแล้ว');
@@ -2883,18 +2934,35 @@ function Chatbot({ appDb }) {
         return `📁 ข้อมูลของ ${u}\n• รับผิดชอบ (หลักและร่วม): ${up.length} ข้อสั่งการ\n• ส่งรายงานแล้ว: ${ur.length} ครั้ง\n• ความคืบหน้าเฉลี่ย: ${avg.toFixed(1)}%`;
       }
     }
-    return 'ขออภัยครับ ไม่เข้าใจคำถาม ลองพิมพ์ "สรุปภาพรวม", "ใกล้เสร็จ", หรือ "ปัญหา" ดูนะครับ';
+    return 'ขออภัยครับ ไม่เข้าใจคำถาม ลองพิมพ์ "สรุปภาพรวม", "ใกล้เสร็จ", หรือ "ปัญหา" ดูนะครับ (ระบบยังไม่ได้เชื่อมต่อ AI แบบเต็มรูปแบบ)';
   };
 
-  const handleSend = (e) => {
+  const handleSend = async (e) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    if (!input.trim() || isTyping) return;
+    
     const userMsg = input.trim();
     setMessages(prev => [...prev, { sender: 'user', text: userMsg }]);
     setInput('');
-    setTimeout(() => {
-      setMessages(prev => [...prev, { sender: 'bot', text: processQuery(userMsg) }]);
-    }, 400);
+    setIsTyping(true);
+
+    if (geminiApiKey) {
+      // โหมด AI อัจฉริยะ
+      const context = getSystemContext();
+      const aiResponse = await callGeminiAPI(userMsg, context);
+      setIsTyping(false);
+      if (aiResponse) {
+        setMessages(prev => [...prev, { sender: 'bot', text: aiResponse }]);
+      } else {
+        setMessages(prev => [...prev, { sender: 'bot', text: 'ขออภัยครับ เกิดข้อผิดพลาดในการเชื่อมต่อกับ AI' }]);
+      }
+    } else {
+      // โหมดพื้นฐาน (Fallback)
+      setTimeout(() => {
+        setIsTyping(false);
+        setMessages(prev => [...prev, { sender: 'bot', text: processQueryBasic(userMsg) }]);
+      }, 500);
+    }
   };
 
   return (
@@ -2903,9 +2971,14 @@ function Chatbot({ appDb }) {
         <div className="mb-4 w-[340px] md:w-[380px] bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl flex flex-col overflow-hidden fade-in-up" style={{ height: '480px' }}>
           <div className="bg-slate-900 p-4 border-b border-amber-500/20 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="bg-amber-500/20 p-2 rounded-full"><Bot className="text-amber-500" size={20}/></div>
+              <div className="bg-amber-500/20 p-2 rounded-full relative">
+                <Bot className="text-amber-500" size={20}/>
+                {geminiApiKey && <Sparkles size={10} className="absolute -top-1 -right-1 text-sky-400 animate-pulse"/>}
+              </div>
               <div>
-                <h3 className="font-bold text-white text-sm">Policy Assistant</h3>
+                <h3 className="font-bold text-white text-sm flex items-center gap-1">
+                  Policy Assistant {geminiApiKey && <span className="bg-sky-500/20 text-sky-400 text-[9px] px-1.5 py-0.5 rounded">AI Powered</span>}
+                </h3>
                 <p className="text-[10px] text-amber-500">ออนไลน์พร้อมให้ข้อมูล</p>
               </div>
             </div>
@@ -2920,6 +2993,15 @@ function Chatbot({ appDb }) {
                 </div>
               </div>
             ))}
+            {isTyping && (
+              <div className="flex justify-start">
+                <div className="px-4 py-3 rounded-2xl bg-slate-700 border border-slate-600 rounded-bl-none flex gap-1">
+                  <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></div>
+                  <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                  <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                </div>
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </div>
 
@@ -2927,10 +3009,11 @@ function Chatbot({ appDb }) {
             <input 
               value={input} 
               onChange={e => setInput(e.target.value)}
-              className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:border-amber-500 outline-none" 
-              placeholder="ถามคำถามที่นี่..." 
+              disabled={isTyping}
+              className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:border-amber-500 outline-none disabled:opacity-50" 
+              placeholder={isTyping ? "กำลังประมวลผล..." : "ถามคำถามที่นี่..."} 
             />
-            <button type="submit" className="bg-amber-600 hover:bg-amber-500 p-3 rounded-xl text-white transition-colors">
+            <button type="submit" disabled={isTyping || !input.trim()} className="bg-amber-600 hover:bg-amber-500 disabled:opacity-50 disabled:hover:bg-amber-600 p-3 rounded-xl text-white transition-colors">
               <Send size={18} />
             </button>
           </form>
