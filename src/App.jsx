@@ -60,7 +60,6 @@ const ROOT_CAUSES = [
 
 const ITEMS_PER_PAGE = 10;
 
-// ปรับปรุง INITIAL_DATA ให้รวมฟีเจอร์ is_important สำหรับ Mock Data
 const INITIAL_DATA = {
   units: [
     { id: "A-1", name: "ผู้ดูแลระบบกลาง (Admin)", passcode: "5721118", role: "admin" },
@@ -229,7 +228,7 @@ function NotificationBell({ appDb }) {
 }
 
 // ============== MAIN COMPONENT ==============
-function App() {
+export default function App() {
   const [user, setUser] = useState(null);
   const [view, setView] = useState('DASHBOARD_POLICY');
   const [theme, setTheme] = useState('dark');
@@ -255,7 +254,7 @@ function App() {
     }
     
     try {
-      const [resP, resR, resU, resT, resS] = await Promise.all([
+      const [resP, resR, resU, resT] = await Promise.all([
         supabase.from('policies').select('*'),
         supabase.from('reports').select('*').order('created_at', { ascending: false }),
         supabase.from('units').select('*').order('role', { ascending: true }),
@@ -278,7 +277,6 @@ function App() {
         reports: resR.data || [],
         units: resU.data || [],
         tasks: processedTasks,
-        settings: resS.data || { adminPasscode: ADMIN_PASSCODE, execPasscode: EXEC_PASSCODE },
         isLoaded: true
       });
     } catch (e) { 
@@ -293,6 +291,7 @@ function App() {
         if (window.supabase) {
           supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
           
+          // FEATURE 2: REAL-TIME SUBSCRIPTIONS
           const channel = supabase.channel('j4-tracker-public')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'reports' }, () => loadData())
             .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => loadData())
@@ -603,7 +602,6 @@ function LoginScreen({ onLogin, isLoading, appDb }) {
   );
 }
 
-// ============== POLICY DASHBOARD ==============
 function PolicyDashboard({ appDb, user, showToast, refresh }) {
   const isAdminOrExec = user.role === 'admin' || user.role === 'executive';
   const [filterUnit, setFilterUnit] = useState(isAdminOrExec ? 'ALL' : user.unitName);
@@ -648,7 +646,6 @@ function PolicyDashboard({ appDb, user, showToast, refresh }) {
     return r;
   }, [appDb.reports, filterUnit, filterStart, filterEnd]);
 
-  // FEATURE 1: TASK ROLLUP FOR POLICIES
   const tasksByPolicy = useMemo(() => {
     const map = {};
     (appDb.tasks || []).forEach(t => {
@@ -813,6 +810,7 @@ function PolicyDashboard({ appDb, user, showToast, refresh }) {
                       <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-700 theme-transition">
                         <div className="h-full rounded-full transition-all duration-1000 relative" style={{ width: `${p.progress}%`, backgroundColor: getBarColor(p.progress) }}></div>
                       </div>
+                      {/* FEATURE 1: SHOW TASK ROLLUP */}
                       {p.linkedTasksCount > 0 && (
                         <div className="flex items-center justify-between text-[10px] bg-slate-900/50 px-2 py-1 rounded border border-slate-700 theme-transition">
                           <span className="text-slate-400 flex items-center gap-1"><GitMerge size={10}/> ภารกิจย่อย ({p.linkedTasksCount} งาน)</span>
@@ -1269,7 +1267,6 @@ function ExecutiveSummary({ appDb }) {
     }
     const maxTrendCount = Math.max(...trendData.map(d => d.count), 1);
 
-    // ดึงข้อมูลเรื่องสำคัญสำหรับผู้บริหาร
     const importantPolicies = policies.filter(p => p.is_important);
     const importantTasks = (appDb.tasks || []).filter(t => t.is_important);
 
@@ -1337,15 +1334,12 @@ function ExecutiveSummary({ appDb }) {
       {/* HIGHLIGHT: EXECUTIVE PRIORITY SECTION */}
       {(stats.importantPolicies.length > 0 || stats.importantTasks.length > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          
-          {/* Important Policies */}
           <div className="bg-slate-800/50 rounded-xl border-t-4 border-amber-500 shadow-lg p-5 theme-transition">
             <h3 className="text-lg font-bold text-amber-500 flex items-center gap-2 mb-4">
               <Star size={20} className="fill-amber-500" /> นโยบาย/ข้อสั่งการสำคัญ (Priority)
             </h3>
             <div className="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
               {stats.importantPolicies.map(p => {
-                // คำนวณความคืบหน้าคร่าวๆ จาก Report
                 const reps = (appDb.reports || []).filter(r => r.policy_id === p.policy_id).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
                 const progress = reps.length > 0 ? reps[0].progress_percent : 0;
                 
@@ -1367,7 +1361,6 @@ function ExecutiveSummary({ appDb }) {
             </div>
           </div>
 
-          {/* Important Tasks */}
           <div className="bg-slate-800/50 rounded-xl border-t-4 border-amber-500 shadow-lg p-5 theme-transition">
             <h3 className="text-lg font-bold text-amber-500 flex items-center gap-2 mb-4">
               <Star size={20} className="fill-amber-500" /> ภารกิจสำคัญ (Priority Tasks)
@@ -1421,7 +1414,6 @@ function ExecutiveSummary({ appDb }) {
                     <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${u.avgProgress}%`, backgroundColor: getBarColor(u.avgProgress) }}></div>
                   </div>
                   
-                  {/* แสดงรายชื่อแผนงานที่หน่วยรับผิดชอบ */}
                   {u.policyNames && u.policyNames.length > 0 && (
                     <div className="mt-3 pt-2 border-t border-slate-700/50">
                       <p className="text-[11px] text-amber-600 dark:text-amber-400/80 font-bold mb-1">แผนงาน/ข้อสั่งการที่รับผิดชอบ:</p>
@@ -1488,7 +1480,6 @@ function ExecutiveSummary({ appDb }) {
   );
 }
 
-// ============== POLICIES ==============
 function Policies({ appDb, user, showToast, refresh }) {
   const [filterAudience, setFilterAudience] = useState('');
   const [filterMeeting, setFilterMeeting] = useState('');
@@ -1524,7 +1515,6 @@ function Policies({ appDb, user, showToast, refresh }) {
       (!filterMeeting || p.meeting === filterMeeting) &&
       (!filterCategory || p.category === filterCategory);
   }).sort((a, b) => {
-    // ให้เรื่องสำคัญขึ้นก่อน
     if (a.is_important && !b.is_important) return -1;
     if (!a.is_important && b.is_important) return 1;
 
@@ -1785,7 +1775,6 @@ function Policies({ appDb, user, showToast, refresh }) {
   );
 }
 
-// ============== TASK TRACKER ==============
 function TaskTracker({ appDb, user, showToast, refresh }) {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -1793,8 +1782,7 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
   const [isModalOpen, setModalOpen] = useState(false);
   const [editData, setEditData] = useState(null);
   
-  // FEATURE 2: KANBAN TOGGLE
-  const [viewMode, setViewMode] = useState('list'); // 'list' | 'kanban'
+  const [viewMode, setViewMode] = useState('list');
   const [draggedTaskId, setDraggedTaskId] = useState(null);
 
   const [primaryUnit, setPrimaryUnit] = useState(user.unitName);
@@ -1802,14 +1790,13 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
   const [formStatus, setFormStatus] = useState('รอดำเนินการ');
   const [formProgress, setFormProgress] = useState(0);
 
-  // FEATURE 5: SUBTASKS & DEPENDENCIES
   const [subtasks, setSubtasks] = useState([]);
   const [newSubtask, setNewSubtask] = useState('');
 
   const isAdminOrExec = user.role === 'admin' || user.role === 'executive';
-  const currentUnits = appDb.units.filter(u => u.role === 'user' || !u.role); // ดึงเฉพาะหน่วยปฏิบัติการมาให้เลือก
+  const currentUnits = appDb.units.filter(u => u.role === 'user' || !u.role);
   const tasks = appDb.tasks || [];
-  const policies = appDb.policies || []; // FEATURE 1: Link task to policy
+  const policies = appDb.policies || [];
 
   useEffect(() => { setCurrentPage(1); }, [search, filterStatus, viewMode]);
 
@@ -1820,7 +1807,6 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
     const matchesSearch = searchTerms.every(term => textToSearch.includes(term));
     return matchesSearch && (filterStatus === '' || t.status === filterStatus);
   }).sort((a, b) => {
-    // ให้เรื่องสำคัญขึ้นก่อน
     if (a.is_important && !b.is_important) return -1;
     if (!a.is_important && b.is_important) return 1;
 
@@ -1873,7 +1859,6 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
     setFormStatus(data?.status || 'รอดำเนินการ');
     setFormProgress(data?.progress_percent || 0);
     
-    // Parse subtasks safely
     let parsedSubtasks = [];
     if (data?.subtasks) {
       try { parsedSubtasks = typeof data.subtasks === 'string' ? JSON.parse(data.subtasks) : data.subtasks; } 
@@ -1888,7 +1873,6 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
     setSecUnits(prev => prev.includes(uName) ? prev.filter(x => x !== uName) : [...prev, uName]);
   };
 
-  // Subtask logic
   const handleAddSubtask = () => {
     if(!newSubtask.trim()) return;
     setSubtasks([...subtasks, { id: Date.now(), text: newSubtask.trim(), done: false }]);
@@ -1901,7 +1885,6 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
     setSubtasks(subtasks.filter(s => s.id !== id));
   };
 
-  // Auto-calculate progress based on subtasks
   useEffect(() => {
     if (subtasks.length > 0) {
       const doneCount = subtasks.filter(s => s.done).length;
@@ -1928,12 +1911,10 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
     data.secondary_units = secUnits;
     if (formStatus !== 'ล่าช้า/ติดปัญหา') data.root_cause = null; 
 
-    // FEATURE 5: Attach dependencies and subtasks safely
     if (!data.policy_id) delete data.policy_id;
     if (!data.root_cause) delete data.root_cause;
     if (!data.depends_on) delete data.depends_on;
     
-    // We send subtasks as JSON array
     if (subtasks.length > 0) {
       data.subtasks = subtasks;
     } else {
@@ -2965,5 +2946,3 @@ function Chatbot({ appDb }) {
     </div>
   );
 }
-
-export default App;
