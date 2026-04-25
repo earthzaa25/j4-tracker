@@ -5,7 +5,7 @@ import {
   Filter, PieChart, BarChart, Plus, Edit, Trash2, Download, CloudUpload, ClipboardList, Building2,
   Briefcase, AlertTriangle, TrendingUp, CheckCircle, FileText, CheckSquare, ListTodo, Activity, Printer, Check, X, Lock, Key,
   UploadCloud, Clock, Trophy, Calendar, Paperclip, Bell, Sun, Moon, ChevronLeft, ChevronRight, Search,
-  Kanban, List, Target, AlertOctagon, GitMerge, Users
+  Kanban, List, Target, AlertOctagon, GitMerge, Users, CheckCircle2, Circle, Star
 } from 'lucide-react';
 
 import { createClient } from '@supabase/supabase-js';
@@ -60,7 +60,7 @@ const ROOT_CAUSES = [
 
 const ITEMS_PER_PAGE = 10;
 
-// ปรับปรุง INITIAL_DATA ให้รวมบัญชีแอดมินและผู้บริหารไว้ใน units (Accounts)
+// ปรับปรุง INITIAL_DATA ให้รวมฟีเจอร์ is_important สำหรับ Mock Data
 const INITIAL_DATA = {
   units: [
     { id: "A-1", name: "ผู้ดูแลระบบกลาง (Admin)", passcode: "5721118", role: "admin" },
@@ -81,17 +81,18 @@ const INITIAL_DATA = {
     { id: "U-11", name: "กสก.สบส.กบ.ทหาร", passcode: "1234", role: "user" }
   ],
   policies: [
-    { policy_id: "POL-SAMPLE-1", policy_no: "1", category: "นโยบายหลัก", commander: "ผบ.ทสส.", order: "[ตัวอย่าง] ขับเคลื่อนนโยบายการจัดซื้อจัดจ้างสีเขียว (Green Procurement)", timeframe: "ภายใน ก.ย. 68", primary_unit: "กกล.กบ.ทหาร", created_at: new Date().toISOString() },
-    { policy_id: "POL-SAMPLE-2", policy_no: "2", category: "สั่งการเพิ่มเติม", commander: "เสธ.ทหาร", order: "[ตัวอย่าง] ยกระดับความปลอดภัยทางไซเบอร์ของระบบโลจิสติกส์ทหาร", timeframe: "ต่อเนื่อง", primary_unit: "กคง.กบ.ทหาร", created_at: new Date().toISOString() },
-    { policy_id: "POL-SAMPLE-3", policy_no: "3", category: "นโยบายหลัก", commander: "จก.กบ.ทหาร", order: "[ตัวอย่าง] บริหารจัดการงบประมาณอย่างมีประสิทธิภาพ", timeframe: "ปีงบประมาณ 68", primary_unit: "กนผ.สสร.กบ.ทหาร", created_at: new Date().toISOString() }
+    { policy_id: "POL-SAMPLE-1", policy_no: "1", category: "นโยบายหลัก", commander: "ผบ.ทสส.", order: "[ตัวอย่าง] ขับเคลื่อนนโยบายการจัดซื้อจัดจ้างสีเขียว (Green Procurement)", timeframe: "ภายใน ก.ย. 68", primary_unit: "กกล.กบ.ทหาร", is_important: true, created_at: new Date().toISOString() },
+    { policy_id: "POL-SAMPLE-2", policy_no: "2", category: "สั่งการเพิ่มเติม", commander: "เสธ.ทหาร", order: "[ตัวอย่าง] ยกระดับความปลอดภัยทางไซเบอร์ของระบบโลจิสติกส์ทหาร", timeframe: "ต่อเนื่อง", primary_unit: "กคง.กบ.ทหาร", is_important: false, created_at: new Date().toISOString() },
+    { policy_id: "POL-SAMPLE-3", policy_no: "3", category: "นโยบายหลัก", commander: "จก.กบ.ทหาร", order: "[ตัวอย่าง] บริหารจัดการงบประมาณอย่างมีประสิทธิภาพ", timeframe: "ปีงบประมาณ 68", primary_unit: "กนผ.สสร.กบ.ทหาร", is_important: false, created_at: new Date().toISOString() }
   ],
   reports: [
     { report_id: "RP-SAMPLE-1", policy_id: "POL-SAMPLE-1", policy_no: "1", policy_snippet: "[ตัวอย่าง] ขับเคลื่อนนโยบายGreen Procurement...", unit_name: "กกล.กบ.ทหาร", progress_percent: 75, past_result: "จัดประชุมคณะทำงานเรียบร้อย", report_date: new Date().toISOString(), approval_status: 'อนุมัติแล้ว', created_at: new Date().toISOString() },
     { report_id: "RP-SAMPLE-2", policy_id: "POL-SAMPLE-2", policy_no: "2", policy_snippet: "[ตัวอย่าง] ยกระดับ Cybersecurity...", unit_name: "กคง.กบ.ทหาร", progress_percent: 90, past_result: "ติดตั้งระบบระยะที่ 1 เรียบร้อย", report_date: new Date().toISOString(), approval_status: 'อนุมัติแล้ว', created_at: new Date().toISOString() }
   ],
   tasks: [
-    { task_id: "TSK-SAMPLE-1", task_name: "[ตัวอย่างภารกิจ] จัดเตรียมวัสดุสำหรับฝึกร่วม Cobra Gold 25", unit_name: "กสล.สสร.กบ.ทหาร", primary_unit: "กสล.สสร.กบ.ทหาร", status: "เสร็จสิ้น", progress_percent: 100, assignee: "ร.อ.สมชาย", start_date: new Date().toISOString(), end_date: new Date().toISOString(), policy_id: "POL-SAMPLE-1" },
-    { task_id: "TSK-SAMPLE-2", task_name: "[ตัวอย่างภารกิจ] จัดทำแผนเผชิญเหตุภัยพิบัติและเตรียมความพร้อมศูนย์โลจิสติกส์", unit_name: "กยป.สสร.กบ.ทหาร", primary_unit: "กยป.สสร.กบ.ทหาร", status: "กำลังดำเนินการ", progress_percent: 15, note: "รองบประมาณสนับสนุนในไตรมาสที่ 3", assignee: "พ.ต.อนันต์", start_date: new Date().toISOString(), end_date: new Date(new Date().setDate(new Date().getDate() - 10)).toISOString(), policy_id: "POL-SAMPLE-2", root_cause: "รองบประมาณ/การเงิน" }
+    { task_id: "TSK-SAMPLE-1", task_name: "[ตัวอย่างภารกิจ] จัดเตรียมวัสดุสำหรับฝึกร่วม Cobra Gold 25", unit_name: "กสล.สสร.กบ.ทหาร", primary_unit: "กสล.สสร.กบ.ทหาร", status: "เสร็จสิ้น", progress_percent: 100, assignee: "ร.อ.สมชาย", start_date: new Date().toISOString(), end_date: new Date().toISOString(), policy_id: "POL-SAMPLE-1", is_important: false },
+    { task_id: "TSK-SAMPLE-2", task_name: "[ตัวอย่างภารกิจ] จัดทำแผนเผชิญเหตุภัยพิบัติและเตรียมความพร้อมศูนย์โลจิสติกส์", unit_name: "กยป.สสร.กบ.ทหาร", primary_unit: "กยป.สสร.กบ.ทหาร", status: "กำลังดำเนินการ", progress_percent: 15, note: "รองบประมาณสนับสนุนในไตรมาสที่ 3", assignee: "พ.ต.อนันต์", start_date: new Date().toISOString(), end_date: new Date(new Date().setDate(new Date().getDate() - 10)).toISOString(), policy_id: "POL-SAMPLE-2", root_cause: "รองบประมาณ/การเงิน", is_important: true },
+    { task_id: "TSK-SAMPLE-3", task_name: "[ตัวอย่างภารกิจที่มีงานย่อย] จัดตั้งศูนย์บัญชาการชั่วคราว", unit_name: "กกล.กบ.ทหาร", primary_unit: "กกล.กบ.ทหาร", status: "รอดำเนินการ", progress_percent: 33, note: "รออุปกรณ์จากภารกิจแรก", assignee: "พ.อ.สมเกียรติ", start_date: new Date().toISOString(), end_date: new Date(new Date().setDate(new Date().getDate() + 5)).toISOString(), depends_on: "TSK-SAMPLE-1", is_important: true, subtasks: [{ id: 1, text: 'จัดเตรียมสถานที่', done: true }, { id: 2, text: 'ติดตั้งระบบสื่อสาร', done: false }, { id: 3, text: 'ทดสอบระบบร่วม', done: false }] }
   ]
 };
 
@@ -138,6 +139,15 @@ const getDeadlineStatus = (endDate, status) => {
   if (diffDays <= 7) return { label: `เหลือ ${diffDays} วัน`, color: 'text-amber-400 bg-amber-500/10 border-amber-500/30' };
   return { label: `เหลือ ${diffDays} วัน`, color: 'text-sky-400 bg-sky-500/10 border-sky-500/30' };
 };
+
+// FEATURE 3: Fiscal Year Helper
+function getFiscalYearDates(fyString) {
+  const fyNum = parseInt(fyString) - 543;
+  return {
+    start: `${fyNum - 1}-10-01`,
+    end: `${fyNum}-09-30T23:59:59`
+  };
+}
 
 // ============== PAGINATION COMPONENT ==============
 function Pagination({ currentPage, totalItems, onPageChange }) {
@@ -245,7 +255,7 @@ function App() {
     }
     
     try {
-      const [resP, resR, resU, resT] = await Promise.all([
+      const [resP, resR, resU, resT, resS] = await Promise.all([
         supabase.from('policies').select('*'),
         supabase.from('reports').select('*').order('created_at', { ascending: false }),
         supabase.from('units').select('*').order('role', { ascending: true }),
@@ -268,6 +278,7 @@ function App() {
         reports: resR.data || [],
         units: resU.data || [],
         tasks: processedTasks,
+        settings: resS.data || { adminPasscode: ADMIN_PASSCODE, execPasscode: EXEC_PASSCODE },
         isLoaded: true
       });
     } catch (e) { 
@@ -281,6 +292,14 @@ function App() {
       if (!supabase && supabaseUrl && supabaseKey && typeof window !== 'undefined') {
         if (window.supabase) {
           supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+          
+          const channel = supabase.channel('j4-tracker-public')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'reports' }, () => loadData())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => loadData())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'policies' }, () => loadData())
+            .subscribe();
+
+          window.supabaseChannel = channel;
         }
       }
       loadData();
@@ -293,6 +312,12 @@ function App() {
       document.head.appendChild(script);
     } else {
       initSupabaseAndLoad();
+    }
+
+    return () => {
+       if (window.supabaseChannel && supabase) {
+          supabase.removeChannel(window.supabaseChannel);
+       }
     }
   }, []);
 
@@ -350,11 +375,11 @@ function App() {
 
         @media print {
           @page { size: A4; margin: 10mm; }
-          body { background-color: #ffffff !important; color: #000000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          body { background-color: #f8fafc !important; color: #000000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           .print-hide { display: none !important; }
           .print-full-w { width: 100% !important; margin: 0 !important; max-width: 100% !important; padding: 0 !important; }
-          .bg-slate-900, .bg-slate-800, .bg-amber-900\\/40, .bg-red-900\\/20, .bg-slate-900\\/50 { background-color: #ffffff !important; color: #000000 !important; border: 1px solid #ccc !important; box-shadow: none !important; }
-          .text-slate-100, .text-slate-200, .text-slate-300, .text-slate-400, .text-white { color: #111827 !important; }
+          .bg-slate-900, .bg-slate-800, .bg-amber-900\\/40, .bg-red-900\\/20, .bg-slate-900\\/50 { background-color: #ffffff !important; color: #000000 !important; border: 1px solid #e2e8f0 !important; box-shadow: none !important; }
+          .text-slate-100, .text-slate-200, .text-slate-300, .text-slate-400, .text-white { color: #1e293b !important; }
           .text-amber-400 { color: #b45309 !important; font-weight: bold; }
           .text-emerald-400 { color: #059669 !important; font-weight: bold; }
           .text-red-400 { color: #dc2626 !important; font-weight: bold; }
@@ -441,7 +466,7 @@ function App() {
           </div>
 
           {!supabase && (
-            <div className="mb-6 bg-red-900/30 border border-red-500 p-4 rounded-xl flex items-center gap-3">
+            <div className="mb-6 bg-red-900/30 border border-red-500 p-4 rounded-xl flex items-center gap-3 print-hide">
               <AlertTriangle className="text-red-500 shrink-0" size={24}/>
               <div>
                 <h3 className="font-bold text-red-400">ยังไม่ได้เชื่อมต่อฐานข้อมูลออนไลน์</h3>
@@ -485,7 +510,6 @@ function NavItem({ icon, label, isActive, onClick }) {
 }
 
 function LoginScreen({ onLogin, isLoading, appDb }) {
-  // ดึงบัญชีทั้งหมดจากตาราง units (รองรับโครงสร้างใหม่ที่รวม Admin/Exec ไว้แล้ว)
   const accounts = appDb.units.length > 0 ? appDb.units : INITIAL_DATA.units;
   
   const [accountId, setAccountId] = useState(accounts[0]?.id || '');
@@ -510,7 +534,6 @@ function LoginScreen({ onLogin, isLoading, appDb }) {
       return; 
     }
     
-    // role: 'admin', 'executive', 'user'
     onLogin(account.name, account.role || 'user');
   };
 
@@ -523,7 +546,6 @@ function LoginScreen({ onLogin, isLoading, appDb }) {
     );
   }
 
-  // Group accounts by role for nicer dropdown
   const adminAccounts = accounts.filter(a => a.role === 'admin');
   const execAccounts = accounts.filter(a => a.role === 'executive');
   const userAccounts = accounts.filter(a => a.role === 'user' || !a.role);
@@ -585,10 +607,21 @@ function LoginScreen({ onLogin, isLoading, appDb }) {
 function PolicyDashboard({ appDb, user, showToast, refresh }) {
   const isAdminOrExec = user.role === 'admin' || user.role === 'executive';
   const [filterUnit, setFilterUnit] = useState(isAdminOrExec ? 'ALL' : user.unitName);
+  const [fiscalYear, setFiscalYear] = useState('ALL');
   const [filterStart, setFilterStart] = useState('');
   const [filterEnd, setFilterEnd] = useState('');
 
-  // กรองเฉพาะหน่วยงานปฏิบัติการ (User) สำหรับให้กรองดูข้อมูล
+  useEffect(() => {
+    if (fiscalYear !== 'ALL' && fiscalYear !== 'CUSTOM') {
+      const dates = getFiscalYearDates(fiscalYear);
+      setFilterStart(dates.start);
+      setFilterEnd(dates.end.substring(0, 10)); // just display part
+    } else if (fiscalYear === 'ALL') {
+      setFilterStart('');
+      setFilterEnd('');
+    }
+  }, [fiscalYear]);
+
   const currentUnits = useMemo(() => {
      return appDb.units.filter(u => u.role === 'user' || !u.role);
   }, [appDb.units]);
@@ -644,7 +677,8 @@ function PolicyDashboard({ appDb, user, showToast, refresh }) {
         short: `[ลำดับ ${po.policy_no || '-'}] ${po.order.length > 50 ? po.order.substring(0, 50) + '...' : po.order}`,
         progress: rs.length ? (rs[0].progress_percent || 0) : 0,
         linkedTasksCount: linkedTasks.length,
-        taskAvgProgress: taskAvgProgress
+        taskAvgProgress: taskAvgProgress,
+        is_important: po.is_important
       };
     });
 
@@ -767,7 +801,10 @@ function PolicyDashboard({ appDb, user, showToast, refresh }) {
                   {group.progList.map(p => (
                     <div key={p.id} className="relative group flex flex-col gap-2">
                       <div className="flex justify-between items-end text-xs">
-                        <span className="text-slate-300 font-medium truncate pr-4" title={p.name}>{p.short}</span>
+                        <span className="text-slate-300 font-medium truncate pr-4 flex items-center gap-1" title={p.name}>
+                          {p.is_important && <Star size={12} className="text-amber-500 fill-amber-500 shrink-0" />}
+                          {p.short}
+                        </span>
                         <div className="text-right">
                           <span className="font-bold font-mono text-base" style={{ color: getBarColor(p.progress) }}>{p.progress}%</span>
                           <span className="block text-[9px] text-slate-500">รายงานหลัก</span>
@@ -776,7 +813,6 @@ function PolicyDashboard({ appDb, user, showToast, refresh }) {
                       <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-700 theme-transition">
                         <div className="h-full rounded-full transition-all duration-1000 relative" style={{ width: `${p.progress}%`, backgroundColor: getBarColor(p.progress) }}></div>
                       </div>
-                      {/* FEATURE 1: SHOW TASK ROLLUP */}
                       {p.linkedTasksCount > 0 && (
                         <div className="flex items-center justify-between text-[10px] bg-slate-900/50 px-2 py-1 rounded border border-slate-700 theme-transition">
                           <span className="text-slate-400 flex items-center gap-1"><GitMerge size={10}/> ภารกิจย่อย ({p.linkedTasksCount} งาน)</span>
@@ -842,19 +878,33 @@ function PolicyDashboard({ appDb, user, showToast, refresh }) {
           <h3 className="font-semibold text-lg text-slate-100">ภาพรวมนโยบายและข้อสั่งการของผู้บังคับบัญชา</h3>
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto flex-1">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 w-full">
             <div>
               <select value={filterUnit} onChange={e => setFilterUnit(e.target.value)} disabled={!isAdminOrExec} className="w-full bg-slate-900 border border-slate-700 rounded-lg text-slate-100 p-2.5 text-sm disabled:opacity-50 theme-transition">
                 <option value="ALL">ทุกหน่วยงาน</option>
                 {currentUnits.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
               </select>
             </div>
+            {/* FEATURE 3: Fiscal Year Dropdown */}
             <div>
-              <input type="date" value={filterStart} onChange={e => setFilterStart(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg text-slate-100 p-2.5 text-sm theme-transition" style={{colorScheme: 'auto'}}/>
+              <select value={fiscalYear} onChange={e => setFiscalYear(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg text-slate-100 p-2.5 text-sm theme-transition">
+                <option value="ALL">ทุกปีงบประมาณ</option>
+                <option value="2567">ปีงบประมาณ 2567</option>
+                <option value="2568">ปีงบประมาณ 2568</option>
+                <option value="2569">ปีงบประมาณ 2569</option>
+                <option value="CUSTOM">กำหนดช่วงวันเอง...</option>
+              </select>
             </div>
-            <div>
-              <input type="date" value={filterEnd} onChange={e => setFilterEnd(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg text-slate-100 p-2.5 text-sm theme-transition" style={{colorScheme: 'auto'}}/>
-            </div>
+            {fiscalYear === 'CUSTOM' && (
+              <>
+                <div>
+                  <input type="date" value={filterStart} onChange={e => setFilterStart(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg text-slate-100 p-2.5 text-sm theme-transition" style={{colorScheme: 'auto'}}/>
+                </div>
+                <div>
+                  <input type="date" value={filterEnd} onChange={e => setFilterEnd(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg text-slate-100 p-2.5 text-sm theme-transition" style={{colorScheme: 'auto'}}/>
+                </div>
+              </>
+            )}
           </div>
           <button onClick={() => window.print()} className="bg-slate-700 hover:bg-slate-600 text-white p-2.5 rounded-lg text-sm font-semibold flex items-center justify-center shadow-lg transition-colors print-hide" title="พิมพ์รายงานภาพรวม (PDF)">
             <Printer size={18}/>
@@ -881,8 +931,20 @@ function PolicyDashboard({ appDb, user, showToast, refresh }) {
 function TaskDashboard({ appDb, user }) {
   const isAdminOrExec = user.role === 'admin' || user.role === 'executive';
   const [filterUnit, setFilterUnit] = useState(isAdminOrExec ? 'ALL' : user.unitName);
+  const [fiscalYear, setFiscalYear] = useState('ALL');
   const [filterStart, setFilterStart] = useState('');
   const [filterEnd, setFilterEnd] = useState('');
+
+  useEffect(() => {
+    if (fiscalYear !== 'ALL' && fiscalYear !== 'CUSTOM') {
+      const dates = getFiscalYearDates(fiscalYear);
+      setFilterStart(dates.start);
+      setFilterEnd(dates.end.substring(0, 10));
+    } else if (fiscalYear === 'ALL') {
+      setFilterStart('');
+      setFilterEnd('');
+    }
+  }, [fiscalYear]);
 
   const currentUnits = useMemo(() => {
      return appDb.units.filter(u => u.role === 'user' || !u.role);
@@ -909,7 +971,8 @@ function TaskDashboard({ appDb, user }) {
       id: t.task_id,
       name: t.task_name,
       short: t.task_name.length > 40 ? t.task_name.substring(0, 40) + '...' : t.task_name,
-      progress: Number(t.progress_percent) || 0
+      progress: Number(t.progress_percent) || 0,
+      is_important: t.is_important
     })).sort((a,b) => b.progress - a.progress);
 
     const statusCount = [
@@ -923,7 +986,6 @@ function TaskDashboard({ appDb, user }) {
       .filter(t => t.status === 'ล่าช้า/ติดปัญหา')
       .sort((a, b) => new Date(a.end_date) - new Date(b.end_date));
 
-    // FEATURE 3/4: Root Cause Analytics
     const rootCauseCounts = {};
     delayedList.forEach(t => {
        const rc = t.root_cause || 'ไม่ระบุสาเหตุ';
@@ -951,7 +1013,7 @@ function TaskDashboard({ appDb, user }) {
             <PieChart size={20} />
             <h3 className="font-semibold text-lg text-slate-100">ภาพรวมภารกิจและการปฏิบัติงาน</h3>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label className="block text-xs text-slate-400 mb-1">หน่วยงานรับผิดชอบ</label>
               <select value={filterUnit} onChange={e => setFilterUnit(e.target.value)} disabled={!isAdminOrExec} className="w-full bg-slate-900 border border-slate-700 rounded-lg text-slate-100 p-2.5 text-sm disabled:opacity-50 theme-transition">
@@ -960,13 +1022,27 @@ function TaskDashboard({ appDb, user }) {
               </select>
             </div>
             <div>
-              <label className="block text-xs text-slate-400 mb-1">ตั้งแต่วันที่</label>
-              <input type="date" value={filterStart} onChange={e => setFilterStart(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg text-slate-100 p-2.5 text-sm theme-transition"/>
+              <label className="block text-xs text-slate-400 mb-1">ปีงบประมาณ</label>
+              <select value={fiscalYear} onChange={e => setFiscalYear(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg text-slate-100 p-2.5 text-sm theme-transition">
+                <option value="ALL">ทุกปีงบประมาณ</option>
+                <option value="2567">ปีงบประมาณ 2567</option>
+                <option value="2568">ปีงบประมาณ 2568</option>
+                <option value="2569">ปีงบประมาณ 2569</option>
+                <option value="CUSTOM">กำหนดช่วงวันเอง...</option>
+              </select>
             </div>
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">ถึงวันที่</label>
-              <input type="date" value={filterEnd} onChange={e => setFilterEnd(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg text-slate-100 p-2.5 text-sm theme-transition"/>
-            </div>
+            {fiscalYear === 'CUSTOM' && (
+              <>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">ตั้งแต่วันที่</label>
+                  <input type="date" value={filterStart} onChange={e => setFilterStart(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg text-slate-100 p-2.5 text-sm theme-transition"/>
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">ถึงวันที่</label>
+                  <input type="date" value={filterEnd} onChange={e => setFilterEnd(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg text-slate-100 p-2.5 text-sm theme-transition"/>
+                </div>
+              </>
+            )}
           </div>
         </div>
         <button onClick={() => window.print()} className="bg-slate-700 hover:bg-slate-600 text-white p-2.5 rounded-lg text-sm font-semibold flex items-center justify-center shadow-lg transition-colors print-hide shrink-0" title="พิมพ์รายงานภาพรวม (PDF)">
@@ -1017,7 +1093,6 @@ function TaskDashboard({ appDb, user }) {
             </div>
           </div>
           
-          {/* FEATURE 3/4: Root Cause Chart */}
           <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 flex flex-col items-center shadow-md theme-transition">
             <h3 className="font-semibold w-full mb-4 text-slate-100 flex gap-2 items-center"><AlertOctagon size={18} className="text-red-500"/> วิเคราะห์สาเหตุความล่าช้า</h3>
             <div className="w-full space-y-3 mt-auto">
@@ -1045,7 +1120,13 @@ function TaskDashboard({ appDb, user }) {
           <div className="overflow-y-auto space-y-5 custom-scrollbar pr-2" style={{ maxHeight: '600px' }}>
             {stats.progList.map(p => (
               <div key={p.id}>
-                <div className="flex justify-between text-xs mb-1.5 text-slate-300"><span className="truncate pr-4">{p.short}</span><span className="font-bold font-mono" style={{ color: getBarColor(p.progress) }}>{p.progress}%</span></div>
+                <div className="flex justify-between text-xs mb-1.5 text-slate-300">
+                  <span className="truncate pr-4 flex items-center gap-1">
+                    {p.is_important && <Star size={12} className="text-amber-500 fill-amber-500 shrink-0" />}
+                    {p.short}
+                  </span>
+                  <span className="font-bold font-mono" style={{ color: getBarColor(p.progress) }}>{p.progress}%</span>
+                </div>
                 <div className="w-full h-3 bg-slate-900 rounded-full border border-slate-700 theme-transition"><div className="h-full rounded-full transition-all duration-1000" style={{ width: `${p.progress}%`, backgroundColor: getBarColor(p.progress) }}></div></div>
               </div>
             ))}
@@ -1099,6 +1180,8 @@ function TaskDashboard({ appDb, user }) {
 
 // ============== EXECUTIVE SUMMARY ==============
 function ExecutiveSummary({ appDb }) {
+  const [fiscalYear, setFiscalYear] = useState('ALL');
+
   const stats = useMemo(() => {
     const unitStats = {};
     const currentUnits = appDb.units.filter(u => u.role === 'user' || !u.role);
@@ -1108,7 +1191,15 @@ function ExecutiveSummary({ appDb }) {
     });
 
     const policies = appDb.policies || [];
-    const reports = appDb.reports || [];
+    let reports = appDb.reports || [];
+
+    if (fiscalYear !== 'ALL') {
+      const dates = getFiscalYearDates(fiscalYear);
+      reports = reports.filter(r => {
+        const d = r.report_date || r.created_at;
+        return d >= dates.start && d <= dates.end;
+      });
+    }
 
     policies.forEach(p => {
       const shortName = `[ลำดับ ${p.policy_no || '-'}] ${p.order.substring(0, 40)}${p.order.length > 40 ? '...' : ''}`;
@@ -1178,8 +1269,16 @@ function ExecutiveSummary({ appDb }) {
     }
     const maxTrendCount = Math.max(...trendData.map(d => d.count), 1);
 
-    return { unitArray, problemReports, totalPolicies: policies.length, totalReports: approvedReports.length, pendingReportsCount, todayUpdatesCount, trendData, maxTrendCount };
-  }, [appDb]);
+    // ดึงข้อมูลเรื่องสำคัญสำหรับผู้บริหาร
+    const importantPolicies = policies.filter(p => p.is_important);
+    const importantTasks = (appDb.tasks || []).filter(t => t.is_important);
+
+    return { 
+      unitArray, problemReports, totalPolicies: policies.length, totalReports: approvedReports.length, 
+      pendingReportsCount, todayUpdatesCount, trendData, maxTrendCount,
+      importantPolicies, importantTasks 
+    };
+  }, [appDb, fiscalYear]);
 
   return (
     <div className="space-y-6 fade-in-up text-slate-900 md:text-slate-100 rounded-lg">
@@ -1193,9 +1292,17 @@ function ExecutiveSummary({ appDb }) {
             <p className="text-amber-600 md:text-amber-400 text-sm font-bold mt-1">ภาพรวมการขับเคลื่อนข้อสั่งการและนโยบาย</p>
           </div>
         </div>
-        <button onClick={() => window.print()} className="print-hide bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 shadow-lg">
-          <Printer size={16}/> พิมพ์รายงานสรุป (PDF)
-        </button>
+        <div className="flex items-center gap-3 print-hide">
+          <select value={fiscalYear} onChange={e => setFiscalYear(e.target.value)} className="bg-slate-900 border border-slate-700 rounded-lg text-slate-100 p-2 text-sm theme-transition">
+             <option value="ALL">ทุกปีงบประมาณ</option>
+             <option value="2567">ปีงบประมาณ 2567</option>
+             <option value="2568">ปีงบประมาณ 2568</option>
+             <option value="2569">ปีงบประมาณ 2569</option>
+          </select>
+          <button onClick={() => window.print()} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 shadow-lg">
+            <Printer size={16}/> พิมพ์รายงานสรุป (PDF)
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
@@ -1226,6 +1333,72 @@ function ExecutiveSummary({ appDb }) {
            </h3>
         </div>
       </div>
+
+      {/* HIGHLIGHT: EXECUTIVE PRIORITY SECTION */}
+      {(stats.importantPolicies.length > 0 || stats.importantTasks.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          
+          {/* Important Policies */}
+          <div className="bg-slate-800/50 rounded-xl border-t-4 border-amber-500 shadow-lg p-5 theme-transition">
+            <h3 className="text-lg font-bold text-amber-500 flex items-center gap-2 mb-4">
+              <Star size={20} className="fill-amber-500" /> นโยบาย/ข้อสั่งการสำคัญ (Priority)
+            </h3>
+            <div className="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+              {stats.importantPolicies.map(p => {
+                // คำนวณความคืบหน้าคร่าวๆ จาก Report
+                const reps = (appDb.reports || []).filter(r => r.policy_id === p.policy_id).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                const progress = reps.length > 0 ? reps[0].progress_percent : 0;
+                
+                return (
+                  <div key={p.policy_id} className="p-4 bg-slate-900/80 rounded-lg border border-slate-700/50 theme-transition">
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="text-xs font-bold text-sky-400">[{p.policy_no}] {p.commander}</span>
+                      <span className="text-xs font-mono font-bold" style={{ color: getBarColor(progress) }}>{progress}%</span>
+                    </div>
+                    <p className="text-sm text-slate-200 leading-snug line-clamp-2" title={p.order}>{p.order}</p>
+                    <div className="w-full bg-slate-800 rounded-full h-1.5 mt-3 overflow-hidden theme-transition">
+                      <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${progress}%`, backgroundColor: getBarColor(progress) }}></div>
+                    </div>
+                    <p className="text-[10px] text-slate-500 mt-2">หน่วยรับผิดชอบ: <span className="text-amber-400">{p.primary_unit}</span></p>
+                  </div>
+                );
+              })}
+              {stats.importantPolicies.length === 0 && <p className="text-sm text-slate-500 text-center py-4">ไม่มีนโยบายที่ถูกปักหมุดไว้</p>}
+            </div>
+          </div>
+
+          {/* Important Tasks */}
+          <div className="bg-slate-800/50 rounded-xl border-t-4 border-amber-500 shadow-lg p-5 theme-transition">
+            <h3 className="text-lg font-bold text-amber-500 flex items-center gap-2 mb-4">
+              <Star size={20} className="fill-amber-500" /> ภารกิจสำคัญ (Priority Tasks)
+            </h3>
+            <div className="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+              {stats.importantTasks.map(t => {
+                const deadline = getDeadlineStatus(t.end_date, t.status);
+                return (
+                  <div key={t.task_id} className="p-4 bg-slate-900/80 rounded-lg border border-slate-700/50 theme-transition">
+                    <div className="flex justify-between items-start mb-2">
+                      <span className={`px-2 py-0.5 rounded text-[10px] border ${TASK_STATUS[t.status] || TASK_STATUS['รอดำเนินการ']}`}>{t.status}</span>
+                      <span className="text-xs font-mono font-bold" style={{ color: getBarColor(t.progress_percent) }}>{t.progress_percent}%</span>
+                    </div>
+                    <p className="text-sm font-bold text-slate-200 leading-snug line-clamp-2" title={t.task_name}>{t.task_name}</p>
+                    <div className="w-full bg-slate-800 rounded-full h-1.5 mt-3 overflow-hidden theme-transition">
+                      <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${t.progress_percent}%`, backgroundColor: getBarColor(t.progress_percent) }}></div>
+                    </div>
+                    <div className="flex justify-between items-center mt-3">
+                       <p className="text-[10px] text-slate-500">หน่วย: <span className="text-amber-400">{t.primary_unit}</span></p>
+                       <span className={`text-[10px] px-1.5 py-0.5 rounded border ${deadline.color} flex items-center gap-1`}>
+                         <Clock size={8} /> {deadline.label}
+                       </span>
+                    </div>
+                  </div>
+                );
+              })}
+              {stats.importantTasks.length === 0 && <p className="text-sm text-slate-500 text-center py-4">ไม่มีภารกิจที่ถูกปักหมุดไว้</p>}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-7 bg-slate-800 rounded-xl border border-slate-700 shadow-lg p-5 theme-transition">
@@ -1329,8 +1502,10 @@ function Policies({ appDb, user, showToast, refresh }) {
   const [primaryUnit, setPrimaryUnit] = useState('ทุกหน่วย');
   const [secUnits, setSecUnits] = useState([]);
 
+  const isAdminOrExec = user.role === 'admin' || user.role === 'executive';
+
   const policies = appDb.policies || [];
-  const currentUnits = appDb.units.filter(u => u.role === 'user' || !u.role); // ดึงเฉพาะหน่วยงานมาผูก
+  const currentUnits = appDb.units.filter(u => u.role === 'user' || !u.role);
 
   const audiences = [...new Set(policies.map(p => p.audience).filter(a => a && a !== '-'))];
   const meetings = [...new Set(policies.map(p => p.meeting).filter(m => m && m !== '-'))];
@@ -1349,6 +1524,10 @@ function Policies({ appDb, user, showToast, refresh }) {
       (!filterMeeting || p.meeting === filterMeeting) &&
       (!filterCategory || p.category === filterCategory);
   }).sort((a, b) => {
+    // ให้เรื่องสำคัญขึ้นก่อน
+    if (a.is_important && !b.is_important) return -1;
+    if (!a.is_important && b.is_important) return 1;
+
     const numA = parseInt(a.policy_no);
     const numB = parseInt(b.policy_no);
     if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
@@ -1356,6 +1535,26 @@ function Policies({ appDb, user, showToast, refresh }) {
   });
 
   const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  const toggleImportant = async (policy) => {
+    if (!supabase) {
+       showToast('ทำงานแบบออฟไลน์ ไม่สามารถบันทึกลงฐานข้อมูลได้', 'error'); 
+       return;
+    }
+    try {
+      const newValue = !policy.is_important;
+      const { error } = await supabase.from('policies').update({ is_important: newValue }).eq('policy_id', policy.policy_id);
+      if (error) throw error;
+      showToast(newValue ? 'ปักหมุดข้อสั่งการสำคัญ' : 'ยกเลิกการปักหมุด', 'ok');
+      refresh();
+    } catch(err) {
+      if(err.message && err.message.includes('column')) {
+        showToast('กรุณาเพิ่มคอลัมน์ is_important (ชนิด boolean) ในตาราง policies ก่อนใช้งานฟีเจอร์นี้', 'error');
+      } else {
+        showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      }
+    }
+  };
 
   const handleDelete = async (id) => {
     if(window.confirm('ยืนยันการลบข้อสั่งการนี้?')) {
@@ -1470,8 +1669,19 @@ function Policies({ appDb, user, showToast, refresh }) {
             </thead>
             <tbody className="divide-y divide-slate-700/50">
               {paginated.map(p => (
-                <tr key={p.policy_id} className="hover:bg-slate-700/30 align-top transition-colors theme-transition">
-                  <td className="p-4 text-xs font-bold text-amber-500 text-center">{p.policy_no || '-'}</td>
+                <tr key={p.policy_id} className={`hover:bg-slate-700/30 align-top transition-colors theme-transition ${p.is_important ? 'bg-amber-900/10' : ''}`}>
+                  <td className="p-4 text-xs font-bold text-amber-500 text-center">
+                    <div className="flex flex-col items-center gap-1">
+                       {isAdminOrExec ? (
+                          <button onClick={() => toggleImportant(p)} title="ปักหมุดเรื่องสำคัญ" className="hover:scale-110 transition-transform">
+                             <Star size={16} className={p.is_important ? "text-amber-500 fill-amber-500" : "text-slate-500"} />
+                          </button>
+                       ) : (
+                          p.is_important && <Star size={14} className="text-amber-500 fill-amber-500" />
+                       )}
+                       <span>{p.policy_no || '-'}</span>
+                    </div>
+                  </td>
                   <td className="p-4 text-xs whitespace-nowrap">
                     <span className={`px-2 py-1 rounded text-[10px] border ${p.category === 'นโยบายหลัก' ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30' : 'bg-sky-500/20 text-sky-600 dark:text-sky-400 border-sky-500/30'}`}>
                       {p.category || 'ไม่ระบุ'}
@@ -1590,6 +1800,11 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
   const [primaryUnit, setPrimaryUnit] = useState(user.unitName);
   const [secUnits, setSecUnits] = useState([]);
   const [formStatus, setFormStatus] = useState('รอดำเนินการ');
+  const [formProgress, setFormProgress] = useState(0);
+
+  // FEATURE 5: SUBTASKS & DEPENDENCIES
+  const [subtasks, setSubtasks] = useState([]);
+  const [newSubtask, setNewSubtask] = useState('');
 
   const isAdminOrExec = user.role === 'admin' || user.role === 'executive';
   const currentUnits = appDb.units.filter(u => u.role === 'user' || !u.role); // ดึงเฉพาะหน่วยปฏิบัติการมาให้เลือก
@@ -1605,6 +1820,10 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
     const matchesSearch = searchTerms.every(term => textToSearch.includes(term));
     return matchesSearch && (filterStatus === '' || t.status === filterStatus);
   }).sort((a, b) => {
+    // ให้เรื่องสำคัญขึ้นก่อน
+    if (a.is_important && !b.is_important) return -1;
+    if (!a.is_important && b.is_important) return 1;
+
     if (a.status === 'ล่าช้า/ติดปัญหา' && b.status !== 'ล่าช้า/ติดปัญหา') return -1;
     if (b.status === 'ล่าช้า/ติดปัญหา' && a.status !== 'ล่าช้า/ติดปัญหา') return 1;
     return new Date(a.start_date) - new Date(b.start_date);
@@ -1612,6 +1831,26 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
 
   const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
   const statuses = ["รอดำเนินการ", "กำลังดำเนินการ", "เสร็จสิ้น", "ล่าช้า/ติดปัญหา"];
+
+  const toggleImportant = async (task) => {
+    if (!supabase) {
+       showToast('ทำงานแบบออฟไลน์ ไม่สามารถบันทึกลงฐานข้อมูลได้', 'error'); 
+       return;
+    }
+    try {
+      const newValue = !task.is_important;
+      const { error } = await supabase.from('tasks').update({ is_important: newValue }).eq('task_id', task.task_id);
+      if (error) throw error;
+      showToast(newValue ? 'ปักหมุดภารกิจสำคัญ' : 'ยกเลิกการปักหมุด', 'ok');
+      refresh();
+    } catch(err) {
+      if(err.message && err.message.includes('column')) {
+        showToast('กรุณาเพิ่มคอลัมน์ is_important (ชนิด boolean) ในตาราง tasks ก่อนใช้งานฟีเจอร์นี้', 'error');
+      } else {
+        showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+      }
+    }
+  };
 
   const handleDelete = async (id) => {
     if(window.confirm('ยืนยันการลบภารกิจ/งานนี้?')) {
@@ -1632,12 +1871,44 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
     setPrimaryUnit(data?.primary_unit || (user.role === 'user' ? user.unitName : currentUnits[0]?.name));
     setSecUnits(data?.secondary_units || []);
     setFormStatus(data?.status || 'รอดำเนินการ');
+    setFormProgress(data?.progress_percent || 0);
+    
+    // Parse subtasks safely
+    let parsedSubtasks = [];
+    if (data?.subtasks) {
+      try { parsedSubtasks = typeof data.subtasks === 'string' ? JSON.parse(data.subtasks) : data.subtasks; } 
+      catch(e) { parsedSubtasks = []; }
+    }
+    setSubtasks(parsedSubtasks);
+
     setModalOpen(true);
   };
 
   const toggleSecUnit = (uName) => {
     setSecUnits(prev => prev.includes(uName) ? prev.filter(x => x !== uName) : [...prev, uName]);
   };
+
+  // Subtask logic
+  const handleAddSubtask = () => {
+    if(!newSubtask.trim()) return;
+    setSubtasks([...subtasks, { id: Date.now(), text: newSubtask.trim(), done: false }]);
+    setNewSubtask('');
+  };
+  const toggleSubtask = (id) => {
+    setSubtasks(subtasks.map(s => s.id === id ? { ...s, done: !s.done } : s));
+  };
+  const removeSubtask = (id) => {
+    setSubtasks(subtasks.filter(s => s.id !== id));
+  };
+
+  // Auto-calculate progress based on subtasks
+  useEffect(() => {
+    if (subtasks.length > 0) {
+      const doneCount = subtasks.filter(s => s.done).length;
+      setFormProgress(Math.round((doneCount / subtasks.length) * 100));
+      if (doneCount === subtasks.length && formStatus !== 'เสร็จสิ้น') setFormStatus('เสร็จสิ้น');
+    }
+  }, [subtasks]);
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -1652,14 +1923,22 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
     if (!data.task_name?.trim()) { showToast('กรุณาระบุชื่องาน/ภารกิจ', 'error'); return; }
     if (!data.start_date) { showToast('กรุณาระบุวันเริ่มต้น', 'error'); return; }
 
-    data.progress_percent = Number(data.progress_percent) || 0;
+    data.progress_percent = Number(formProgress) || 0;
     data.primary_unit = primaryUnit;
     data.secondary_units = secUnits;
-    if (formStatus !== 'ล่าช้า/ติดปัญหา') data.root_cause = null; // Clear if not delayed
+    if (formStatus !== 'ล่าช้า/ติดปัญหา') data.root_cause = null; 
 
-    // Fix for Schema Cache Error: remove empty policy_id and root_cause if they are empty
+    // FEATURE 5: Attach dependencies and subtasks safely
     if (!data.policy_id) delete data.policy_id;
     if (!data.root_cause) delete data.root_cause;
+    if (!data.depends_on) delete data.depends_on;
+    
+    // We send subtasks as JSON array
+    if (subtasks.length > 0) {
+      data.subtasks = subtasks;
+    } else {
+      delete data.subtasks;
+    }
     
     try {
       if (editData) {
@@ -1678,7 +1957,7 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
     } catch (error) {
       console.error(error);
       if (error.message && (error.message.includes('schema') || error.message.includes('column'))) {
-         showToast('ต้องเพิ่มคอลัมน์ "policy_id" และ "root_cause" (ชนิด text) ในตาราง tasks บน Supabase ก่อนครับ', 'error');
+         showToast('โปรดเพิ่มคอลัมน์ policy_id(text), root_cause(text), depends_on(text), subtasks(jsonb) ในตาราง tasks ของ Supabase', 'error');
       } else {
          showToast('บันทึกไม่สำเร็จ: ' + error.message, 'error');
       }
@@ -1686,6 +1965,14 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
   };
 
   const handleDragStart = (e, id) => {
+    const task = tasks.find(t => t.task_id === id);
+    const isBlocked = task?.depends_on && tasks.find(x => x.task_id === task.depends_on)?.status !== 'เสร็จสิ้น';
+    if (isBlocked) {
+      e.preventDefault();
+      showToast('ไม่สามารถย้ายได้ เนื่องจากยังติดภารกิจที่ต้องทำก่อน', 'error');
+      return;
+    }
+
     setDraggedTaskId(id);
     e.dataTransfer.setData("taskId", id);
     setTimeout(() => { e.target.classList.add('opacity-30'); }, 0);
@@ -1774,23 +2061,52 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
                   const deadline = getDeadlineStatus(t.end_date, t.status);
                   const rowClass = t.status === 'เสร็จสิ้น' ? 'opacity-50 hover:opacity-100' : t.status === 'ล่าช้า/ติดปัญหา' ? 'bg-red-950/20' : 'hover:bg-slate-700/30';
                   const escBadge = getEscalationBadge(t.end_date);
+                  const isBlocked = t.depends_on && tasks.find(x => x.task_id === t.depends_on)?.status !== 'เสร็จสิ้น';
+                  const blockedByTask = isBlocked ? tasks.find(x => x.task_id === t.depends_on) : null;
+
+                  let tSubtasks = [];
+                  if(t.subtasks) try{ tSubtasks = typeof t.subtasks === 'string' ? JSON.parse(t.subtasks) : t.subtasks; }catch(e){}
+                  const completedSt = tSubtasks.filter(s=>s.done).length;
                   
                   return (
-                  <tr key={t.task_id} className={`${rowClass} transition-colors align-middle theme-transition`}>
+                  <tr key={t.task_id} className={`${rowClass} transition-colors align-middle theme-transition ${t.is_important ? 'bg-amber-900/10' : ''}`}>
                     <td className="p-4 text-slate-700 dark:text-slate-200">
-                      <p className="font-bold text-base mb-1">{t.task_name}</p>
-                      {/* FEATURE 1: Show Policy linkage */}
+                      <div className="flex items-start gap-2 mb-1">
+                        {isAdminOrExec ? (
+                           <button onClick={() => toggleImportant(t)} title="ปักหมุดภารกิจสำคัญ" className="mt-0.5 hover:scale-110 transition-transform shrink-0">
+                              <Star size={16} className={t.is_important ? "text-amber-500 fill-amber-500" : "text-slate-500"} />
+                           </button>
+                        ) : (
+                           t.is_important && <Star size={14} className="text-amber-500 fill-amber-500 mt-0.5 shrink-0" />
+                        )}
+                        <p className="font-bold text-base">{t.task_name}</p>
+                      </div>
+                      
                       {t.policy_id && (
-                        <p className="text-[10px] text-sky-600 dark:text-sky-400 flex items-center gap-1 mb-2"><Target size={10}/> โครงการ: {(policies.find(p=>p.policy_id===t.policy_id)?.order||'').substring(0,60)}...</p>
+                        <p className="text-[10px] text-sky-600 dark:text-sky-400 flex items-center gap-1 mb-2 ml-6"><Target size={10}/> โครงการ: {(policies.find(p=>p.policy_id===t.policy_id)?.order||'').substring(0,60)}...</p>
                       )}
+
+                      {isBlocked && (
+                         <div className="mt-1 mb-2 ml-6 bg-orange-100 dark:bg-orange-950/30 p-1.5 rounded border border-orange-300 dark:border-orange-500/20 text-xs text-orange-600 dark:text-orange-400 flex items-center gap-1.5 theme-transition font-medium">
+                           <Lock size={12}/> <span>รอให้งาน <b>{blockedByTask?.task_name}</b> เสร็จก่อน</span>
+                         </div>
+                      )}
+
+                      {tSubtasks.length > 0 && (
+                        <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium mb-2 ml-6">
+                           <CheckSquare size={12}/> งานย่อย: สำเร็จ {completedSt}/{tSubtasks.length}
+                        </div>
+                      )}
+
                       {t.note && (
-                        <div className="mt-1 bg-slate-100 dark:bg-slate-900/80 p-2 rounded border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-400 flex gap-2 items-start theme-transition">
+                        <div className="mt-1 ml-6 bg-slate-100 dark:bg-slate-900/80 p-2 rounded border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-400 flex gap-2 items-start theme-transition">
                           <Activity size={12} className="text-amber-600 dark:text-amber-500 shrink-0 mt-0.5"/>
                           <span className="line-clamp-2">{t.note}</span>
                         </div>
                       )}
+                      
                       {t.status === 'ล่าช้า/ติดปัญหา' && (
-                         <div className="mt-1 text-[10px] text-red-500 font-bold flex items-center gap-1"><AlertOctagon size={12}/> สาเหตุ: {t.root_cause || 'ไม่ระบุ'}</div>
+                         <div className="mt-1 ml-6 text-[10px] text-red-500 font-bold flex items-center gap-1"><AlertOctagon size={12}/> สาเหตุ: {t.root_cause || 'ไม่ระบุ'}</div>
                       )}
                     </td>
                     <td className="p-4 text-xs text-slate-500 dark:text-slate-400">
@@ -1870,6 +2186,13 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
                        const deadline = getDeadlineStatus(t.end_date, t.status);
                        const escBadge = getEscalationBadge(t.end_date);
                        
+                       const isBlocked = t.depends_on && tasks.find(x => x.task_id === t.depends_on)?.status !== 'เสร็จสิ้น';
+                       const blockedByTask = isBlocked ? tasks.find(x => x.task_id === t.depends_on) : null;
+                       
+                       let tSubtasks = [];
+                       if(t.subtasks) try{ tSubtasks = typeof t.subtasks === 'string' ? JSON.parse(t.subtasks) : t.subtasks; }catch(e){}
+                       const completedSt = tSubtasks.filter(s=>s.done).length;
+
                        return (
                          <div 
                            key={t.task_id}
@@ -1877,15 +2200,31 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
                            onDragStart={(e) => handleDragStart(e, t.task_id)}
                            onDragEnd={handleDragEnd}
                            onClick={() => (user.role === 'admin' || t.primary_unit === user.unitName || t.secondary_units?.includes(user.unitName)) ? openModal(t) : null}
-                           className={`bg-slate-900 p-3.5 rounded-lg border border-slate-700 shadow-md cursor-grab active:cursor-grabbing hover:border-amber-500/50 transition-colors theme-transition group`}
+                           className={`bg-slate-900 p-3.5 rounded-lg border border-slate-700 shadow-md cursor-grab active:cursor-grabbing hover:border-amber-500/50 transition-colors theme-transition group ${isBlocked ? 'opacity-80' : ''} ${t.is_important ? 'ring-1 ring-amber-500' : ''}`}
                          >
                            <div className="flex justify-between items-start mb-2">
-                             <span className="text-[10px] font-bold text-amber-600 dark:text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">{t.primary_unit}</span>
+                             <div className="flex items-center gap-1.5">
+                                {t.is_important && <Star size={12} className="text-amber-500 fill-amber-500 shrink-0" />}
+                                <span className="text-[10px] font-bold text-amber-600 dark:text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">{t.primary_unit}</span>
+                             </div>
                              <span className="text-[10px] font-mono font-bold" style={{ color: getBarColor(t.progress_percent) }}>{t.progress_percent}%</span>
                            </div>
                            <h4 className="text-sm font-bold text-slate-100 mb-1 leading-tight">{t.task_name}</h4>
                            
                            {t.policy_id && <p className="text-[9px] text-sky-400 line-clamp-1 mb-2"><Target size={8} className="inline mr-1"/> นโยบาย: {(policies.find(p=>p.policy_id===t.policy_id)?.order||'').substring(0,30)}</p>}
+
+                           {/* FEATURE 5: Visual Lock in Kanban */}
+                           {isBlocked && (
+                             <div className="mb-2 text-[9px] text-orange-400 flex items-center gap-1 bg-orange-950/30 p-1.5 rounded border border-orange-500/20 leading-tight">
+                               <Lock size={10} className="shrink-0"/> รอ: {blockedByTask?.task_name}
+                             </div>
+                           )}
+
+                           {tSubtasks.length > 0 && (
+                             <div className="flex items-center gap-1 text-[9px] text-slate-400 font-medium mb-2">
+                               <CheckSquare size={10}/> งานย่อย: {completedSt}/{tSubtasks.length}
+                             </div>
+                           )}
 
                            <div className="w-full bg-slate-800 rounded-full h-1 mb-3">
                               <div className="h-full rounded-full" style={{ width: `${t.progress_percent}%`, backgroundColor: getBarColor(t.progress_percent) }}></div>
@@ -1919,95 +2258,134 @@ function TaskTracker({ appDb, user, showToast, refresh }) {
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-2xl fade-in-up shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar theme-transition text-slate-100">
-            <h3 className="text-xl font-bold mb-5 flex items-center gap-2">
-              {editData ? <Activity size={24} className="text-sky-500"/> : <Plus size={24}/>} 
-              {editData ? 'รายงานสถานภาพ / แก้ไขภารกิจ' : 'เพิ่มภารกิจใหม่'}
-            </h3>
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="text-xl font-bold flex items-center gap-2">
+                {editData ? <Activity size={24} className="text-sky-500"/> : <Plus size={24}/>} 
+                {editData ? 'รายงานสถานภาพ / แก้ไขภารกิจ' : 'เพิ่มภารกิจใหม่'}
+              </h3>
+              {editData && isAdminOrExec && (
+                 <button type="button" onClick={() => toggleImportant(editData)} className="flex items-center gap-1.5 text-sm font-bold bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-700 hover:bg-slate-700 transition-colors">
+                    <Star size={16} className={editData.is_important ? "text-amber-500 fill-amber-500" : "text-slate-500"} />
+                    <span className={editData.is_important ? "text-amber-500" : "text-slate-400"}>ปักหมุดเรื่องสำคัญ</span>
+                 </button>
+              )}
+            </div>
+
             <form onSubmit={handleSave} className="space-y-6">
               
-              {/* ข้อมูลพื้นฐานของงาน */}
-              <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700 space-y-4 theme-transition">
-                <h4 className="text-sm font-bold text-amber-500 border-b border-slate-700 pb-2">1. ข้อมูลภารกิจ (Task Info)</h4>
-                
-                {/* FEATURE 1: Link task to policy */}
-                <div>
-                  <label className="text-xs text-slate-400 block mb-1">ความเชื่อมโยงกับนโยบาย (ตอบสนองข้อสั่งการใด)</label>
-                  <select name="policy_id" defaultValue={editData?.policy_id || ''} className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2.5 text-sm text-slate-100 theme-transition" disabled={user.role !== 'admin' && editData}>
-                    <option value="">-- ไม่ระบุ / เป็นภารกิจปกติของหน่วย --</option>
-                    {policies.map(p => (
-                      <option key={p.policy_id} value={p.policy_id}>[ลำดับ {p.policy_no||'-'}] {p.order.substring(0, 80)}...</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-xs text-slate-400 block mb-1">ชื่องาน/ภารกิจ <span className="text-red-500">*</span></label>
-                  <input name="task_name" defaultValue={editData?.task_name} required className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2.5 text-sm text-slate-100 theme-transition" readOnly={user.role !== 'admin' && editData}/>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* ข้อมูลพื้นฐานของงาน */}
+                <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700 space-y-4 theme-transition">
+                  <h4 className="text-sm font-bold text-amber-500 border-b border-slate-700 pb-2">1. ข้อมูลภารกิจ (Task Info)</h4>
+                  
+                  {/* FEATURE 1: Link task to policy */}
                   <div>
-                    <label className="text-xs text-slate-400 block mb-1">หน่วยรับผิดชอบหลัก (Primary) <span className="text-red-500">*</span></label>
-                    <select name="primary_unit" value={primaryUnit} onChange={e => setPrimaryUnit(e.target.value)} disabled={user.role !== 'admin' && editData && editData.primary_unit !== user.unitName} className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2.5 text-sm text-slate-100 disabled:opacity-50 theme-transition">
-                      {currentUnits.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
+                    <label className="text-xs text-slate-400 block mb-1">ความเชื่อมโยงกับนโยบาย (ตอบสนองข้อสั่งการใด)</label>
+                    <select name="policy_id" defaultValue={editData?.policy_id || ''} className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2.5 text-sm text-slate-100 theme-transition" disabled={user.role !== 'admin' && editData}>
+                      <option value="">-- ไม่ระบุ / เป็นภารกิจปกติของหน่วย --</option>
+                      {policies.map(p => (
+                        <option key={p.policy_id} value={p.policy_id}>[ลำดับ {p.policy_no||'-'}] {p.order.substring(0, 80)}...</option>
+                      ))}
                     </select>
                   </div>
+
                   <div>
-                    <label className="text-xs text-slate-400 block mb-2">หน่วยร่วมปฏิบัติ (Secondary - ไม่บังคับ)</label>
-                    {user.role === 'admin' || editData?.primary_unit === user.unitName || !editData ? (
-                      <div className="grid grid-cols-1 gap-2 bg-slate-800 p-3 rounded-lg border border-slate-600 max-h-32 overflow-y-auto custom-scrollbar theme-transition">
-                        {currentUnits.filter(u => u.name !== primaryUnit).map(u => (
-                          <label key={u.id} className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-                            <input type="checkbox" checked={secUnits.includes(u.name)} onChange={() => toggleSecUnit(u.name)} className="rounded border-slate-500 bg-slate-700 text-amber-500 focus:ring-amber-500"/>
-                            <span className="text-slate-200">{u.name}</span>
-                          </label>
-                        ))}
+                    <label className="text-xs text-slate-400 block mb-1">ชื่องาน/ภารกิจ <span className="text-red-500">*</span></label>
+                    <input name="task_name" defaultValue={editData?.task_name} required className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2.5 text-sm text-slate-100 theme-transition" readOnly={user.role !== 'admin' && editData}/>
+                  </div>
+
+                  {/* FEATURE 5: Depends On */}
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-1 flex items-center gap-1"><Lock size={12}/> ลำดับงาน (ต้องรอให้งานใดเสร็จก่อน)</label>
+                    <select name="depends_on" defaultValue={editData?.depends_on || ''} className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2.5 text-sm text-slate-100 theme-transition">
+                      <option value="">-- ไม่ต้องรองานอื่น --</option>
+                      {tasks.filter(t => t.task_id !== editData?.task_id).map(t => (
+                        <option key={t.task_id} value={t.task_id}>{t.task_name.substring(0, 50)}...</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs text-slate-400 block mb-1">หน่วยรับผิดชอบหลัก <span className="text-red-500">*</span></label>
+                      <select name="primary_unit" value={primaryUnit} onChange={e => setPrimaryUnit(e.target.value)} disabled={user.role !== 'admin' && editData && editData.primary_unit !== user.unitName} className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2.5 text-sm text-slate-100 disabled:opacity-50 theme-transition">
+                        {currentUnits.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
+                      </select>
+                    </div>
+                    <div><label className="text-xs text-slate-400 block mb-1">ผู้รับผิดชอบ (ชื่อ)</label><input name="assignee" defaultValue={editData?.assignee} className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2.5 text-sm text-slate-100 theme-transition"/></div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><label className="text-xs text-slate-400 block mb-1">วันเริ่มต้น <span className="text-red-500">*</span></label><input name="start_date" type="date" defaultValue={editData?.start_date ? editData.start_date.substring(0,10) : new Date().toISOString().substring(0,10)} className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2.5 text-sm text-slate-100 theme-transition" style={{colorScheme:'auto'}}/></div>
+                    <div><label className="text-xs text-slate-400 block mb-1">วันกำหนดเสร็จ</label><input name="end_date" type="date" defaultValue={editData?.end_date ? editData.end_date.substring(0,10) : ''} className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2.5 text-sm text-slate-100 theme-transition" style={{colorScheme:'auto'}}/></div>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  {/* FEATURE 5: SUBTASKS (Checklist) */}
+                  <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700 space-y-4 theme-transition">
+                    <h4 className="text-sm font-bold text-emerald-500 border-b border-slate-700 pb-2 flex items-center gap-2">
+                       <CheckSquare size={16}/> งานย่อย (Checklist)
+                    </h4>
+                    <div className="space-y-2 max-h-32 overflow-y-auto custom-scrollbar">
+                      {subtasks.map(st => (
+                        <div key={st.id} className="flex items-center gap-2">
+                          <button type="button" onClick={() => toggleSubtask(st.id)} className={`shrink-0 ${st.done ? 'text-emerald-500' : 'text-slate-500'}`}>
+                             {st.done ? <CheckCircle2 size={18}/> : <Circle size={18}/>}
+                          </button>
+                          <span className={`flex-1 text-sm ${st.done ? 'text-slate-500 line-through' : 'text-slate-200'}`}>{st.text}</span>
+                          <button type="button" onClick={() => removeSubtask(st.id)} className="text-slate-600 hover:text-red-400 p-1"><Trash2 size={14}/></button>
+                        </div>
+                      ))}
+                      {subtasks.length === 0 && <p className="text-xs text-slate-500">ยังไม่มีงานย่อย สามารถเพิ่มเพื่อคำนวณ % อัตโนมัติได้</p>}
+                    </div>
+                    <div className="flex gap-2">
+                      <input value={newSubtask} onChange={e=>setNewSubtask(e.target.value)} onKeyDown={(e) => { if(e.key==='Enter'){ e.preventDefault(); handleAddSubtask(); } }} placeholder="พิมพ์งานย่อย..." className="flex-1 bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-sm text-white focus:border-emerald-500 outline-none"/>
+                      <button type="button" onClick={handleAddSubtask} className="bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">เพิ่ม</button>
+                    </div>
+                  </div>
+
+                  {/* อัปเดตสถานะ */}
+                  <div className="bg-sky-900/10 p-4 rounded-xl border border-sky-500/30 space-y-4 relative theme-transition">
+                    <h4 className="text-sm font-bold text-sky-600 dark:text-sky-400 border-b border-sky-500/30 pb-2 flex items-center gap-2">
+                      <Activity size={16}/> 2. สถานภาพ (Status)
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs text-sky-700 dark:text-sky-200 block mb-1 font-bold">สถานะงาน <span className="text-red-500">*</span></label>
+                        <select name="status" value={formStatus} onChange={e=>setFormStatus(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-sm text-slate-100 focus:border-sky-500 outline-none theme-transition">
+                          {statuses.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
                       </div>
-                    ) : (
-                      <p className="text-sm text-slate-400 mt-2">{secUnits.join(', ') || '-'}</p>
+                      <div>
+                        <label className="text-xs text-sky-700 dark:text-sky-200 block mb-1 font-bold">
+                          ความคืบหน้า (%) {subtasks.length > 0 && <span className="text-emerald-400 font-normal">(คำนวณจากงานย่อย)</span>}
+                        </label>
+                        <input 
+                          name="progress_percent" type="number" min="0" max="100" 
+                          value={formProgress} onChange={e => setFormProgress(e.target.value)} 
+                          readOnly={subtasks.length > 0}
+                          className={`w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-sm text-slate-100 focus:border-sky-500 outline-none text-lg font-mono theme-transition ${subtasks.length > 0 ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* FEATURE 3: Root Cause Dropdown if Delayed */}
+                    {formStatus === 'ล่าช้า/ติดปัญหา' && (
+                      <div className="bg-red-950/20 p-3 rounded-lg border border-red-900/50 animate-pulse-once">
+                         <label className="text-xs text-red-500 block mb-1 font-bold">⚠️ กรุณาระบุสาเหตุหลัก (Root Cause)</label>
+                         <select name="root_cause" defaultValue={editData?.root_cause || ''} required className="w-full bg-slate-900 border border-red-500/50 rounded-lg p-2.5 text-sm text-slate-100 focus:border-red-500 outline-none theme-transition">
+                            <option value="">-- ระบุสาเหตุที่ทำให้งานล่าช้า --</option>
+                            {ROOT_CAUSES.map(rc => <option key={rc} value={rc}>{rc}</option>)}
+                         </select>
+                      </div>
                     )}
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div><label className="text-xs text-slate-400 block mb-1">ผู้รับผิดชอบ (ชื่อ-สกุล)</label><input name="assignee" defaultValue={editData?.assignee} className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2.5 text-sm text-slate-100 theme-transition"/></div>
-                  <div><label className="text-xs text-slate-400 block mb-1">วันเริ่มต้น <span className="text-red-500">*</span></label><input name="start_date" type="date" defaultValue={editData?.start_date ? editData.start_date.substring(0,10) : new Date().toISOString().substring(0,10)} className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2.5 text-sm text-slate-100 theme-transition" style={{colorScheme:'auto'}}/></div>
-                  <div><label className="text-xs text-slate-400 block mb-1">วันกำหนดเสร็จ</label><input name="end_date" type="date" defaultValue={editData?.end_date ? editData.end_date.substring(0,10) : ''} className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2.5 text-sm text-slate-100 theme-transition" style={{colorScheme:'auto'}}/></div>
-                </div>
-              </div>
-
-              {/* อัปเดตสถานะ */}
-              <div className="bg-sky-900/10 p-4 rounded-xl border border-sky-500/30 space-y-4 relative theme-transition">
-                <h4 className="text-sm font-bold text-sky-600 dark:text-sky-400 border-b border-sky-500/30 pb-2 flex items-center gap-2">
-                  <Activity size={16}/> 2. รายงานสถานภาพ (Status Update)
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs text-sky-700 dark:text-sky-200 block mb-1 font-bold">สถานะงาน <span className="text-red-500">*</span></label>
-                    <select name="status" value={formStatus} onChange={e=>setFormStatus(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-sm text-slate-100 focus:border-sky-500 outline-none theme-transition">
-                      {statuses.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
+                    <div>
+                      <label className="text-xs text-sky-700 dark:text-sky-200 block mb-1 font-bold">สรุปผลปฏิบัติล่าสุด / หมายเหตุ</label>
+                      <textarea name="note" defaultValue={editData?.note} rows="3" placeholder="ระบุสิ่งที่ทำไปแล้วล่าสุด หรือปัญหา..." className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-sm text-slate-100 focus:border-sky-500 outline-none theme-transition"></textarea>
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-xs text-sky-700 dark:text-sky-200 block mb-1 font-bold">ความคืบหน้าปัจจุบัน (%) <span className="text-red-500">*</span></label>
-                    <input name="progress_percent" type="number" min="0" max="100" defaultValue={editData?.progress_percent || 0} className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-sm text-slate-100 focus:border-sky-500 outline-none text-lg font-mono theme-transition"/>
-                  </div>
-                </div>
-                
-                {/* FEATURE 3: Root Cause Dropdown if Delayed */}
-                {formStatus === 'ล่าช้า/ติดปัญหา' && (
-                  <div className="bg-red-950/20 p-3 rounded-lg border border-red-900/50 animate-pulse-once">
-                     <label className="text-xs text-red-500 block mb-1 font-bold">⚠️ กรุณาระบุสาเหตุหลัก (Root Cause)</label>
-                     <select name="root_cause" defaultValue={editData?.root_cause || ''} required className="w-full bg-slate-900 border border-red-500/50 rounded-lg p-2.5 text-sm text-slate-100 focus:border-red-500 outline-none theme-transition">
-                        <option value="">-- ระบุสาเหตุที่ทำให้งานล่าช้า --</option>
-                        {ROOT_CAUSES.map(rc => <option key={rc} value={rc}>{rc}</option>)}
-                     </select>
-                  </div>
-                )}
-
-                <div>
-                  <label className="text-xs text-sky-700 dark:text-sky-200 block mb-1 font-bold">สรุปผลการปฏิบัติล่าสุด / ปัญหาข้อขัดข้อง</label>
-                  <textarea name="note" defaultValue={editData?.note} rows="3" placeholder="ระบุสิ่งที่ทำไปแล้วล่าสุด หรือปัญหาที่ทำให้งานล่าช้า เพื่อรายงานผู้บริหาร..." className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-sm text-slate-100 focus:border-sky-500 outline-none theme-transition"></textarea>
                 </div>
               </div>
 
@@ -2088,7 +2466,7 @@ function ReportForm({ appDb, user, showToast, setView, refresh }) {
       problems: data.problems,
       note: data.note,
       attachment_url: fileUrl || data.attachment_url,
-      approval_status: 'อนุมัติแล้ว',
+      approval_status: 'อนุมัติแล้ว', // อนุมัติอัตโนมัติ
       created_at: new Date().toISOString()
     };
 
