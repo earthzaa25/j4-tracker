@@ -4,20 +4,15 @@ import {
   History as HistoryIcon, LogOut, Bot, MessageCircle, Send, 
   PieChart, BarChart, Plus, Edit, Trash2, Download, CloudUpload, 
   Briefcase, AlertTriangle, TrendingUp, CheckCircle, CheckCircle2, FileText, CheckSquare, ListTodo, Activity, Printer, Check, X, Lock, 
-  UploadCloud, Clock, Trophy, Paperclip, Bell, Sun, Moon, ChevronLeft, ChevronRight, Search,
+  Clock, Trophy, Paperclip, Bell, Sun, Moon, ChevronLeft, ChevronRight, Search,
   Kanban, Columns, List, Target, AlertOctagon, GitMerge, Users, Circle, Star, Sparkles,
   MousePointerClick, RefreshCcw, FilterX, CalendarDays, Table, ChevronDown, ChevronUp
 } from 'lucide-react';
 
 // ============================================================
-// 1. ตั้งค่า SCRIPT_URL (เอา URL จาก Google Apps Script มาใส่ตรงนี้)
+// 1. นำ Web App URL จาก Google Apps Script มาวางที่นี่
 // ============================================================
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwgZZURz1cGNglxjEK-nGsm2g5cIT88GMG7gMkK2Zl2YydBCJyTlL65h8tcd63I2Z-R/exec";
-
-// ============================================================
-// 2. ตั้งค่า Gemini API Key (ถ้ามี)
-// ============================================================
-const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY || ''; 
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwgZZURz1cGNglxjEK-nGsm2g5cIT88GMG7gMkK2Zl2YydBCJyTlL65h8tcd63I2Z-R/exec"; 
 
 const LOGO_URL = "/S__22413315.jpg";
 const GARUDA_URL = "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Garuda_Emblem_of_Thailand.svg/150px-Garuda_Emblem_of_Thailand.svg.png";
@@ -55,6 +50,13 @@ const ROOT_CAUSES = [
 ];
 
 const ITEMS_PER_PAGE = 10;
+
+// ============== บัญชีและข้อมูลสำรองกรณีฉุกเฉิน ==============
+const FALLBACK_ACCOUNTS = [
+  { id: "A-1", name: "ผู้ดูแลระบบกลาง (Admin)", passcode: "5721118", role: "admin" },
+  { id: "E-1", name: "ผู้บริหารระดับสูง", passcode: "1111", role: "executive" },
+  { id: "U-1", name: "กกล.กบ.ทหาร", passcode: "1234", role: "user" }
+];
 
 // ============== HELPERS ==============
 const getBarColor = (p) => {
@@ -119,9 +121,7 @@ const exportToExcel = (data, filename) => {
      table += '</tr>';
   });
   table += '</tbody></table>';
-
   const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8" /></head><body>${table}</body></html>`;
-
   const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -233,7 +233,6 @@ export default function App() {
     setTimeout(() => setToastData(null), 3000);
   };
 
-  // ดึงข้อมูลทั้งหมดจาก Google Sheets
   const loadData = async () => {
     setIsSyncing(true);
     try {
@@ -249,9 +248,9 @@ export default function App() {
         tasks: results[3] && !results[3].error ? results[3] : [],
         isLoaded: true
       });
-    } catch (e) { 
-      console.error("Load Error:", e); 
-      showToast('การดึงข้อมูลจาก Google Sheets ขัดข้อง', 'error');
+    } catch (e) {
+      console.error("Load Error:", e);
+      showToast("โหลดข้อมูลล้มเหลว ตรวจสอบ URL ของ Script", "error");
       setAppDb(prev => ({...prev, isLoaded: true}));
     } finally {
       setIsSyncing(false);
@@ -259,29 +258,28 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (SCRIPT_URL && !SCRIPT_URL.includes("URL_ที่คุณก๊อปปี้มา")) {
+    if (SCRIPT_URL && !SCRIPT_URL.includes("URL_ที่คุณได้มา")) {
         loadData();
-    } else {
-        setAppDb({ reports: [], policies: [], units: [], tasks: [], isLoaded: true });
     }
   }, []);
 
-  // ฟังก์ชันส่วนกลางส่งข้อมูลไปเขียน/แก้ไขใน Google Sheets
   const callApi = async (method, action, data, idKey = "", idValue = "") => {
-    try {
-      await fetch(SCRIPT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // ป้องกัน CORS issue
-        body: JSON.stringify({ method, action, data, idKey, idValue })
-      });
-      // หน่วงเวลาโหลดใหม่เล็กน้อยเพื่อให้ฝั่ง Sheet เซฟเสร็จ
-      setTimeout(loadData, 1500); 
-      return true;
-    } catch (e) {
-      console.error(e);
-      showToast('การส่งข้อมูลล้มเหลว', 'error');
-      return false;
-    }
+      try {
+          // Google Apps Script ต้องการ mode 'no-cors' เพื่อไม่ให้ถูกบล็อกการส่งข้อมูลแบบ POST จาก Browser โดยตรง
+          await fetch(SCRIPT_URL, {
+              method: 'POST',
+              mode: 'no-cors',
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
+              body: JSON.stringify({ method, action, data, idKey, idValue })
+          });
+          // สั่งโหลดข้อมูลใหม่หลังบันทึก เนื่องจากโหมด no-cors ไม่สามารถอ่านค่าตอบกลับได้
+          setTimeout(loadData, 1500);
+          return true;
+      } catch (e) {
+          console.error(e);
+          showToast("ส่งข้อมูลล้มเหลว กรุณาตรวจสอบอินเทอร์เน็ต", "error");
+          return false;
+      }
   };
 
   const handleLogin = (unitName, role) => {
@@ -289,12 +287,9 @@ export default function App() {
     setView(role === 'executive' ? 'EXEC_SUMMARY' : 'DASHBOARD_POLICY');
   };
 
-  const handleLogout = () => {
-    setUser(null);
-    setView('DASHBOARD_POLICY');
-  };
+  const handleLogout = () => { setUser(null); setView('DASHBOARD_POLICY'); };
 
-  if (!user || !appDb.isLoaded) {
+  if (!user) {
     return <LoginScreen onLogin={handleLogin} isLoading={!appDb.isLoaded} appDb={appDb} loadData={loadData} />;
   }
 
@@ -304,161 +299,96 @@ export default function App() {
     <div className={`min-h-screen flex font-sans transition-colors duration-300 ${theme === 'light' ? 'light-mode bg-slate-50 text-slate-900' : 'bg-slate-900 text-slate-100'}`}>
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        .dark-mode .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
         .fade-in-up { animation: fadeInUp 0.3s ease-out; }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .theme-transition { transition: background-color 0.3s, border-color 0.3s, color 0.3s; }
-
-        /* Light Mode */
-        .light-mode .bg-slate-900 { background-color: #f8fafc; border-color: #e2e8f0; }
-        .light-mode .bg-slate-800 { background-color: #ffffff; border-color: #e2e8f0; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05); }
-        .light-mode .text-white { color: #0f172a; }
-        .light-mode .text-slate-100, .light-mode .text-slate-200 { color: #1e293b; }
-        .light-mode .text-slate-300, .light-mode .text-slate-400 { color: #475569; }
-        .light-mode .border-slate-700, .light-mode .border-slate-600 { border-color: #e2e8f0; }
-        .light-mode input, .light-mode select, .light-mode textarea { background-color: #ffffff; color: #0f172a; border-color: #cbd5e1; }
-        .light-mode .hover\\:bg-slate-700:hover { background-color: #f1f5f9; color: #0f172a; }
-        .light-mode .hover\\:bg-slate-700\\/30:hover { background-color: #f8fafc; }
-        .light-mode .divide-slate-700\\/50 > :not([hidden]) ~ :not([hidden]) { border-color: #e2e8f0; }
-        .light-mode .bg-slate-900\\/50 { background-color: #f1f5f9; }
-        .kanban-col { min-width: 280px; }
-        .dragging { opacity: 0.5; }
-
-        /* Print Mode */
         @media print {
-          @page { size: A4; margin: 10mm 15mm; }
-          body { background-color: #ffffff !important; color: #000000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          @page { size: A4; margin: 10mm; }
           .print-hide { display: none !important; }
-          .print-full-w { width: 100% !important; margin: 0 !important; max-width: 100% !important; padding: 0 !important; }
-          .bg-slate-900, .bg-slate-800, .bg-amber-900\\/40, .bg-red-900\\/20, .bg-slate-900\\/50 { background-color: #ffffff !important; color: #000000 !important; border: 1px solid #cbd5e1 !important; box-shadow: none !important; }
-          .text-slate-100, .text-slate-200, .text-slate-300, .text-slate-400, .text-white { color: #0f172a !important; }
-          .text-amber-400, .text-amber-500, .text-amber-600 { color: #b45309 !important; font-weight: bold; }
-          .text-emerald-400, .text-emerald-500 { color: #059669 !important; font-weight: bold; }
-          .text-red-400, .text-red-500 { color: #dc2626 !important; font-weight: bold; }
-          .border-slate-700, .border-slate-700\\/50, .border-red-500\\/30 { border-color: #cbd5e1 !important; }
-          .shadow-md, .shadow-xl, .shadow-lg { box-shadow: none !important; }
-          
-          .print-header { display: block !important; text-align: center; margin-bottom: 2rem; border-bottom: 2px solid black; padding-bottom: 1rem; }
-          .print-header img { width: 80px; margin: 0 auto 10px; }
-          .print-header h1 { font-size: 22pt; font-weight: bold; color: black; line-height: 1.2; }
-          .print-header h2 { font-size: 16pt; color: black; margin-top: 5px; }
-          .print-header p { font-size: 12pt; color: #475569; margin-top: 5px; }
+          .bg-slate-900, .bg-slate-800 { background: white !important; color: black !important; border: 1px solid #ccc !important; }
+          .print-header { display: block !important; text-align: center; border-bottom: 2px solid #000; margin-bottom: 20px; padding-bottom: 10px; }
         }
       `}</style>
 
-      {/* Sidebar Navigation */}
+      {/* Sidebar */}
       <aside className="print-hide fixed left-0 top-0 h-screen z-40 bg-slate-800 border-r border-slate-700 flex flex-col w-16 lg:w-64 theme-transition">
-        <div className="h-20 flex items-center justify-between lg:px-6 border-b border-slate-700 shrink-0 theme-transition px-2">
-          <div className="flex items-center justify-center lg:justify-start">
-            <div className="w-10 h-10 lg:w-12 lg:h-12 bg-white rounded-lg flex items-center justify-center border border-amber-500/50 shadow-sm overflow-hidden p-1 shrink-0">
-              <img src={LOGO_URL} alt="J4 Logo" className="w-full h-full object-contain" onError={(e)=>{e.target.onerror=null; e.target.src='https://placehold.co/100x100/1e293b/f59e0b?text=J4'}} />
+        <div className="h-20 flex items-center justify-between lg:px-6 border-b border-slate-700 shrink-0 px-2">
+          <div className="flex items-center">
+            <div className="w-10 h-10 lg:w-12 lg:h-12 bg-white rounded-lg flex items-center justify-center border border-amber-500 p-1">
+               <img src={LOGO_URL} alt="Logo" className="w-full h-full object-contain" onError={(e)=>{e.target.onerror=null; e.target.src='https://placehold.co/100x100/1e293b/f59e0b?text=J4'}} />
             </div>
             <div className="hidden lg:block ml-3">
-              <h1 className="font-bold text-lg leading-none text-slate-100">J4 Tracker</h1>
-              <p className="text-amber-500 text-[10px] mt-0.5">Google Sheets Edition</p>
+              <h1 className="font-bold text-lg text-slate-100">J4 Tracker</h1>
+              <p className="text-amber-500 text-[10px]">G-Sheets Edition</p>
             </div>
           </div>
-          <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="hidden lg:flex p-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-400 hover:text-amber-400 theme-transition">
-            {theme === 'dark' ? <Sun size={16}/> : <Moon size={16}/>}
-          </button>
         </div>
         
-        <div className="hidden lg:block p-4 border-b border-slate-700 bg-slate-800/50 theme-transition">
-          <p className="text-xs text-slate-400 uppercase tracking-wider mb-1">สถานะผู้ใช้งาน ({user.role})</p>
-          <p className="text-sm font-bold text-amber-500 truncate" title={user.unitName}>{user.unitName}</p>
-        </div>
-
-        <nav className="flex-1 overflow-y-auto py-4 flex flex-col gap-2 px-2 custom-scrollbar">
-          <p className="px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2 hidden lg:block">ภาพรวม (Dashboards)</p>
+        <nav className="flex-1 overflow-y-auto py-4 flex flex-col gap-2 px-2">
           <NavItem icon={<LayoutDashboard size={20}/>} label="ภาพรวมข้อสั่งการ" isActive={view === 'DASHBOARD_POLICY'} onClick={() => setView('DASHBOARD_POLICY')} />
           <NavItem icon={<PieChart size={20}/>} label="ภาพรวมภารกิจ" isActive={view === 'DASHBOARD_TASK'} onClick={() => setView('DASHBOARD_TASK')} />
           {isAdminOrExec && <NavItem icon={<Briefcase size={20}/>} label="บทสรุปผู้บริหาร" isActive={view === 'EXEC_SUMMARY'} onClick={() => setView('EXEC_SUMMARY')} />}
-
-          <p className="px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-4 hidden lg:block">ระดับนโยบาย (Policy)</p>
+          <div className="border-t border-slate-700 my-2"></div>
           <NavItem icon={<ScrollText size={20}/>} label="นโยบาย/ข้อสั่งการ" isActive={view === 'POLICIES'} onClick={() => setView('POLICIES')} />
           {user.role !== 'executive' && <NavItem icon={<FilePlus size={20}/>} label="บันทึกรายงานผล" isActive={view === 'REPORT_FORM'} onClick={() => setView('REPORT_FORM')} />}
           <NavItem icon={<HistoryIcon size={20}/>} label="ประวัติการรายงาน" isActive={view === 'HISTORY'} onClick={() => setView('HISTORY')} />
-
-          <p className="px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-4 hidden lg:block">ระดับปฏิบัติการ (Operations)</p>
           <NavItem icon={<CheckSquare size={20}/>} label="ติดตามการทำงาน" isActive={view === 'TASKS'} onClick={() => setView('TASKS')} />
-
-          {user.role === 'admin' && (
-            <>
-              <p className="px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-4 hidden lg:block">ตั้งค่าส่วนกลาง</p>
-              <NavItem icon={<Users size={20}/>} label="บัญชีและสิทธิ์ใช้งาน" isActive={view === 'UNITS_CONFIG'} onClick={() => setView('UNITS_CONFIG')} />
-            </>
-          )}
+          {user.role === 'admin' && <NavItem icon={<Users size={20}/>} label="สิทธิ์ใช้งาน" isActive={view === 'UNITS_CONFIG'} onClick={() => setView('UNITS_CONFIG')} />}
         </nav>
 
-        <div className="p-2 lg:p-4 border-t border-slate-700 theme-transition">
-          <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="w-full flex lg:hidden items-center justify-center py-2 mb-2 rounded border border-slate-600 text-slate-400 theme-transition">
-             {theme === 'dark' ? <Sun size={20}/> : <Moon size={20}/>}
-          </button>
-          <button onClick={handleLogout} className="w-full flex items-center justify-center lg:justify-start lg:px-4 py-2 rounded border border-slate-600 text-slate-400 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500 transition-colors theme-transition">
-            <LogOut size={20} className="shrink-0" />
-            <span className="hidden lg:block ml-3 font-medium">ออกจากระบบ</span>
+        <div className="p-4 border-t border-slate-700">
+          <div className="hidden lg:block mb-4">
+             <p className="text-[10px] text-slate-500">หน่วยงาน:</p>
+             <p className="text-xs font-bold text-amber-500 truncate">{user.unitName}</p>
+          </div>
+           <button onClick={handleLogout} className="w-full flex items-center justify-center lg:justify-start lg:px-4 py-2 rounded border border-slate-600 text-slate-400 hover:text-red-500 hover:border-red-500 transition-colors">
+            <LogOut size={20}/><span className="hidden lg:block ml-3">ออกจากระบบ</span>
           </button>
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <main className="print-full-w flex-1 ml-16 lg:ml-64 p-4 md:p-8 min-w-0 h-screen overflow-y-auto custom-scrollbar relative">
-        <div className="hidden print-header">
-           <img src={GARUDA_URL} alt="ตราครุฑ" />
-           <h1>บันทึกข้อความ / รายงานสรุปผล</h1>
-           <h2>ระบบติดตามและประเมินผลการปฏิบัติราชการ (J4 Tracker)</h2>
-           <p>พิมพ์เมื่อ: {new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })} น.</p>
-        </div>
-
-        <div className="max-w-7xl mx-auto fade-in-up pb-24">
-          <div className="flex items-center justify-between mb-6 print-hide">
-            <h2 className="text-slate-400 text-sm md:text-base font-medium flex items-center gap-2">
-              <ShieldCheck size={16} className="text-amber-500"/> ระบบติดตามการดำเนินการตามนโยบาย (Google Sheets API)
+      {/* Main Content */}
+      <main className="flex-1 ml-16 lg:ml-64 p-4 md:p-8 h-screen overflow-y-auto custom-scrollbar">
+        <div className="max-w-7xl mx-auto pb-20">
+          <div className="flex justify-between items-center mb-6 print-hide">
+            <h2 className="text-slate-400 font-medium flex items-center gap-2">
+              <ShieldCheck size={18} className="text-amber-500"/> ระบบติดตามงาน J4 Command Center
             </h2>
-            <div className="flex items-center gap-3">
-              {isSyncing && <span className="text-amber-500 text-xs font-bold flex items-center gap-1"><RefreshCcw size={12} className="animate-spin"/> กำลังดึงข้อมูล...</span>}
-              <button onClick={loadData} className="bg-slate-800 border border-slate-700 p-2 rounded-full hover:bg-slate-700 transition-colors" title="ดึงข้อมูลใหม่ล่าสุด">
-                <RefreshCcw size={16} className="text-slate-400 hover:text-white"/>
-              </button>
-              {isAdminOrExec && <NotificationBell appDb={appDb} />}
+            <div className="flex gap-2 items-center">
+                {isSyncing && <RefreshCcw size={16} className="animate-spin text-amber-500"/>}
+                <button onClick={loadData} className="p-2 hover:bg-slate-700 rounded-full text-slate-400" title="Refresh Data"><RefreshCcw size={18}/></button>
+                <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-2 hover:bg-slate-700 rounded-full text-slate-400">
+                  {theme === 'dark' ? <Sun size={18}/> : <Moon size={18}/>}
+                </button>
             </div>
           </div>
 
+          {/* Router Views */}
           {view === 'DASHBOARD_POLICY' && <PolicyDashboard appDb={appDb} user={user} />}
           {view === 'DASHBOARD_TASK' && <TaskDashboard appDb={appDb} user={user} />}
           {view === 'EXEC_SUMMARY' && <ExecutiveSummary appDb={appDb} />}
           {view === 'POLICIES' && <Policies appDb={appDb} user={user} showToast={showToast} callApi={callApi} refresh={loadData} />}
           {view === 'TASKS' && <TaskTracker appDb={appDb} user={user} showToast={showToast} callApi={callApi} refresh={loadData} />}
-          {view === 'UNITS_CONFIG' && <UnitsConfig appDb={appDb} showToast={showToast} callApi={callApi} refresh={loadData} />}
-          {view === 'REPORT_FORM' && <ReportForm appDb={appDb} user={user} showToast={showToast} setView={setView} callApi={callApi} refresh={loadData} />}
+          {view === 'REPORT_FORM' && <ReportForm appDb={appDb} user={user} showToast={showToast} setView={setView} callApi={callApi} />}
           {view === 'HISTORY' && <History appDb={appDb} user={user} showToast={showToast} callApi={callApi} refresh={loadData} />}
+          {view === 'UNITS_CONFIG' && <UnitsConfig appDb={appDb} showToast={showToast} callApi={callApi} refresh={loadData} />}
         </div>
       </main>
 
-      <Chatbot appDb={appDb} />
-
       {toastData && (
-        <div className="print-hide fixed top-4 right-4 z-[100] px-4 py-3 rounded-lg shadow-2xl border flex items-center gap-3 fade-in-up bg-slate-800 text-white max-w-sm" style={{ borderColor: toastData.type === 'ok' ? '#10b981' : '#ef4444' }}>
-          {toastData.type === 'ok' ? <CheckCircle className="text-emerald-500" size={20}/> : <AlertTriangle className="text-red-500" size={20}/>}
-          <span className="font-medium text-sm">{toastData.msg}</span>
+        <div className="fixed top-4 right-4 z-[100] px-4 py-3 rounded-lg shadow-2xl border bg-slate-800 text-white flex items-center gap-3 animate-bounce" style={{borderColor: toastData.type === 'ok' ? '#10b981' : '#ef4444'}}>
+          <CheckCircle size={20} className={toastData.type === 'ok' ? 'text-emerald-500' : 'text-red-500'}/>
+          <span>{toastData.msg}</span>
         </div>
       )}
     </div>
   );
 }
 
-// ============== LOGIN COMPONENT ==============
+// ============== LOGIN SCREEN ==============
 function LoginScreen({ onLogin, isLoading, appDb, loadData }) {
-  // บัญชีสำรองฉุกเฉิน (กันเหนียว กรณี Google Sheets ล่มหรือข้อมูลว่างเปล่า)
-  const defaultAccounts = [
-    { id: "A-1", name: "ผู้ดูแลระบบกลาง (Admin)", passcode: "5721118", role: "admin" },
-    { id: "E-1", name: "ผู้บริหารระดับสูง", passcode: "1111", role: "executive" },
-    { id: "U-1", name: "กกล.กบ.ทหาร", passcode: "1234", role: "user" }
-  ];
-
-  const accounts = appDb.units && appDb.units.length > 0 ? appDb.units : defaultAccounts;
+  const accounts = appDb.units && appDb.units.length > 0 ? appDb.units : FALLBACK_ACCOUNTS;
   
   const [accountId, setAccountId] = useState('');
   const [password, setPassword] = useState('');
@@ -752,7 +682,6 @@ function PolicyDashboard({ appDb, user }) {
       const cCompleted = cProgList.filter(x => x.progress === 100).length;
       const cAvg = cProgList.length > 0 ? (cProgList.reduce((a, b) => a + (b.progress || 0), 0) / cProgList.length) : 0;
       
-      // Calculate donut before applying interactive filter so the chart doesn't disappear
       const cStatusCount = [
         { name: 'เสร็จแล้ว (100%)', value: cProgList.filter(x => x.progress === 100).length },
         { name: 'กำลังจะแล้วเสร็จ (91-99%)', value: cProgList.filter(x => x.progress >= 91 && x.progress <= 99).length },
@@ -769,7 +698,6 @@ function PolicyDashboard({ appDb, user }) {
         return `${STATUS_COLORS[d.name]} ${start}% ${cumulativePercent}%`;
       }).join(', ') : 'transparent 0% 100%';
 
-      // Apply Interactive Filter to the list shown
       if (selectedStatus) {
         cProgList = cProgList.filter(x => x.statusBucket === selectedStatus);
       }
@@ -851,7 +779,6 @@ function PolicyDashboard({ appDb, user }) {
                     return (
                       <div key={p.id} className={`relative flex flex-col gap-2 p-3 rounded-lg border transition-all theme-transition ${isExpanded ? 'bg-slate-700/40 border-amber-500 shadow-inner' : 'bg-slate-900/50 border-slate-700/50 hover:border-amber-500/50'}`}>
                         
-                        {/* Policy Header (Clickable) */}
                         <div className="cursor-pointer" onClick={() => setExpandedPolicyId(isExpanded ? null : p.id)}>
                           <div className="flex justify-between items-start text-xs mb-2">
                             <span className="text-slate-200 font-medium pr-4 flex items-start gap-1" title={p.name}>
@@ -875,7 +802,6 @@ function PolicyDashboard({ appDb, user }) {
                           )}
                         </div>
 
-                        {/* Expanded Timeline View */}
                         {isExpanded && (
                           <div className="mt-2 pt-2 border-t border-slate-700 fade-in-up">
                              {renderPolicyTimeline(p.id)}
@@ -899,7 +825,6 @@ function PolicyDashboard({ appDb, user }) {
 
   return (
     <div className="space-y-6 fade-in-up text-slate-100">
-      {/* Filters */}
       <div className="bg-slate-800 p-5 rounded-xl border border-slate-700 print-hide flex flex-col md:flex-row items-start md:items-center justify-between gap-4 theme-transition">
         <div>
           <h2 className="text-xl font-bold flex items-center gap-2 text-amber-500">
@@ -935,7 +860,6 @@ function PolicyDashboard({ appDb, user }) {
         </div>
       </div>
 
-      {/* Overview Interactive Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 print-hide">
         {[
           { label: 'ข้อสั่งการรวม', val: overallStats.total, status: null, color: 'text-slate-100', border: 'border-slate-600', bg: 'bg-slate-800' },
@@ -975,12 +899,12 @@ function PolicyDashboard({ appDb, user }) {
   );
 }
 
+// ============== TASK DASHBOARD ==============
 function TaskDashboard({ appDb, user }) {
   const isAdminOrExec = user.role === 'admin' || user.role === 'executive';
   const [filterUnit, setFilterUnit] = useState(isAdminOrExec ? 'ALL' : user.unitName);
   const [fiscalYear, setFiscalYear] = useState('ALL');
   
-  // Interactive Filters
   const [selectedStatus, setSelectedStatus] = useState(null);
   const [selectedRootCause, setSelectedRootCause] = useState(null);
 
@@ -988,7 +912,6 @@ function TaskDashboard({ appDb, user }) {
      return (appDb.units || []).filter(u => u.role === 'user' || !u.role);
   }, [appDb.units]);
 
-  // Compute Base tasks based on Dropdowns
   const baseTasks = useMemo(() => {
     let tasks = appDb.tasks || [];
     if (filterUnit !== 'ALL') {
@@ -1001,7 +924,6 @@ function TaskDashboard({ appDb, user }) {
     return tasks;
   }, [appDb.tasks, filterUnit, fiscalYear]);
 
-  // Compute Stats for Charts (ignoring interactive clicks so charts stay full)
   const stats = useMemo(() => {
     const totalTasks = baseTasks.length;
     const completedTasks = baseTasks.filter(t => t.status === 'เสร็จสิ้น').length;
@@ -1027,7 +949,6 @@ function TaskDashboard({ appDb, user }) {
     return { totalTasks, completedTasks, delayedTasks, avgProgress, statusCount, rootCausesArray };
   }, [baseTasks]);
 
-  // Filtered Tasks for Bottom Table based on Clicks
   const filteredTasksList = useMemo(() => {
     let list = baseTasks;
     if (selectedStatus) list = list.filter(t => t.status === selectedStatus);
@@ -1052,7 +973,6 @@ function TaskDashboard({ appDb, user }) {
 
   return (
     <div className="space-y-6 fade-in-up text-slate-100">
-      {/* Top Filter Bar */}
       <div className="bg-slate-800 p-5 rounded-xl border border-slate-700 print-hide flex flex-col md:flex-row justify-between items-start md:items-center gap-4 theme-transition">
         <div>
           <h2 className="text-xl font-bold flex items-center gap-2 text-amber-500">
@@ -1083,7 +1003,6 @@ function TaskDashboard({ appDb, user }) {
         </div>
       </div>
 
-      {/* KPI Cards (Clickable) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'จำนวนภารกิจรวม', val: stats.totalTasks, status: null, color: 'text-slate-100', border: 'border-slate-600', bg: 'bg-slate-800' },
@@ -1109,15 +1028,11 @@ function TaskDashboard({ appDb, user }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Interactive Donut */}
         <div className="lg:col-span-4 bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-md flex flex-col items-center">
-          <h3 className="font-semibold w-full mb-6 text-slate-100 flex justify-between items-center">
-            สัดส่วนสถานะงาน 
-          </h3>
+          <h3 className="font-semibold w-full mb-6 text-slate-100 flex justify-between items-center">สัดส่วนสถานะงาน</h3>
           <div className="relative w-48 h-48 rounded-full mb-6 transition-all duration-500 hover:scale-105 cursor-pointer" 
                style={{ background: stats.totalTasks > 0 ? `conic-gradient(${donutGradientStops})` : '#334155' }}
-               onClick={() => { setSelectedStatus(null); setSelectedRootCause(null); }}
-          >
+               onClick={() => { setSelectedStatus(null); setSelectedRootCause(null); }}>
             <div className="absolute inset-0 m-auto w-32 h-32 bg-slate-800 rounded-full flex flex-col items-center justify-center border-[8px] border-slate-800 shadow-inner">
               <span className="text-2xl font-bold text-slate-100">{stats.totalTasks}</span>
               <span className="text-[10px] text-slate-400 text-center px-2">{selectedStatus ? selectedStatus : '(คลิกเพื่อล้างตัวกรอง)'}</span>
@@ -1125,22 +1040,15 @@ function TaskDashboard({ appDb, user }) {
           </div>
           <div className="w-full space-y-2 mt-auto">
             {stats.statusCount.map(s => (
-              <div 
-                key={s.name} 
-                onClick={() => { setSelectedStatus(selectedStatus === s.name ? null : s.name); setSelectedRootCause(null); }}
-                className={`flex items-center justify-between text-xs p-2 rounded-lg cursor-pointer transition-colors border ${selectedStatus === s.name ? 'border-amber-500 bg-slate-700' : 'border-transparent hover:bg-slate-700/50'}`}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-full shadow-sm" style={{ background: TASK_STATUS_COLORS[s.name] }}></span>
-                  <span className={selectedStatus === s.name ? 'font-bold text-amber-400' : 'text-slate-300'}>{s.name}</span>
-                </div>
+              <div key={s.name} onClick={() => { setSelectedStatus(selectedStatus === s.name ? null : s.name); setSelectedRootCause(null); }}
+                className={`flex items-center justify-between text-xs p-2 rounded-lg cursor-pointer transition-colors border ${selectedStatus === s.name ? 'border-amber-500 bg-slate-700' : 'border-transparent hover:bg-slate-700/50'}`}>
+                <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full shadow-sm" style={{ background: TASK_STATUS_COLORS[s.name] }}></span><span className={selectedStatus === s.name ? 'font-bold text-amber-400' : 'text-slate-300'}>{s.name}</span></div>
                 <span className="font-medium text-slate-100">{s.value}</span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Interactive Bar Chart (Root Causes) */}
         <div className="lg:col-span-8 bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-md flex flex-col">
           <h3 className="font-semibold mb-6 text-slate-100 flex items-center gap-2">
             <AlertOctagon size={20} className="text-red-500"/> วิเคราะห์สาเหตุความล่าช้า 
@@ -1151,25 +1059,11 @@ function TaskDashboard({ appDb, user }) {
               const maxVal = Math.max(...stats.rootCausesArray.map(x=>x.count), 1);
               const pct = (rc.count / maxVal) * 100;
               const isSelected = selectedRootCause === rc.cause;
-              
               return (
-                <div 
-                  key={i} 
-                  onClick={() => { setSelectedRootCause(isSelected ? null : rc.cause); setSelectedStatus('ล่าช้า/ติดปัญหา'); }}
-                  className={`group cursor-pointer p-2 rounded-lg transition-colors border ${isSelected ? 'border-red-500 bg-red-950/20' : 'border-transparent hover:bg-slate-700/30'}`}
-                >
-                  <div className="flex justify-between text-xs mb-1.5">
-                    <span className={`truncate pr-4 flex items-center gap-1 ${isSelected ? 'text-red-400 font-bold' : 'text-slate-300'}`}>
-                      {rc.cause}
-                    </span>
-                    <span className="font-bold text-slate-100">{rc.count} งาน</span>
-                  </div>
-                  <div className="w-full h-3 bg-slate-900 rounded-full overflow-hidden flex">
-                    <div 
-                      className={`h-full rounded-full transition-all duration-700 ease-out ${isSelected ? 'bg-red-500' : 'bg-red-500/60 group-hover:bg-red-400'}`} 
-                      style={{ width: `${pct}%` }}
-                    ></div>
-                  </div>
+                <div key={i} onClick={() => { setSelectedRootCause(isSelected ? null : rc.cause); setSelectedStatus('ล่าช้า/ติดปัญหา'); }}
+                  className={`group cursor-pointer p-2 rounded-lg transition-colors border ${isSelected ? 'border-red-500 bg-red-950/20' : 'border-transparent hover:bg-slate-700/30'}`}>
+                  <div className="flex justify-between text-xs mb-1.5"><span className={`truncate pr-4 flex items-center gap-1 ${isSelected ? 'text-red-400 font-bold' : 'text-slate-300'}`}>{rc.cause}</span><span className="font-bold text-slate-100">{rc.count} งาน</span></div>
+                  <div className="w-full h-3 bg-slate-900 rounded-full overflow-hidden flex"><div className={`h-full rounded-full transition-all duration-700 ease-out ${isSelected ? 'bg-red-500' : 'bg-red-500/60 group-hover:bg-red-400'}`} style={{ width: `${pct}%` }}></div></div>
                 </div>
               );
             })}
@@ -1178,12 +1072,10 @@ function TaskDashboard({ appDb, user }) {
         </div>
       </div>
 
-      {/* Filtered Data Table */}
       <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-xl theme-transition">
         <div className="p-4 border-b border-slate-700 bg-slate-900/50 flex justify-between items-center">
           <h3 className="font-bold text-slate-100 flex items-center gap-2">
-            <ListTodo size={18} className="text-amber-500" /> 
-            รายการภารกิจที่ตรงตามเงื่อนไข 
+            <ListTodo size={18} className="text-amber-500" /> รายการภารกิจที่ตรงตามเงื่อนไข 
             {(selectedStatus || selectedRootCause) && <span className="bg-amber-600 text-white text-xs px-2 py-0.5 rounded-full">{filteredTasksList.length}</span>}
           </h3>
         </div>
@@ -1202,21 +1094,13 @@ function TaskDashboard({ appDb, user }) {
                 <tr key={t.task_id} className="hover:bg-slate-700/30 transition-colors theme-transition">
                   <td className="p-4 text-slate-200 font-medium">
                     <p className="line-clamp-2" title={t.task_name}>{t.task_name}</p>
-                    {t.status === 'ล่าช้า/ติดปัญหา' && t.root_cause && (
-                      <span className="text-[10px] text-red-400 bg-red-500/10 border border-red-500/20 px-1.5 py-0.5 rounded mt-1 inline-block">สาเหตุ: {t.root_cause}</span>
-                    )}
+                    {t.status === 'ล่าช้า/ติดปัญหา' && t.root_cause && <span className="text-[10px] text-red-400 bg-red-500/10 border border-red-500/20 px-1.5 py-0.5 rounded mt-1 inline-block">สาเหตุ: {t.root_cause}</span>}
                   </td>
                   <td className="p-4 text-xs text-slate-400">{t.primary_unit}</td>
-                  <td className="p-4 text-center">
-                    <span className={`px-2 py-1 rounded text-[10px] border ${TASK_STATUS[t.status] || TASK_STATUS['รอดำเนินการ']}`}>
-                      {t.status}
-                    </span>
-                  </td>
+                  <td className="p-4 text-center"><span className={`px-2 py-1 rounded text-[10px] border ${TASK_STATUS[t.status] || TASK_STATUS['รอดำเนินการ']}`}>{t.status}</span></td>
                   <td className="p-4">
                     <div className="flex items-center gap-2">
-                      <div className="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden border border-slate-700">
-                        <div style={{ width: `${t.progress_percent}%`, backgroundColor: getBarColor(t.progress_percent) }} className="h-full rounded-full"></div>
-                      </div>
+                      <div className="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden border border-slate-700"><div style={{ width: `${t.progress_percent}%`, backgroundColor: getBarColor(t.progress_percent) }} className="h-full rounded-full"></div></div>
                       <span className="text-[10px] font-bold font-mono" style={{ color: getBarColor(t.progress_percent) }}>{t.progress_percent}%</span>
                     </div>
                   </td>
@@ -1227,47 +1111,6 @@ function TaskDashboard({ appDb, user }) {
           </table>
         </div>
       </div>
-
-      {/* Delayed Tasks Highlight */}
-      <div className="bg-slate-800 p-6 rounded-xl border border-red-500/30 shadow-md mt-6 theme-transition">
-        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-red-500">
-          <AlertTriangle size={20}/> ภารกิจที่ต้องติดตามด่วน (ล่าช้า / ติดปัญหา)
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {delayedList.map(t => {
-             const escBadge = getEscalationBadge(t.end_date);
-             return (
-               <div key={t.task_id} className="bg-red-950/20 border border-red-900/50 p-4 rounded-lg relative overflow-hidden">
-                 <div className="absolute top-0 right-0 w-16 h-16 bg-red-500/10 rounded-bl-full"></div>
-                 <div className="flex justify-between items-start mb-2 relative z-10">
-                   <div className="flex gap-2 items-center">
-                      <span className="bg-red-500/20 text-red-500 text-[10px] px-2 py-1 rounded border border-red-500/30 font-semibold">{t.primary_unit}</span>
-                      {escBadge && <span className={`px-2 py-1 rounded border border-red-500/20 font-bold text-[10px] ${escBadge.class}`}>{escBadge.label}</span>}
-                   </div>
-                   <span className="text-xs text-slate-500 font-mono">กำหนด: {formatDate(t.end_date)}</span>
-                 </div>
-                 <h4 className="font-bold text-slate-100 mb-2 relative z-10">{t.task_name}</h4>
-                 <div className="flex items-center gap-3 mb-3 relative z-10">
-                   <div className="flex-1 bg-slate-900 h-1.5 rounded-full overflow-hidden border border-slate-700 theme-transition">
-                     <div className="h-full bg-red-500 rounded-full" style={{ width: `${t.progress_percent}%` }}></div>
-                   </div>
-                   <span className="text-xs font-bold text-red-500">{t.progress_percent}%</span>
-                 </div>
-                 <div className="text-xs text-red-400 bg-red-900/30 p-2.5 rounded border border-red-500/20 relative z-10 space-y-1">
-                   <p><span className="font-bold text-red-500">สาเหตุหลัก:</span> <span className="px-2 py-0.5 bg-red-950 rounded text-red-300 ml-1">{t.root_cause || 'ไม่ระบุ'}</span></p>
-                   <p><span className="font-bold text-red-500">รายละเอียด:</span> {t.note || 'ไม่มีการระบุรายละเอียดเพิ่มเติม'}</p>
-                 </div>
-               </div>
-             );
-          })}
-          {delayedList.length === 0 && (
-            <div className="col-span-full py-8 text-center text-slate-500 flex flex-col items-center">
-              <CheckCircle size={32} className="text-emerald-500/30 mb-3"/> 
-              <p>ยอดเยี่ยม! ไม่มีภารกิจที่ติดปัญหาในขณะนี้</p>
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   );
 }
@@ -1275,27 +1118,19 @@ function TaskDashboard({ appDb, user }) {
 // ============== EXECUTIVE SUMMARY ==============
 function ExecutiveSummary({ appDb }) {
   const [fiscalYear, setFiscalYear] = useState('ALL');
-  
-  // Interactive Filter State
   const [selectedUnit, setSelectedUnit] = useState(null);
 
   const stats = useMemo(() => {
     const unitStats = {};
     const currentUnits = (appDb.units || []).filter(u => u.role === 'user' || !u.role);
-    
-    currentUnits.forEach(u => {
-      unitStats[u.name] = { totalPolicies: 0, progressSum: 0, completed: 0, reports: 0, policyNames: [] };
-    });
+    currentUnits.forEach(u => { unitStats[u.name] = { totalPolicies: 0, progressSum: 0, completed: 0, reports: 0, policyNames: [] }; });
 
     const policies = appDb.policies || [];
     let reports = appDb.reports || [];
 
     if (fiscalYear !== 'ALL') {
       const dates = getFiscalYearDates(fiscalYear);
-      reports = reports.filter(r => {
-        const d = r.report_date || r.created_at;
-        return d >= dates.start && d <= dates.end;
-      });
+      reports = reports.filter(r => r.report_date >= dates.start && r.report_date <= dates.end);
     }
 
     policies.forEach(p => {
@@ -1320,13 +1155,10 @@ function ExecutiveSummary({ appDb }) {
 
     const latestReports = {};
     const approvedReports = reports.filter(r => r.approval_status === 'อนุมัติแล้ว');
-    const pendingReportsCount = reports.filter(r => r.approval_status === 'รอตรวจสอบ').length;
-
+    
     approvedReports.forEach(r => {
       const key = `${r.policy_id}_${r.unit_name}`;
-      if (!latestReports[key] || new Date(r.report_date) > new Date(latestReports[key].report_date)) {
-        latestReports[key] = r;
-      }
+      if (!latestReports[key] || new Date(r.report_date) > new Date(latestReports[key].report_date)) latestReports[key] = r;
     });
 
     Object.values(latestReports).forEach(r => {
@@ -1338,23 +1170,16 @@ function ExecutiveSummary({ appDb }) {
     });
 
     const unitArray = Object.entries(unitStats).map(([name, data]) => ({
-      name,
-      ...data,
-      avgProgress: data.reports > 0 ? (data.progressSum / data.reports) : 0
+      name, ...data, avgProgress: data.reports > 0 ? (data.progressSum / data.reports) : 0
     })).filter(u => u.totalPolicies > 0 || u.reports > 0).sort((a,b) => b.avgProgress - a.avgProgress);
 
-    const problemReports = reports
-      .filter(r => r.problems && r.problems.trim().length > 2 && r.problems.trim() !== '-')
-      .sort((a, b) => new Date(b.report_date || b.created_at) - new Date(a.report_date || a.created_at));
-
-    const today = new Date();
-    today.setHours(0,0,0,0);
+    const problemReports = reports.filter(r => r.problems && r.problems.trim().length > 2 && r.problems.trim() !== '-').sort((a, b) => new Date(b.report_date || b.created_at) - new Date(a.report_date || a.created_at));
+    const today = new Date(); today.setHours(0,0,0,0);
     const todayUpdatesCount = reports.filter(r => new Date(r.created_at || r.report_date) >= today).length;
 
     const trendData = [];
     for(let i=6; i>=0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
+      const d = new Date(); d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().substring(0,10);
       const label = d.toLocaleDateString('th-TH', {day:'numeric', month:'short'});
       const count = reports.filter(r => {
@@ -1368,18 +1193,13 @@ function ExecutiveSummary({ appDb }) {
     const importantPolicies = policies.filter(p => p.is_important);
     const importantTasks = (appDb.tasks || []).filter(t => t.is_important);
 
-    return { 
-      unitArray, problemReports, totalPolicies: policies.length, totalReports: approvedReports.length, 
-      pendingReportsCount, todayUpdatesCount, trendData, maxTrendCount,
-      importantPolicies, importantTasks 
-    };
+    return { unitArray, problemReports, totalPolicies: policies.length, totalReports: approvedReports.length, todayUpdatesCount, trendData, maxTrendCount, importantPolicies, importantTasks };
   }, [appDb, fiscalYear]);
 
-  // Apply Interactive Filters
   const filteredProblems = useMemo(() => {
     let probs = stats.problemReports;
     if (selectedUnit) probs = probs.filter(r => r.unit_name === selectedUnit);
-    return probs.slice(0, 5); // Show top 5
+    return probs.slice(0, 5); 
   }, [stats.problemReports, selectedUnit]);
 
   const filteredPriorityTasks = useMemo(() => {
@@ -1391,11 +1211,8 @@ function ExecutiveSummary({ appDb }) {
   const handleExportSummaryExcel = () => {
     const filename = `สรุปผลการปฏิบัติราชการ_${new Date().toISOString().substring(0,10)}`;
     const dataToExport = stats.unitArray.map(u => ({
-      "หน่วยงาน": u.name,
-      "นโยบาย/ข้อสั่งการที่รับผิดชอบ": u.totalPolicies,
-      "รายงานที่อนุมัติแล้ว": u.reports,
-      "ความคืบหน้าเฉลี่ย (%)": u.avgProgress.toFixed(2),
-      "ภารกิจเสร็จสมบูรณ์ (รายการ)": u.completed
+      "หน่วยงาน": u.name, "นโยบาย/ข้อสั่งการที่รับผิดชอบ": u.totalPolicies, "รายงานที่อนุมัติแล้ว": u.reports,
+      "ความคืบหน้าเฉลี่ย (%)": u.avgProgress.toFixed(2), "ภารกิจเสร็จสมบูรณ์ (รายการ)": u.completed
     }));
     exportToExcel(dataToExport, filename);
   };
@@ -1404,86 +1221,39 @@ function ExecutiveSummary({ appDb }) {
     <div className="space-y-6 fade-in-up text-slate-900 md:text-slate-100 rounded-lg">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
-          <div className="bg-amber-500/20 p-3 rounded-xl print-hide">
-            <Briefcase className="text-amber-500 dark:text-amber-400" size={28} />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold md:text-slate-100 print-text-black">บทสรุปผู้บริหาร (Executive Summary)</h2>
-            <p className="text-amber-600 md:text-amber-400 text-sm font-bold mt-1">คลิกเลือกหน่วยงานในตารางเพื่อดูเจาะลึกเฉพาะส่วน</p>
-          </div>
+          <div className="bg-amber-500/20 p-3 rounded-xl print-hide"><Briefcase className="text-amber-500 dark:text-amber-400" size={28} /></div>
+          <div><h2 className="text-2xl font-bold md:text-slate-100 print-text-black">บทสรุปผู้บริหาร (Executive Summary)</h2><p className="text-amber-600 md:text-amber-400 text-sm font-bold mt-1">คลิกเลือกหน่วยงานในตารางเพื่อดูเจาะลึกเฉพาะส่วน</p></div>
         </div>
         <div className="flex items-center gap-3 print-hide">
-          {selectedUnit && (
-             <button onClick={() => setSelectedUnit(null)} className="bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors">
-               <FilterX size={16}/> ล้างการกรอง
-             </button>
-          )}
-          <select value={fiscalYear} onChange={e => setFiscalYear(e.target.value)} className="bg-slate-900 border border-slate-700 rounded-lg text-slate-100 p-2 text-sm theme-transition">
-             <option value="ALL">ทุกปีงบประมาณ</option>
-             <option value="2567">ปีงบประมาณ 2567</option>
-             <option value="2568">ปีงบประมาณ 2568</option>
-             <option value="2569">ปีงบประมาณ 2569</option>
-          </select>
-          <button onClick={handleExportSummaryExcel} className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 shadow-lg">
-            <Table size={16}/> ส่งออก Excel
-          </button>
-          <button onClick={() => window.print()} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 shadow-lg">
-            <Printer size={16}/> พิมพ์รายงานสรุป
-          </button>
+          {selectedUnit && <button onClick={() => setSelectedUnit(null)} className="bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2"><FilterX size={16}/> ล้างการกรอง</button>}
+          <select value={fiscalYear} onChange={e => setFiscalYear(e.target.value)} className="bg-slate-900 border border-slate-700 rounded-lg text-slate-100 p-2 text-sm"><option value="ALL">ทุกปีงบประมาณ</option><option value="2567">ปีงบประมาณ 2567</option><option value="2568">ปีงบประมาณ 2568</option><option value="2569">ปีงบประมาณ 2569</option></select>
+          <button onClick={handleExportSummaryExcel} className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 shadow-lg"><Table size={16}/> ส่งออก Excel</button>
+          <button onClick={() => window.print()} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 shadow-lg"><Printer size={16}/> พิมพ์รายงานสรุป</button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
         <div className="lg:col-span-2 bg-gradient-to-br from-amber-600/90 to-amber-800/90 p-5 rounded-xl border border-amber-500/30 shadow-lg text-white">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="font-bold">🏆 หน่วยงานผลงานยอดเยี่ยม</h3>
-            <Trophy size={20} className="text-amber-200"/>
-          </div>
-          {stats.unitArray.length > 0 ? (
-             <div>
-                <p className="text-2xl font-bold">{stats.unitArray[0].name}</p>
-                <p className="text-amber-100 text-sm mt-1">ความคืบหน้าเฉลี่ย {stats.unitArray[0].avgProgress.toFixed(1)}%</p>
-             </div>
-          ) : <p className="text-sm text-amber-200">ยังไม่มีข้อมูล</p>}
+          <div className="flex items-center justify-between mb-2"><h3 className="font-bold">🏆 หน่วยงานผลงานยอดเยี่ยม</h3><Trophy size={20} className="text-amber-200"/></div>
+          {stats.unitArray.length > 0 ? (<div><p className="text-2xl font-bold">{stats.unitArray[0].name}</p><p className="text-amber-100 text-sm mt-1">ความคืบหน้าเฉลี่ย {stats.unitArray[0].avgProgress.toFixed(1)}%</p></div>) : <p className="text-sm text-amber-200">ยังไม่มีข้อมูล</p>}
         </div>
-        
-        <div className="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-lg theme-transition">
-           <p className="text-slate-400 text-sm font-medium mb-1">การรายงานความคืบหน้า</p>
-           <h3 className="text-3xl font-bold md:text-slate-100 print-text-black tracking-tight">
-             {stats.totalReports} <span className="text-sm font-normal text-slate-500">ฉบับ</span>
-           </h3>
-        </div>
-        
-        <div className="bg-sky-900/20 p-6 rounded-xl border border-sky-500/30 shadow-lg relative overflow-hidden theme-transition">
-           <p className="text-sky-600 dark:text-sky-400 text-sm font-medium mb-1">อัปเดตล่าสุด (วันนี้)</p>
-           <h3 className="text-3xl font-bold text-sky-600 dark:text-sky-500 tracking-tight">
-             {stats.todayUpdatesCount} <span className="text-sm font-normal text-slate-500">รายการ</span>
-           </h3>
-        </div>
+        <div className="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-lg theme-transition"><p className="text-slate-400 text-sm font-medium mb-1">การรายงานความคืบหน้า</p><h3 className="text-3xl font-bold md:text-slate-100 print-text-black tracking-tight">{stats.totalReports} <span className="text-sm font-normal text-slate-500">ฉบับ</span></h3></div>
+        <div className="bg-sky-900/20 p-6 rounded-xl border border-sky-500/30 shadow-lg relative overflow-hidden theme-transition"><p className="text-sky-600 dark:text-sky-400 text-sm font-medium mb-1">อัปเดตล่าสุด (วันนี้)</p><h3 className="text-3xl font-bold text-sky-600 dark:text-sky-500 tracking-tight">{stats.todayUpdatesCount} <span className="text-sm font-normal text-slate-500">รายการ</span></h3></div>
       </div>
 
-      {/* HIGHLIGHT: EXECUTIVE PRIORITY SECTION */}
       {(stats.importantPolicies.length > 0 || stats.importantTasks.length > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <div className="bg-slate-800/50 rounded-xl border-t-4 border-amber-500 shadow-lg p-5 theme-transition">
-            <h3 className="text-lg font-bold text-amber-500 flex items-center gap-2 mb-4">
-              <Star size={20} className="fill-amber-500" /> นโยบาย/ข้อสั่งการสำคัญ (Priority)
-            </h3>
+            <h3 className="text-lg font-bold text-amber-500 flex items-center gap-2 mb-4"><Star size={20} className="fill-amber-500" /> นโยบาย/ข้อสั่งการสำคัญ (Priority)</h3>
             <div className="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
               {stats.importantPolicies.map(p => {
                 const reps = (appDb.reports || []).filter(r => r.policy_id === p.policy_id).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
                 const progress = reps.length > 0 ? reps[0].progress_percent : 0;
-                
                 return (
                   <div key={p.policy_id} className="p-4 bg-slate-900/80 rounded-lg border border-slate-700/50 theme-transition">
-                    <div className="flex justify-between items-start mb-2">
-                      <span className="text-xs font-bold text-sky-400">[{p.policy_no}] {p.commander}</span>
-                      <span className="text-xs font-mono font-bold" style={{ color: getBarColor(progress) }}>{progress}%</span>
-                    </div>
+                    <div className="flex justify-between items-start mb-2"><span className="text-xs font-bold text-sky-400">[{p.policy_no}] {p.commander}</span><span className="text-xs font-mono font-bold" style={{ color: getBarColor(progress) }}>{progress}%</span></div>
                     <p className="text-sm text-slate-200 leading-snug line-clamp-2" title={p.order}>{p.order}</p>
-                    <div className="w-full bg-slate-800 rounded-full h-1.5 mt-3 overflow-hidden theme-transition">
-                      <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${progress}%`, backgroundColor: getBarColor(progress) }}></div>
-                    </div>
+                    <div className="w-full bg-slate-800 rounded-full h-1.5 mt-3 overflow-hidden theme-transition"><div className="h-full rounded-full transition-all duration-1000" style={{ width: `${progress}%`, backgroundColor: getBarColor(progress) }}></div></div>
                     <p className="text-[10px] text-slate-500 mt-2">หน่วยรับผิดชอบ: <span className="text-amber-400">{p.primary_unit}</span></p>
                   </div>
                 );
@@ -1491,31 +1261,17 @@ function ExecutiveSummary({ appDb }) {
               {stats.importantPolicies.length === 0 && <p className="text-sm text-slate-500 text-center py-4">ไม่มีนโยบายที่ถูกปักหมุดไว้</p>}
             </div>
           </div>
-
           <div className="bg-slate-800/50 rounded-xl border-t-4 border-amber-500 shadow-lg p-5 theme-transition">
-            <h3 className="text-lg font-bold text-amber-500 flex items-center gap-2 mb-4">
-              <Star size={20} className="fill-amber-500" /> ภารกิจสำคัญ (Priority Tasks)
-              {selectedUnit && <span className="text-xs bg-amber-500/20 px-2 py-0.5 rounded text-amber-400 font-normal ml-2">{selectedUnit}</span>}
-            </h3>
+            <h3 className="text-lg font-bold text-amber-500 flex items-center gap-2 mb-4"><Star size={20} className="fill-amber-500" /> ภารกิจสำคัญ (Priority Tasks) {selectedUnit && <span className="text-xs bg-amber-500/20 px-2 py-0.5 rounded text-amber-400 font-normal ml-2">{selectedUnit}</span>}</h3>
             <div className="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
               {filteredPriorityTasks.map(t => {
                 const deadline = getDeadlineStatus(t.end_date, t.status);
                 return (
                   <div key={t.task_id} className="p-4 bg-slate-900/80 rounded-lg border border-slate-700/50 theme-transition">
-                    <div className="flex justify-between items-start mb-2">
-                      <span className={`px-2 py-0.5 rounded text-[10px] border ${TASK_STATUS[t.status] || TASK_STATUS['รอดำเนินการ']}`}>{t.status}</span>
-                      <span className="text-xs font-mono font-bold" style={{ color: getBarColor(t.progress_percent) }}>{t.progress_percent}%</span>
-                    </div>
+                    <div className="flex justify-between items-start mb-2"><span className={`px-2 py-0.5 rounded text-[10px] border ${TASK_STATUS[t.status] || TASK_STATUS['รอดำเนินการ']}`}>{t.status}</span><span className="text-xs font-mono font-bold" style={{ color: getBarColor(t.progress_percent) }}>{t.progress_percent}%</span></div>
                     <p className="text-sm font-bold text-slate-200 leading-snug line-clamp-2" title={t.task_name}>{t.task_name}</p>
-                    <div className="w-full bg-slate-800 rounded-full h-1.5 mt-3 overflow-hidden theme-transition">
-                      <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${t.progress_percent}%`, backgroundColor: getBarColor(t.progress_percent) }}></div>
-                    </div>
-                    <div className="flex justify-between items-center mt-3">
-                       <p className="text-[10px] text-slate-500">หน่วย: <span className="text-amber-400">{t.primary_unit}</span></p>
-                       <span className={`text-[10px] px-1.5 py-0.5 rounded border ${deadline.color} flex items-center gap-1`}>
-                         <Clock size={8} /> {deadline.label}
-                       </span>
-                    </div>
+                    <div className="w-full bg-slate-800 rounded-full h-1.5 mt-3 overflow-hidden theme-transition"><div className="h-full rounded-full transition-all duration-1000" style={{ width: `${t.progress_percent}%`, backgroundColor: getBarColor(t.progress_percent) }}></div></div>
+                    <div className="flex justify-between items-center mt-3"><p className="text-[10px] text-slate-500">หน่วย: <span className="text-amber-400">{t.primary_unit}</span></p><span className={`text-[10px] px-1.5 py-0.5 rounded border ${deadline.color} flex items-center gap-1`}><Clock size={8} /> {deadline.label}</span></div>
                   </div>
                 );
               })}
@@ -1527,40 +1283,21 @@ function ExecutiveSummary({ appDb }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-7 bg-slate-800 rounded-xl border border-slate-700 shadow-lg p-5 theme-transition">
-          <h3 className="text-lg font-bold text-amber-600 md:text-amber-500 mb-4 flex items-center gap-2">
-            <TrendingUp size={20} /> ตารางจัดอันดับ KPI หน่วยงาน (Leaderboard)
-          </h3>
+          <h3 className="text-lg font-bold text-amber-600 md:text-amber-500 mb-4 flex items-center gap-2"><TrendingUp size={20} /> ตารางจัดอันดับ KPI หน่วยงาน (Leaderboard)</h3>
           <div className="space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
             {stats.unitArray.map((u, index) => {
               const isSelected = selectedUnit === u.name;
               return (
-                <div 
-                  className={`p-4 rounded-lg border flex items-start gap-4 cursor-pointer transition-all duration-300 theme-transition ${isSelected ? 'bg-slate-700/80 border-amber-500 shadow-md ring-1 ring-amber-500/50' : 'bg-slate-900/50 border-slate-700/50 hover:border-amber-500/30'}`} 
-                  key={u.name}
-                  onClick={() => setSelectedUnit(isSelected ? null : u.name)}
-                >
-                  <div className={`w-8 h-8 rounded-full border flex items-center justify-center font-bold shrink-0 mt-1 theme-transition ${isSelected ? 'bg-amber-500/20 border-amber-500 text-amber-400' : 'bg-slate-800 border-slate-600 text-slate-400'}`}>
-                    {index + 1}
-                  </div>
+                <div className={`p-4 rounded-lg border flex items-start gap-4 cursor-pointer transition-all duration-300 theme-transition ${isSelected ? 'bg-slate-700/80 border-amber-500 shadow-md ring-1 ring-amber-500/50' : 'bg-slate-900/50 border-slate-700/50 hover:border-amber-500/30'}`} key={u.name} onClick={() => setSelectedUnit(isSelected ? null : u.name)}>
+                  <div className={`w-8 h-8 rounded-full border flex items-center justify-center font-bold shrink-0 mt-1 theme-transition ${isSelected ? 'bg-amber-500/20 border-amber-500 text-amber-400' : 'bg-slate-800 border-slate-600 text-slate-400'}`}>{index + 1}</div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-start mb-1">
-                      <h4 className={`font-bold md:text-slate-100 print-text-black truncate ${isSelected ? 'text-amber-400' : ''}`}>{u.name}</h4>
-                      <span className="text-sm font-mono font-bold" style={{ color: getBarColor(u.avgProgress) }}>{u.avgProgress.toFixed(1)}%</span>
-                    </div>
+                    <div className="flex justify-between items-start mb-1"><h4 className={`font-bold md:text-slate-100 print-text-black truncate ${isSelected ? 'text-amber-400' : ''}`}>{u.name}</h4><span className="text-sm font-mono font-bold" style={{ color: getBarColor(u.avgProgress) }}>{u.avgProgress.toFixed(1)}%</span></div>
                     <p className="text-xs text-slate-500 mb-2">รับผิดชอบ {u.totalPolicies} เรื่อง | {u.completed} เสร็จสิ้น</p>
-                    <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden theme-transition">
-                      <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${u.avgProgress}%`, backgroundColor: getBarColor(u.avgProgress) }}></div>
-                    </div>
-                    
-                    {/* แสดงรายชื่อแผนงานที่หน่วยรับผิดชอบ (ยุบขยายได้ถ้าคลิก) */}
+                    <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden theme-transition"><div className="h-full rounded-full transition-all duration-1000" style={{ width: `${u.avgProgress}%`, backgroundColor: getBarColor(u.avgProgress) }}></div></div>
                     {isSelected && u.policyNames && u.policyNames.length > 0 && (
                       <div className="mt-3 pt-2 border-t border-slate-700/50 fade-in-up">
                         <p className="text-[11px] text-amber-600 dark:text-amber-400/80 font-bold mb-1">แผนงาน/ข้อสั่งการที่รับผิดชอบ:</p>
-                        <ul className="list-disc pl-4 space-y-1">
-                          {u.policyNames.map((pn, i) => (
-                            <li key={i} className="text-[10px] text-slate-400 leading-tight">{pn}</li>
-                          ))}
-                        </ul>
+                        <ul className="list-disc pl-4 space-y-1">{u.policyNames.map((pn, i) => (<li key={i} className="text-[10px] text-slate-400 leading-tight">{pn}</li>))}</ul>
                       </div>
                     )}
                   </div>
@@ -1573,9 +1310,7 @@ function ExecutiveSummary({ appDb }) {
 
         <div className="lg:col-span-5 space-y-6">
           <div className="bg-slate-800 rounded-xl border border-slate-700 shadow-lg p-5 theme-transition print-hide">
-            <h3 className="text-sm font-bold text-slate-400 mb-4 flex items-center gap-2">
-              <Activity size={16} /> แนวโน้มการรายงานผลย้อนหลัง 7 วัน
-            </h3>
+            <h3 className="text-sm font-bold text-slate-400 mb-4 flex items-center gap-2"><Activity size={16} /> แนวโน้มการรายงานผลย้อนหลัง 7 วัน</h3>
             <div className="flex items-end justify-between gap-2 h-32 mt-2">
               {stats.trendData.map((d, idx) => (
                 <div key={idx} className="flex flex-col items-center flex-1 gap-1 group">
@@ -1586,36 +1321,24 @@ function ExecutiveSummary({ appDb }) {
               ))}
             </div>
           </div>
-
           <div className="bg-slate-800 rounded-xl border border-slate-700 shadow-lg p-5 theme-transition">
-            <h3 className="text-lg font-bold text-red-600 md:text-red-500 mb-4 flex items-center gap-2">
-              <AlertTriangle size={20} /> ประเด็นข้อขัดข้องสำคัญล่าสุด
-              {selectedUnit && <span className="text-xs bg-red-500/20 px-2 py-0.5 rounded text-red-400 font-normal ml-2">{selectedUnit}</span>}
-            </h3>
+            <h3 className="text-lg font-bold text-red-600 md:text-red-500 mb-4 flex items-center gap-2"><AlertTriangle size={20} /> ประเด็นข้อขัดข้องสำคัญล่าสุด {selectedUnit && <span className="text-xs bg-red-500/20 px-2 py-0.5 rounded text-red-400 font-normal ml-2">{selectedUnit}</span>}</h3>
             <div className="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
               {filteredProblems.map(r => (
                 <div key={r.report_id} className="p-4 bg-red-950/10 border border-red-900/30 rounded-lg relative">
                   <div className="absolute top-4 right-4 text-xs font-mono text-slate-500">{formatDate(r.report_date || r.created_at)}</div>
                   <span className="inline-block px-2 py-0.5 bg-slate-900 text-amber-600 dark:text-amber-500 text-[10px] rounded border border-slate-700 mb-2 theme-transition">{r.unit_name}</span>
                   <h4 className="text-sm font-bold md:text-slate-100 print-text-black mb-2 pr-16 line-clamp-2" title={r.policy_snippet}>[ลำดับ {r.policy_no || '-'}] {r.policy_snippet}</h4>
-                  <div className="bg-red-950/20 p-3 rounded border border-red-900/20">
-                    <p className="text-xs text-red-600 dark:text-red-400 leading-relaxed"><span className="font-bold">ปัญหา:</span> {r.problems}</p>
-                  </div>
-                  {r.next_plan && r.next_plan !== '-' && (
-                    <p className="text-xs text-slate-500 mt-2"><span className="font-medium md:text-slate-400 print-text-black">แผนแก้ไข:</span> {r.next_plan}</p>
-                  )}
+                  <div className="bg-red-950/20 p-3 rounded border border-red-900/20"><p className="text-xs text-red-600 dark:text-red-400 leading-relaxed"><span className="font-bold">ปัญหา:</span> {r.problems}</p></div>
+                  {r.next_plan && r.next_plan !== '-' && <p className="text-xs text-slate-500 mt-2"><span className="font-medium md:text-slate-400 print-text-black">แผนแก้ไข:</span> {r.next_plan}</p>}
                 </div>
               ))}
               {filteredProblems.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-6 text-slate-500">
-                  <CheckCircle size={32} className="text-emerald-500/30 mb-3" />
-                  <p className="text-sm">ไม่พบรายงานข้อขัดข้องในขณะนี้</p>
-                </div>
+                <div className="flex flex-col items-center justify-center py-6 text-slate-500"><CheckCircle size={32} className="text-emerald-500/30 mb-3" /><p className="text-sm">ไม่พบรายงานข้อขัดข้องในขณะนี้</p></div>
               )}
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );
@@ -2587,7 +2310,6 @@ function ReportForm({ appDb, user, showToast, setView, callApi }) {
 
   const handleFileUpload = async (e) => {
     // Note: การอัปโหลดไฟล์ในเวอร์ชันนี้ จะทำได้เฉพาะแปะลิงก์ URL ครับ 
-    // หากต้องอัปโหลดเข้า Storage จำเป็นต้องใช้ Third-party (เช่น Firebase Storage) 
     alert("ในโหมด Google Sheets โปรดอัปโหลดไฟล์ขึ้น Google Drive ของท่าน แล้วนำลิงก์ (URL) มาวางในช่องด้านล่างครับ");
   };
 
@@ -2695,142 +2417,6 @@ function ReportForm({ appDb, user, showToast, setView, callApi }) {
           </form>
         </div>
       </div>
-    </div>
-  );
-}
-
-// ============== UNITS CONFIG ==============
-function UnitsConfig({ appDb, showToast, callApi, refresh }) {
-  const [isModalOpen, setModalOpen] = useState(false);
-  const [editData, setEditData] = useState(null);
-
-  const unitsList = appDb.units || [];
-
-  const handleDelete = async (id) => {
-    if(window.confirm('ยืนยันการลบบัญชีนี้?')) {
-      showToast('กำลังลบข้อมูลจาก Google Sheets...');
-      const success = await callApi("delete", "units", null, "id", id);
-      if (success) {
-        showToast('ลบบัญชีเรียบร้อย', 'ok');
-        refresh();
-      }
-    }
-  };
-
-  const handleSave = async (e) => {
-    e.preventDefault();
-    
-    const fd = new FormData(e.target);
-    const newName = fd.get('name').trim();
-    const newPasscode = fd.get('passcode').trim();
-    const newRole = fd.get('role');
-    
-    if (!newName) {
-      showToast('กรุณากรอกชื่อบัญชีผู้ใช้งาน', 'error');
-      return;
-    }
-
-    showToast('กำลังบันทึกข้อมูลไปที่ Google Sheets...');
-    
-    if (editData) {
-      const payload = { id: editData.id, name: newName, passcode: newPasscode, role: newRole };
-      const success = await callApi("update", "units", payload, "id", editData.id);
-      if (success) {
-        showToast('แก้ไขบัญชีเรียบร้อย', 'ok');
-        setModalOpen(false);
-        refresh();
-      }
-    } else {
-      const newId = `ACC-${Date.now()}`;
-      const payload = { id: newId, name: newName, passcode: newPasscode, role: newRole };
-      const success = await callApi("insert", "units", payload, "id", newId);
-      if (success) {
-        showToast('เพิ่มบัญชีเรียบร้อย', 'ok');
-        setModalOpen(false);
-        refresh();
-      }
-    }
-  };
-
-  return (
-    <div className="space-y-6 max-w-5xl mx-auto fade-in-up">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-slate-800 p-5 rounded-xl border border-slate-700 theme-transition">
-        <div>
-          <h2 className="text-xl font-bold flex items-center gap-2 text-amber-500">
-            <Users size={24} /> จัดการบัญชีและสิทธิ์ผู้ใช้งาน ({unitsList.length})
-          </h2>
-          <p className="text-sm text-slate-400 mt-1">ใช้เพิ่มผู้บริหาร, แอดมิน หรือหน่วยงานใหม่ และกำหนดรหัสผ่านเฉพาะบุคคล</p>
-        </div>
-        <button onClick={() => { setEditData(null); setModalOpen(true); }} className="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 shadow-lg shrink-0">
-          <Plus size={16}/> เพิ่มบัญชีใหม่
-        </button>
-      </div>
-
-      <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-xl theme-transition">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-900 border-b border-slate-700 text-slate-400 text-left theme-transition">
-            <tr>
-              <th className="p-4 font-medium w-24">ID</th>
-              <th className="p-4 font-medium">ชื่อบัญชี / หน่วยงาน</th>
-              <th className="p-4 font-medium text-center">สิทธิ์การใช้งาน (Role)</th>
-              <th className="p-4 font-medium text-center">รหัสผ่าน (Passcode)</th>
-              <th className="p-4 font-medium text-center w-32">จัดการ</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-700/50">
-            {unitsList.map(u => (
-              <tr key={u.id} className="hover:bg-slate-700/30 transition-colors theme-transition">
-                <td className="p-4 text-xs font-mono text-slate-500">{u.id}</td>
-                <td className="p-4 text-slate-700 dark:text-slate-200 font-bold">{u.name}</td>
-                <td className="p-4 text-center">
-                  <span className={`px-2.5 py-1 rounded text-[10px] font-bold border ${u.role === 'admin' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' : u.role === 'executive' ? 'bg-amber-500/20 text-amber-500 border-amber-500/30' : 'bg-sky-500/20 text-sky-400 border-sky-500/30'}`}>
-                    {u.role === 'admin' ? 'Admin' : u.role === 'executive' ? 'Executive' : 'User (หน่วยงาน)'}
-                  </span>
-                </td>
-                <td className="p-4 text-emerald-600 dark:text-emerald-400 font-mono tracking-widest text-center">{u.passcode || '1234'}</td>
-                <td className="p-4 text-xs space-x-3 text-center whitespace-nowrap">
-                  <button onClick={() => { setEditData(u); setModalOpen(true); }} className="text-sky-600 dark:text-sky-400 hover:text-sky-500 dark:hover:text-sky-300 transition-colors"><Edit size={16}/></button>
-                  <button onClick={() => handleDelete(u.id)} className="text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors"><Trash2 size={16}/></button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-md fade-in-up shadow-2xl theme-transition text-slate-100">
-            <h3 className="text-xl font-bold mb-5 flex items-center gap-2">{editData ? <Edit size={20}/> : <Plus size={20}/>} {editData ? 'แก้ไขบัญชีผู้ใช้งาน' : 'เพิ่มบัญชีใหม่'}</h3>
-            <form onSubmit={handleSave} className="space-y-5">
-              <div>
-                <label className="text-sm text-slate-400 block mb-2 font-bold">ชื่อผู้ใช้งาน หรือ ชื่อหน่วยงาน <span className="text-red-500">*</span></label>
-                <input name="name" defaultValue={editData?.name} required placeholder="เช่น ผู้บริหาร: ผบ.ทสส. หรือ กองกลาง" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-slate-100 focus:border-amber-500 outline-none theme-transition"/>
-              </div>
-              
-              <div>
-                <label className="text-sm text-slate-400 block mb-2 font-bold">ระดับสิทธิ์ (Role) <span className="text-red-500">*</span></label>
-                <select name="role" defaultValue={editData?.role || 'user'} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-slate-100 focus:border-amber-500 outline-none theme-transition">
-                  <option value="user">หน่วยงานปฏิบัติการ (เพิ่มงานและรายงานผลได้)</option>
-                  <option value="executive">ผู้บริหาร (ดู Dashboard ได้อย่างเดียว)</option>
-                  <option value="admin">ผู้ดูแลระบบกลาง (Admin) (จัดการได้ทุกเมนู)</option>
-                </select>
-                <p className="text-[10px] text-slate-500 mt-2">* หมายเหตุ: ถ้าใช้ฐานข้อมูลจริง โปรดมั่นใจว่าสร้างตารางคอลัมน์ชื่อ <b>role</b> ไว้ในตาราง <b>units</b> แล้ว</p>
-              </div>
-
-              <div>
-                <label className="text-sm text-slate-400 block mb-2 font-bold">รหัสผ่าน (Passcode) <span className="text-red-500">*</span></label>
-                <input name="passcode" defaultValue={editData?.passcode || ''} required placeholder="กำหนดรหัสผ่าน..." className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-emerald-500 font-mono focus:border-amber-500 outline-none theme-transition"/>
-              </div>
-
-              <div className="flex gap-3 justify-end pt-4 border-t border-slate-700 mt-6 theme-transition">
-                <button type="button" onClick={() => setModalOpen(false)} className="px-5 py-2.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-medium transition-colors">ยกเลิก</button>
-                <button type="submit" className="px-5 py-2.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-medium shadow-lg transition-colors">บันทึกข้อมูล</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -2986,6 +2572,141 @@ function History({ appDb, user, showToast, callApi, refresh }) {
   );
 }
 
+// ============== UNITS CONFIG ==============
+function UnitsConfig({ appDb, showToast, callApi, refresh }) {
+  const [isModalOpen, setModalOpen] = useState(false);
+  const [editData, setEditData] = useState(null);
+
+  const unitsList = appDb.units || [];
+
+  const handleDelete = async (id) => {
+    if(window.confirm('ยืนยันการลบบัญชีนี้?')) {
+      showToast('กำลังลบข้อมูลจาก Google Sheets...');
+      const success = await callApi("delete", "units", null, "id", id);
+      if (success) {
+        showToast('ลบบัญชีเรียบร้อย', 'ok');
+        refresh();
+      }
+    }
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    
+    const fd = new FormData(e.target);
+    const newName = fd.get('name').trim();
+    const newPasscode = fd.get('passcode').trim();
+    const newRole = fd.get('role');
+    
+    if (!newName) {
+      showToast('กรุณากรอกชื่อบัญชีผู้ใช้งาน', 'error');
+      return;
+    }
+
+    showToast('กำลังบันทึกข้อมูลไปที่ Google Sheets...');
+    
+    if (editData) {
+      const payload = { id: editData.id, name: newName, passcode: newPasscode, role: newRole };
+      const success = await callApi("update", "units", payload, "id", editData.id);
+      if (success) {
+        showToast('แก้ไขบัญชีเรียบร้อย', 'ok');
+        setModalOpen(false);
+        refresh();
+      }
+    } else {
+      const newId = `ACC-${Date.now()}`;
+      const payload = { id: newId, name: newName, passcode: newPasscode, role: newRole };
+      const success = await callApi("insert", "units", payload, "id", newId);
+      if (success) {
+        showToast('เพิ่มบัญชีเรียบร้อย', 'ok');
+        setModalOpen(false);
+        refresh();
+      }
+    }
+  };
+
+  return (
+    <div className="space-y-6 max-w-5xl mx-auto fade-in-up">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-slate-800 p-5 rounded-xl border border-slate-700 theme-transition">
+        <div>
+          <h2 className="text-xl font-bold flex items-center gap-2 text-amber-500">
+            <Users size={24} /> จัดการบัญชีและสิทธิ์ผู้ใช้งาน ({unitsList.length})
+          </h2>
+          <p className="text-sm text-slate-400 mt-1">ใช้เพิ่มผู้บริหาร, แอดมิน หรือหน่วยงานใหม่ และกำหนดรหัสผ่านเฉพาะบุคคล</p>
+        </div>
+        <button onClick={() => { setEditData(null); setModalOpen(true); }} className="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 shadow-lg shrink-0">
+          <Plus size={16}/> เพิ่มบัญชีใหม่
+        </button>
+      </div>
+
+      <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-xl theme-transition">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-900 border-b border-slate-700 text-slate-400 text-left theme-transition">
+            <tr>
+              <th className="p-4 font-medium w-24">ID</th>
+              <th className="p-4 font-medium">ชื่อบัญชี / หน่วยงาน</th>
+              <th className="p-4 font-medium text-center">สิทธิ์การใช้งาน (Role)</th>
+              <th className="p-4 font-medium text-center">รหัสผ่าน (Passcode)</th>
+              <th className="p-4 font-medium text-center w-32">จัดการ</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-700/50">
+            {unitsList.map(u => (
+              <tr key={u.id} className="hover:bg-slate-700/30 transition-colors theme-transition">
+                <td className="p-4 text-xs font-mono text-slate-500">{u.id}</td>
+                <td className="p-4 text-slate-700 dark:text-slate-200 font-bold">{u.name}</td>
+                <td className="p-4 text-center">
+                  <span className={`px-2.5 py-1 rounded text-[10px] font-bold border ${u.role === 'admin' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' : u.role === 'executive' ? 'bg-amber-500/20 text-amber-500 border-amber-500/30' : 'bg-sky-500/20 text-sky-400 border-sky-500/30'}`}>
+                    {u.role === 'admin' ? 'Admin' : u.role === 'executive' ? 'Executive' : 'User (หน่วยงาน)'}
+                  </span>
+                </td>
+                <td className="p-4 text-emerald-600 dark:text-emerald-400 font-mono tracking-widest text-center">{u.passcode || '1234'}</td>
+                <td className="p-4 text-xs space-x-3 text-center whitespace-nowrap">
+                  <button onClick={() => { setEditData(u); setModalOpen(true); }} className="text-sky-600 dark:text-sky-400 hover:text-sky-500 dark:hover:text-sky-300 transition-colors"><Edit size={16}/></button>
+                  <button onClick={() => handleDelete(u.id)} className="text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors"><Trash2 size={16}/></button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-md fade-in-up shadow-2xl theme-transition text-slate-100">
+            <h3 className="text-xl font-bold mb-5 flex items-center gap-2">{editData ? <Edit size={20}/> : <Plus size={20}/>} {editData ? 'แก้ไขบัญชีผู้ใช้งาน' : 'เพิ่มบัญชีใหม่'}</h3>
+            <form onSubmit={handleSave} className="space-y-5">
+              <div>
+                <label className="text-sm text-slate-400 block mb-2 font-bold">ชื่อผู้ใช้งาน หรือ ชื่อหน่วยงาน <span className="text-red-500">*</span></label>
+                <input name="name" defaultValue={editData?.name} required placeholder="เช่น ผู้บริหาร: ผบ.ทสส. หรือ กองกลาง" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-slate-100 focus:border-amber-500 outline-none theme-transition"/>
+              </div>
+              
+              <div>
+                <label className="text-sm text-slate-400 block mb-2 font-bold">ระดับสิทธิ์ (Role) <span className="text-red-500">*</span></label>
+                <select name="role" defaultValue={editData?.role || 'user'} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-slate-100 focus:border-amber-500 outline-none theme-transition">
+                  <option value="user">หน่วยงานปฏิบัติการ (เพิ่มงานและรายงานผลได้)</option>
+                  <option value="executive">ผู้บริหาร (ดู Dashboard ได้อย่างเดียว)</option>
+                  <option value="admin">ผู้ดูแลระบบกลาง (Admin) (จัดการได้ทุกเมนู)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-sm text-slate-400 block mb-2 font-bold">รหัสผ่าน (Passcode) <span className="text-red-500">*</span></label>
+                <input name="passcode" defaultValue={editData?.passcode || ''} required placeholder="กำหนดรหัสผ่าน..." className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-emerald-500 font-mono focus:border-amber-500 outline-none theme-transition"/>
+              </div>
+
+              <div className="flex gap-3 justify-end pt-4 border-t border-slate-700 mt-6 theme-transition">
+                <button type="button" onClick={() => setModalOpen(false)} className="px-5 py-2.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-medium transition-colors">ยกเลิก</button>
+                <button type="submit" className="px-5 py-2.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-medium shadow-lg transition-colors">บันทึกข้อมูล</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ============== CHATBOT ==============
 function Chatbot({ appDb }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -2994,9 +2715,8 @@ function Chatbot({ appDb }) {
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
 
-  // Gemini API Function
   const callGeminiAPI = async (userMessage, contextData) => {
-    if (!geminiApiKey || geminiApiKey === 'your_api_key_here') return null; // เพิ่มการตรวจสอบคีย์หลอก
+    if (!geminiApiKey || geminiApiKey === 'your_api_key_here') return null;
     
     const prompt = `
       คุณคือ "Assistant J4" ผู้ช่วยอัจฉริยะสำหรับระบบติดตามงาน J4 Tracker ของกรมส่งกำลังบำรุงทหาร
@@ -3105,7 +2825,6 @@ function Chatbot({ appDb }) {
       if (aiResponse) {
         setMessages(prev => [...prev, { sender: 'bot', text: aiResponse }]);
       } else {
-        // Fallback to basic mode if API fails
         setMessages(prev => [...prev, { sender: 'bot', text: processQueryBasic(userMsg) }]);
       }
     } else {
