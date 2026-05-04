@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 
 // ============================================================
-// 1. ตั้งค่า URL ของ Google Apps Script (ตรวจสอบให้ตรงกับที่ Deploy ใหม่)
+// 1. ตั้งค่า URL ของ Google Apps Script
 // ============================================================
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwgZZURz1cGNglxjEK-nGsm2g5cIT88GMG7gMkK2Zl2YydBCJyTlL65h8tcd63I2Z-R/exec";
 
@@ -55,11 +55,25 @@ const ROOT_CAUSES = [
 
 const ITEMS_PER_PAGE = 10;
 
-const FALLBACK_ACCOUNTS = [
-  { id: "A-1", name: "ผู้ดูแลระบบกลาง (Admin)", passcode: "5721118", role: "admin" }, 
-  { id: "E-1", name: "ผู้บริหารระดับสูง", passcode: "1111", role: "executive" }, 
-  { id: "U-1", name: "กกล.กบ.ทหาร", passcode: "1234", role: "user" }
-];
+// ข้อมูลจำลองสำหรับโหมด Offline / Demo
+const MOCK_DB = {
+  units: [
+    { id: "A-1", name: "ผู้ดูแลระบบกลาง (Admin)", passcode: "5721118", role: "admin" }, 
+    { id: "E-1", name: "ผู้บริหารระดับสูง", passcode: "1111", role: "executive" }, 
+    { id: "U-1", name: "กกล.กบ.ทหาร", passcode: "1234", role: "user" },
+    { id: "U-2", name: "กช.กบ.ทหาร", passcode: "1234", role: "user" }
+  ],
+  policies: [
+    { policy_id: "POL-1", policy_no: "1", category: "นโยบายหลัก", commander: "ผบ.ทสส.", order: "ทดสอบการเชื่อมต่อระบบและรายงานผลเบื้องต้น", timeframe: "ภายใน ก.ย. 68", primary_unit: "กกล.กบ.ทหาร", is_important: true },
+    { policy_id: "POL-2", policy_no: "2", category: "สั่งการเพิ่มเติม", commander: "รอง ผบ.ทสส.", order: "จัดเตรียมแผนงบประมาณปี 2568 สำหรับหน่วยงานที่เกี่ยวข้อง", timeframe: "ภายใน ต.ค. 67", primary_unit: "กช.กบ.ทหาร", is_important: false }
+  ],
+  reports: [
+    { report_id: "REP-1", policy_id: "POL-1", policy_no: "1", policy_snippet: "ทดสอบการเชื่อมต่อระบบ...", unit_name: "กกล.กบ.ทหาร", report_date: "2024-05-10", past_result: "ทดสอบระบบเสร็จสิ้น สามารถแสดงผลได้ตามปกติ", next_plan: "ขยายผลการใช้งานไปยังหน่วยอื่น", problems: "-", progress_percent: 100, approval_status: "อนุมัติแล้ว", created_at: "2024-05-10T10:00:00Z" }
+  ],
+  tasks: [
+    { task_id: "TSK-1", task_name: "ทดสอบการลงข้อมูลผ่านโหมด Offline", primary_unit: "กกล.กบ.ทหาร", status: "กำลังดำเนินการ", progress_percent: 50, start_date: "2024-05-01", end_date: "2024-05-31", is_important: true }
+  ]
+};
 
 // ============================================================
 // ฟังก์ชันช่วยเหลือ (Helpers)
@@ -222,7 +236,7 @@ function NavItem({ icon, label, isActive, onClick }) {
 // หน้าจอเข้าสู่ระบบ (Login Screen)
 // ============================================================
 function LoginScreen({ onLogin, isLoading, appDb, loadData, deployError }) {
-  const accounts = appDb.units && appDb.units.length > 0 ? appDb.units : FALLBACK_ACCOUNTS;
+  const accounts = appDb.units && appDb.units.length > 0 ? appDb.units : MOCK_DB.units;
   const [accountId, setAccountId] = useState('');
   const [password, setPassword] = useState('');
   const [localError, setLocalError] = useState('');
@@ -246,7 +260,7 @@ function LoginScreen({ onLogin, isLoading, appDb, loadData, deployError }) {
     if (!account) return;
     
     if (String(password) !== String(account.passcode)) { 
-      setLocalError('รหัสผ่านไม่ถูกต้อง'); 
+      setLocalError('รหัสผ่านไม่ถูกต้อง (สำหรับ Demo ใช้ 1234 หรือ 5721118)'); 
       return; 
     }
     
@@ -258,7 +272,7 @@ function LoginScreen({ onLogin, isLoading, appDb, loadData, deployError }) {
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4">
         <div className="w-16 h-16 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-6 shadow-[0_0_15px_rgba(245,158,11,0.5)]"></div>
         <p className="text-amber-400 font-bold text-lg animate-pulse">กำลังโหลดข้อมูลระบบ J4 Tracker...</p>
-        <p className="text-slate-500 text-sm mt-2">โปรดรอสักครู่...</p>
+        <p className="text-slate-500 text-sm mt-2">โปรดรอสักครู่ หรือกำลังตรวจจับข้อผิดพลาด...</p>
       </div>
     );
   }
@@ -287,31 +301,19 @@ function LoginScreen({ onLogin, isLoading, appDb, loadData, deployError }) {
               }} 
             />
           </div>
-          <h1 className="text-2xl md:text-3xl font-bold text-white mb-2 tracking-wide">ระบบติดตามผลการปฏิบัติ</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-100 mb-2 tracking-wide">ระบบติดตามผลการปฏิบัติ</h1>
           <p className="text-amber-500 text-sm font-bold tracking-widest uppercase">J4 Command Center</p>
         </div>
 
-        {deployError === "PERMISSION" && (
-          <div className="mb-6 bg-red-950/50 border border-red-500 p-5 rounded-xl text-left shadow-lg">
-             <h3 className="text-red-400 font-bold text-sm mb-3 flex items-center gap-2">
-               <AlertTriangle size={18}/> สิทธิ์เข้าถึงฐานข้อมูลถูกปฏิเสธ!
+        {/* ถ้าโหลด URL ไม่ผ่าน จะแจ้งเตือนและเข้าสู่ Demo Mode อัตโนมัติ */}
+        {appDb.isDemoMode && (
+          <div className="mb-6 bg-orange-950/50 border border-orange-500 p-5 rounded-xl text-left shadow-lg">
+             <h3 className="text-orange-400 font-bold text-sm mb-3 flex items-center gap-2">
+               <AlertTriangle size={18}/> กำลังใช้งาน "โหมดทดลอง (Demo)"
              </h3>
-             <p className="text-xs text-slate-300 mb-3 leading-relaxed">
-               กรุณาตั้งค่า Deploy ใน Google Apps Script ดังนี้:
+             <p className="text-xs text-slate-300 mb-2 leading-relaxed">
+               เนื่องจากดึงข้อมูลจาก Google Sheets ไม่สำเร็จ คุณสามารถล็อกอินด้วย <b className="text-white bg-slate-700 px-1 rounded">รหัสผ่าน: 1234</b> เพื่อเข้าไปทดลองใช้งานหน้าเว็บจำลองได้ทันที
              </p>
-             <ol className="text-xs text-amber-200 list-decimal pl-4 space-y-1.5 font-medium">
-                <li>ไปที่ <b>Deploy</b> {'>'} <b>Manage deployments</b></li>
-                <li>กดรูปดินสอ (แก้ไข) ด้านขวา</li>
-                <li>ช่อง Version เลือกเป็น <b className="bg-amber-900/50 px-1 rounded">New</b> (ใหม่)</li>
-                <li>ช่อง Who has access เลือก <b className="bg-amber-900/50 px-1 rounded">Anyone</b> (ทุกคน)</li>
-                <li>กดปุ่ม Deploy แล้วรีเฟรชหน้านี้ใหม่</li>
-             </ol>
-          </div>
-        )}
-
-        {deployError === "NETWORK" && (
-          <div className="mb-6 bg-red-950/50 border border-red-500 p-5 rounded-xl text-red-300 text-center text-sm flex items-center justify-center gap-2 shadow-lg font-medium">
-            <AlertTriangle size={18}/> เชื่อมต่อข้อมูลล้มเหลว ตรวจสอบ URL
           </div>
         )}
 
@@ -367,14 +369,6 @@ function LoginScreen({ onLogin, isLoading, appDb, loadData, deployError }) {
             </div>
           )}
           
-          {appDb.isLoaded && (!appDb.units || appDb.units.length === 0) && !deployError && (
-            <div className="text-xs text-amber-500 bg-amber-500/10 p-4 rounded-xl text-center border border-amber-500/20 flex flex-col items-center gap-1 font-medium">
-              <AlertTriangle size={16}/> 
-              <span>ระบบกำลังใช้บัญชีสำรองฉุกเฉิน</span>
-              <span className="opacity-70">(ฐานข้อมูล Google Sheets ยังว่างเปล่า)</span>
-            </div>
-          )}
-          
           <button 
             type="submit" 
             className="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-4 rounded-xl shadow-[0_4px_15px_rgba(245,158,11,0.3)] transition-all hover:-translate-y-0.5 active:translate-y-0 text-lg mt-2 flex items-center justify-center gap-2"
@@ -386,7 +380,7 @@ function LoginScreen({ onLogin, isLoading, appDb, loadData, deployError }) {
         <div className="mt-8 text-center border-t border-slate-700/50 pt-6">
            <button 
              onClick={loadData} 
-             className="text-slate-400 text-xs hover:text-white transition-colors flex items-center justify-center gap-2 mx-auto font-medium"
+             className="text-slate-400 text-xs hover:text-white transition-colors flex items-center justify-center gap-1.5 mx-auto font-medium"
            >
              <RefreshCcw size={14}/> โหลดการเชื่อมต่อใหม่
            </button>
@@ -407,7 +401,8 @@ export default function App() {
     reports: [], 
     tasks: [], 
     units: [], 
-    isLoaded: false 
+    isLoaded: false,
+    isDemoMode: false
   });
   const [toastData, setToastData] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -419,7 +414,7 @@ export default function App() {
     setTimeout(() => setToastData(null), 3000); 
   };
 
-  // ดึงข้อมูลทั้งหมดจาก Google Sheets พร้อมตรวจสอบ Error แบบละเอียด
+  // ดึงข้อมูลทั้งหมดจาก Google Sheets
   const loadData = async () => {
     setIsSyncing(true); 
     setDeployError(null);
@@ -427,13 +422,11 @@ export default function App() {
       const actions = ['units', 'policies', 'reports', 'tasks'];
       
       const results = await Promise.all(actions.map(async (action) => {
-        // เพิ่ม Cache buster `t` เพื่อป้องกันการโหลดข้อมูลเก่า
         const url = `${SCRIPT_URL}?action=${action}&t=${Date.now()}`;
         
         const res = await fetch(url, { redirect: "follow" }); 
         const text = await res.text();
         
-        // ถ้า Google ส่ง HTML Login กลับมา แปลว่าสิทธิ์เข้าถึง (Permissions) ผิด
         if (text.trim().startsWith('<') || text.includes('<!DOCTYPE html>')) {
           throw new Error("PERMISSION");
         }
@@ -441,7 +434,6 @@ export default function App() {
         try {
           return JSON.parse(text);
         } catch (parseErr) {
-          console.error("Parse Error for action:", action, text);
           throw new Error("PARSE_ERROR"); 
         }
       }));
@@ -451,13 +443,22 @@ export default function App() {
         policies: results[1] || [], 
         reports: results[2] || [], 
         tasks: results[3] || [], 
-        isLoaded: true 
+        isLoaded: true,
+        isDemoMode: false
       });
+      if(user) showToast("ซิงค์ข้อมูลล่าสุดเรียบร้อย", "ok");
+      
     } catch (err) {
       console.error("Fetch Execution Error:", err);
       setDeployError(err.message === "PERMISSION" ? "PERMISSION" : "NETWORK");
-      showToast(err.message === "PERMISSION" ? "สิทธิ์เข้าถึงถูกบล็อก!" : "เชื่อมต่อฐานข้อมูลล้มเหลว", "error");
-      setAppDb(prev => ({ ...prev, isLoaded: true }));
+      
+      // FALLBACK TO DEMO MODE: เมื่อโหลดข้อมูลล้มเหลว จะสลับไปใช้ข้อมูลจำลอง
+      setAppDb({
+         ...MOCK_DB,
+         isLoaded: true,
+         isDemoMode: true
+      });
+      showToast("ระบบออฟไลน์: เข้าสู่โหมดจำลองการทำงาน", "error");
     } finally { 
       setIsSyncing(false); 
     }
@@ -472,10 +473,15 @@ export default function App() {
 
   // ฟังก์ชันยิง API อัปเดตข้อมูล (POST) ไปยัง Google Sheets
   const callApi = async (method, action, data, idKey, idValue) => {
+    if (appDb.isDemoMode) {
+      showToast("ในโหมดจำลอง จะไม่สามารถบันทึกข้อมูลลงฐานข้อมูลจริงได้", "error");
+      return true; // Simulate success in demo mode
+    }
+
     try {
       await fetch(SCRIPT_URL, { 
         method: 'POST', 
-        mode: 'no-cors', // โหมดนี้จำเป็นสำหรับ Google Apps Script เพื่อไม่ให้ติด CORS Block
+        mode: 'no-cors',
         headers: { 
           'Content-Type': 'text/plain;charset=utf-8' 
         }, 
@@ -652,6 +658,17 @@ export default function App() {
       <main className="flex-1 lg:ml-72 pt-20 lg:pt-0 p-4 md:p-8 min-h-screen overflow-y-auto custom-scrollbar relative">
         <div className="max-w-7xl mx-auto pb-24">
           
+          {/* แจ้งเตือนเมื่ออยู่ในโหมดจำลอง */}
+          {appDb.isDemoMode && (
+            <div className="mb-6 bg-orange-950/80 border border-orange-500/50 p-4 rounded-2xl flex items-center gap-4 animate-pulse">
+              <div className="bg-orange-500/20 p-2 rounded-full text-orange-400"><AlertTriangle size={24}/></div>
+              <div>
+                <p className="font-bold text-orange-400">ระบบทำงานในโหมดออฟไลน์ / จำลอง (Demo Mode)</p>
+                <p className="text-xs text-slate-300">เนื่องจากไม่สามารถดึงข้อมูลจาก Google Sheets ได้ ข้อมูลที่คุณเห็นหรือบันทึกตอนนี้ จะไม่ถูกส่งไปที่ฐานข้อมูลจริง</p>
+              </div>
+            </div>
+          )}
+
           {/* Top Bar for Sync & Notifications */}
           <div className="flex justify-between items-center mb-8 bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-md print-hide">
             <h2 className="text-slate-300 font-bold flex items-center gap-3 text-sm md:text-base tracking-wide">
@@ -1150,7 +1167,7 @@ function TaskDashboard({ appDb, user }) {
          <div className="lg:col-span-4 bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl flex flex-col items-center relative overflow-hidden">
             <h3 className="font-bold w-full mb-8 text-slate-300 text-center text-sm uppercase tracking-widest border-b border-slate-700 pb-4">สัดส่วนสถานะภารกิจ</h3>
             <div className="relative w-56 h-56 rounded-full mb-10 cursor-pointer transform hover:scale-105 transition-all shadow-2xl" onClick={() => { setSelectedStatus(null); setSelectedRootCause(null); }} style={{ background: stats.totalTasks > 0 ? `conic-gradient(${donutGradientStops})` : '#334155' }}>
-               <div className="absolute inset-0 m-auto w-40 h-40 bg-slate-800 rounded-full flex flex-col items-center justify-center border-[6px] border-slate-800 shadow-inner">
+               <div className="absolute inset-0 m-auto w-36 h-36 bg-slate-800 rounded-full flex flex-col items-center justify-center border-[6px] border-slate-800 shadow-inner">
                  <span className="text-5xl font-bold text-white font-mono">{stats.totalTasks}</span>
                  <span className="text-[10px] text-slate-400 mt-2 uppercase tracking-widest font-bold">{selectedStatus ? selectedStatus : 'ภารกิจทั้งหมด'}</span>
                </div>
@@ -1207,29 +1224,28 @@ function TaskDashboard({ appDb, user }) {
       </div>
 
       <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-2xl theme-transition mt-8">
-        <div className="p-6 border-b border-slate-700 bg-slate-900/50 flex justify-between items-center">
-          <h3 className="font-bold text-white flex items-center gap-3 text-lg">
-            <div className="bg-amber-500/20 p-2 rounded-lg text-amber-500 border border-amber-500/30"><ListTodo size={20} /></div> 
-            รายการภารกิจที่ตรงตามเงื่อนไข 
-            {(selectedStatus || selectedRootCause) && <span className="bg-amber-600 text-white text-xs px-3 py-1 rounded-full shadow-md ml-3 tracking-wider">{filteredTasksList.length} รายการ</span>}
+        <div className="p-5 border-b border-slate-700 bg-slate-900/50 flex justify-between items-center">
+          <h3 className="font-bold text-slate-100 flex items-center gap-2 text-lg">
+            <ListTodo size={22} className="text-amber-500" /> รายการภารกิจที่ตรงตามเงื่อนไข 
+            {(selectedStatus || selectedRootCause) && <span className="bg-amber-600 text-white text-xs px-2.5 py-0.5 rounded-full shadow-sm ml-2">{filteredTasksList.length} รายการ</span>}
           </h3>
         </div>
-        <div className="overflow-x-auto custom-scrollbar max-h-[600px]">
+        <div className="overflow-x-auto custom-scrollbar max-h-[500px]">
           <table className="w-full text-sm text-left">
-            <thead className="bg-slate-900 border-b border-slate-700 text-slate-400 sticky top-0 z-10 shadow-md uppercase tracking-widest text-[10px] font-bold">
+            <thead className="bg-slate-900 border-b border-slate-700 text-slate-400 sticky top-0 z-10 shadow-sm uppercase tracking-wider text-xs">
               <tr>
-                <th className="p-5 min-w-[300px]">รายละเอียดภารกิจ</th>
-                <th className="p-5 whitespace-nowrap">หน่วยรับผิดชอบ</th>
-                <th className="p-5 whitespace-nowrap text-center">สถานะ</th>
-                <th className="p-5 w-48 text-center">ความคืบหน้า</th>
+                <th className="p-5 font-bold min-w-[300px]">รายละเอียดภารกิจ</th>
+                <th className="p-5 font-bold whitespace-nowrap">หน่วยรับผิดชอบ</th>
+                <th className="p-5 font-bold whitespace-nowrap text-center">สถานะ</th>
+                <th className="p-5 font-bold w-48 text-center">ความคืบหน้า</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50">
               {filteredTasksList.map(t => (
                 <tr key={t.task_id} className="hover:bg-slate-700/40 transition-colors align-top">
                   <td className="p-5 text-slate-200">
-                    <p className="font-bold text-base leading-relaxed mb-2" title={t.task_name}>{t.task_name}</p>
-                    <p className="text-[11px] text-slate-400 font-mono mb-3 bg-slate-900/50 inline-block px-2 py-1 rounded-md border border-slate-700"><Clock size={12} className="inline mr-1.5 mb-0.5 text-slate-500"/> กำหนด: {formatDate(t.start_date)} - {formatDate(t.end_date)}</p>
+                    <p className="font-bold text-base leading-relaxed mb-1" title={t.task_name}>{t.task_name}</p>
+                    <p className="text-xs text-slate-500 font-mono mb-2"><Clock size={12} className="inline mr-1.5 mb-0.5 text-slate-500"/> กำหนด: {formatDate(t.start_date)} - {formatDate(t.end_date)}</p>
                     
                     {t.status === 'ล่าช้า/ติดปัญหา' && t.root_cause && (
                       <div className="block mt-2">
@@ -1239,14 +1255,14 @@ function TaskDashboard({ appDb, user }) {
                       </div>
                     )}
                   </td>
-                  <td className="p-5 text-sm font-bold text-sky-400 whitespace-nowrap pt-6">{t.primary_unit}</td>
-                  <td className="p-5 text-center whitespace-nowrap pt-6">
-                    <span className={`px-4 py-2 rounded-full text-xs font-bold border shadow-sm ${TASK_STATUS[t.status] || TASK_STATUS['รอดำเนินการ']}`}>{t.status}</span>
+                  <td className="p-5 text-sm font-medium text-sky-400 whitespace-nowrap">{t.primary_unit}</td>
+                  <td className="p-5 text-center whitespace-nowrap">
+                    <span className={`px-3 py-1.5 rounded-full text-xs font-bold border shadow-sm ${TASK_STATUS[t.status] || TASK_STATUS['รอดำเนินการ']}`}>{t.status}</span>
                   </td>
-                  <td className="p-5 pt-6">
-                    <div className="flex flex-col items-center gap-2">
-                      <span className="text-xl font-bold font-mono drop-shadow-md" style={{ color: getBarColor(t.progress_percent) }}>{t.progress_percent}%</span>
-                      <div className="w-full bg-slate-900 h-3 rounded-full overflow-hidden border border-slate-700 shadow-inner">
+                  <td className="p-5">
+                    <div className="flex flex-col items-center gap-2 mt-1">
+                      <span className="text-lg font-bold font-mono" style={{ color: getBarColor(t.progress_percent) }}>{t.progress_percent}%</span>
+                      <div className="w-full bg-slate-900 h-2.5 rounded-full overflow-hidden border border-slate-700 shadow-inner">
                         <div className="h-full rounded-full transition-all duration-1000 relative" style={{ width: `${t.progress_percent}%`, backgroundColor: getBarColor(t.progress_percent) }}>
                            <div className="absolute inset-0 bg-white/20"></div>
                         </div>
@@ -1256,7 +1272,7 @@ function TaskDashboard({ appDb, user }) {
                 </tr>
               ))}
               {filteredTasksList.length === 0 && (
-                <tr><td colSpan={4} className="p-16 text-center text-slate-500 text-lg">ไม่มีข้อมูลภารกิจตามเงื่อนไขที่เลือก</td></tr>
+                <tr><td colSpan={4} className="p-12 text-center text-slate-500 text-lg">ไม่มีข้อมูลภารกิจตามเงื่อนไขที่เลือก</td></tr>
               )}
             </tbody>
           </table>
@@ -1403,7 +1419,7 @@ function ExecutiveSummary({ appDb }) {
         </div>
         <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
           {selectedUnit && (
-             <button onClick={() => setSelectedUnit(null)} className="text-sm font-bold bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white px-4 py-3 rounded-xl transition-colors flex items-center gap-2 shadow-sm">
+             <button onClick={() => setSelectedUnit(null)} className="text-sm font-bold bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white px-4 py-2.5 rounded-xl transition-colors flex items-center gap-2 shadow-sm">
                <FilterX size={18}/> ล้างตัวกรองหน่วย
              </button>
           )}
@@ -1720,7 +1736,7 @@ function Policies({ appDb, user, showToast, callApi, refresh }) {
       <div className="bg-slate-800 rounded-3xl border border-slate-700 overflow-hidden shadow-2xl">
         <div className="overflow-x-auto custom-scrollbar">
           <table className="w-full text-sm text-left text-slate-200">
-             <thead className="bg-slate-900/80 text-slate-400 border-b border-slate-700 uppercase tracking-widest text-[11px]">
+             <thead className="bg-slate-900/80 text-slate-400 border-b border-slate-700 uppercase tracking-wider text-xs">
                 <tr>
                   <th className="p-6 font-bold w-20 text-center">ลำดับ</th>
                   <th className="p-6 font-bold whitespace-nowrap w-40">ผู้สั่งการ</th>
@@ -1752,7 +1768,7 @@ function Policies({ appDb, user, showToast, callApi, refresh }) {
                      )}
                   </tr>
                 ))}
-                {filtered.length===0&&<tr><td colSpan="6" className="p-20 text-center text-slate-500 text-xl border-dashed border-2 border-slate-700/50 m-4 rounded-2xl bg-slate-900/30">ไม่พบข้อมูลที่ค้นหา</td></tr>}
+                {filtered.length===0&&<tr><td colSpan="6" className="p-16 text-center text-slate-500 text-xl border-dashed border-2 border-slate-700/50 m-4 rounded-xl bg-slate-900/30">ไม่พบข้อมูลที่ค้นหา</td></tr>}
              </tbody>
           </table>
         </div>
