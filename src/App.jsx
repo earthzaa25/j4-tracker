@@ -229,6 +229,7 @@ export default function App() {
   const [appDb, setAppDb] = useState({ reports: [], policies: [], units: [], tasks: [], isLoaded: false });
   const [toastData, setToastData] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [deployError, setDeployError] = useState(null);
 
   const showToast = (msg, type = 'ok') => {
     setToastData({ msg, type });
@@ -238,16 +239,23 @@ export default function App() {
   // ดึงข้อมูลทั้งหมดจาก Google Sheets พร้อมตรวจสอบ Error แบบละเอียด
   const loadData = async () => {
     setIsSyncing(true);
+    setDeployError(null);
     try {
       const actions = ['units', 'policies', 'reports', 'tasks'];
       const results = await Promise.all(actions.map(async (action) => {
         const res = await fetch(`${SCRIPT_URL}?action=${action}`);
         const text = await res.text();
+        
+        // ตรวจจับกรณีที่ Google ส่งหน้า Login HTML กลับมาแทน JSON (เกิดจากการตั้งสิทธิ์ผิด)
+        if (text.trim().startsWith('<') || text.includes('<!DOCTYPE html>')) {
+          throw new Error("DEPLOYMENT_PERMISSION_ERROR");
+        }
+        
         try {
           return JSON.parse(text);
         } catch (parseErr) {
           console.error("Invalid Response:", text);
-          throw new Error("PERMISSION_ERROR"); // โยน Error พิเศษออกไปถ้าแปลงเป็น JSON ไม่ได้
+          throw new Error("PARSE_ERROR"); 
         }
       }));
 
@@ -260,10 +268,12 @@ export default function App() {
       });
     } catch (e) {
       console.error("Load Error:", e);
-      if (e.message === "PERMISSION_ERROR") {
-        showToast("สิทธิ์การเข้าถึงถูกบล็อก! กรุณาตรวจสอบการตั้งค่า Deploy ใหม่", "error");
+      if (e.message === "DEPLOYMENT_PERMISSION_ERROR") {
+        setDeployError("PERMISSION");
+        showToast("สิทธิ์การเข้าถึงถูกบล็อก!", "error");
       } else {
-        showToast("เชื่อมต่อ Google Sheets ไม่สำเร็จ (ตรวจสอบ URL หรือ Network)", "error");
+        setDeployError("NETWORK");
+        showToast("เชื่อมต่อฐานข้อมูลไม่สำเร็จ (ตรวจสอบ URL หรือ Network)", "error");
       }
       setAppDb(prev => ({...prev, isLoaded: true}));
     } finally {
@@ -304,7 +314,7 @@ export default function App() {
   const handleLogout = () => { setUser(null); setView('DASHBOARD_POLICY'); };
 
   if (!user) {
-    return <LoginScreen onLogin={handleLogin} isLoading={!appDb.isLoaded} appDb={appDb} loadData={loadData} />;
+    return <LoginScreen onLogin={handleLogin} isLoading={!appDb.isLoaded} appDb={appDb} loadData={loadData} deployError={deployError} />;
   }
 
   const isAdminOrExec = user.role === 'admin' || user.role === 'executive';
@@ -438,7 +448,7 @@ export default function App() {
 }
 
 // ============== LOGIN SCREEN ==============
-function LoginScreen({ onLogin, isLoading, appDb, loadData }) {
+function LoginScreen({ onLogin, isLoading, appDb, loadData, deployError }) {
   const accounts = appDb.units && appDb.units.length > 0 ? appDb.units : FALLBACK_ACCOUNTS;
   
   const [accountId, setAccountId] = useState('');
@@ -496,6 +506,26 @@ function LoginScreen({ onLogin, isLoading, appDb, loadData }) {
           <p className="text-amber-400/80 mt-2 text-sm font-medium">Google Sheets Edition</p>
         </div>
 
+        {deployError === "PERMISSION" && (
+          <div className="mb-6 bg-red-900/40 border border-red-500 p-4 rounded-xl relative z-10">
+             <h3 className="text-red-400 font-bold text-sm flex items-center gap-1.5 mb-2"><AlertTriangle size={16}/> สิทธิ์เข้าถึง Google Sheets ถูกปฏิเสธ!</h3>
+             <p className="text-xs text-slate-300 leading-relaxed mb-2">
+               การตั้งค่าตอน Deploy Script ไม่ถูกต้อง กรุณากลับไปที่ Google Apps Script แล้วทำตามนี้:
+             </p>
+             <ol className="text-xs text-amber-200 space-y-1 pl-4 list-decimal">
+                <li>กด <b>Deploy</b> {">"} <b>New deployment</b></li>
+                <li>ตรง "Who has access" <b className="text-white">ต้องเลือกเป็น "Anyone" (ทุกคน) เท่านั้น!</b></li>
+                <li>กด Deploy แล้วนำลิงก์ใหม่มาใส่ในโค้ด (บรรทัดที่ 17)</li>
+             </ol>
+          </div>
+        )}
+
+        {deployError === "NETWORK" && (
+          <div className="mb-6 bg-red-900/40 border border-red-500 p-4 rounded-xl relative z-10 text-center">
+             <p className="text-xs text-red-300">โหลดข้อมูลไม่สำเร็จ ตรวจสอบ URL หรืออินเทอร์เน็ต</p>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-5 relative z-10">
           <div>
             <label className="block text-slate-400 text-sm mb-2 font-medium">เลือกบัญชีผู้ใช้งาน (Account)</label>
@@ -533,7 +563,7 @@ function LoginScreen({ onLogin, isLoading, appDb, loadData }) {
           {error && <p className="text-red-400 text-sm text-center bg-red-400/10 py-2 rounded-lg">{error}</p>}
           
           {/* แจ้งเตือนกรณีใช้บัญชีสำรอง */}
-          {appDb.isLoaded && (!appDb.units || appDb.units.length === 0) && (
+          {appDb.isLoaded && (!appDb.units || appDb.units.length === 0) && !deployError && (
             <div className="text-[10px] text-amber-500 bg-amber-500/10 p-2 rounded text-center border border-amber-500/20">
               ⚠️ กำลังใช้งานบัญชีสำรอง เนื่องจากยังไม่ได้เพิ่มรายชื่อใน Google Sheets
             </div>
