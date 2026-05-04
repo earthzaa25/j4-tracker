@@ -12,7 +12,7 @@ import {
 // ============================================================
 // 1. ตั้งค่า URL ของ Google Apps Script (ตรวจสอบให้ตรงกับที่ Deploy ใหม่)
 // ============================================================
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwzeqPo4-sB6mA4FblrAAF8wje3kGWTiWs7T0m0T9IFs02upI_PWZ88ClBKCKwaHGPQ/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwgZZURz1cGNglxjEK-nGsm2g5cIT88GMG7gMkK2Zl2YydBCJyTlL65h8tcd63I2Z-R/exec";
 
 const LOGO_URL = "/S__22413315.jpg";
 const GARUDA_URL = "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Garuda_Emblem_of_Thailand.svg/150px-Garuda_Emblem_of_Thailand.svg.png";
