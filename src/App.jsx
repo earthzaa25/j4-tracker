@@ -10,9 +10,9 @@ import {
 } from 'lucide-react';
 
 // ============================================================
-// 1. นำ Web App URL จาก Google Apps Script มาวางที่นี่
+// การตั้งค่า Google Sheets API (ใส่ URL ของคุณเรียบร้อยแล้ว)
 // ============================================================
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwgZZURz1cGNglxjEK-nGsm2g5cIT88GMG7gMkK2Zl2YydBCJyTlL65h8tcd63I2Z-R/exec"; 
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwgZZURz1cGNglxjEK-nGsm2g5cIT88GMG7gMkK2Zl2YydBCJyTlL65h8tcd63I2Z-R/exec";
 
 const LOGO_URL = "/S__22413315.jpg";
 const GARUDA_URL = "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Garuda_Emblem_of_Thailand.svg/150px-Garuda_Emblem_of_Thailand.svg.png";
@@ -243,10 +243,10 @@ export default function App() {
     try {
       const actions = ['units', 'policies', 'reports', 'tasks'];
       const results = await Promise.all(actions.map(async (action) => {
-        const res = await fetch(`${SCRIPT_URL}?action=${action}`);
+        const url = `${SCRIPT_URL}?action=${action}&t=${Date.now()}`; // ป้องกัน Cache
+        const res = await fetch(url);
         const text = await res.text();
         
-        // ตรวจจับกรณีที่ Google ส่งหน้า Login HTML กลับมาแทน JSON (เกิดจากการตั้งสิทธิ์ผิด)
         if (text.trim().startsWith('<') || text.includes('<!DOCTYPE html>')) {
           throw new Error("DEPLOYMENT_PERMISSION_ERROR");
         }
@@ -270,7 +270,7 @@ export default function App() {
       console.error("Load Error:", e);
       if (e.message === "DEPLOYMENT_PERMISSION_ERROR") {
         setDeployError("PERMISSION");
-        showToast("สิทธิ์การเข้าถึงถูกบล็อก!", "error");
+        showToast("สิทธิ์การเข้าถึงถูกบล็อก! กรุณาตรวจสอบการตั้งค่า Deploy ใหม่", "error");
       } else {
         setDeployError("NETWORK");
         showToast("เชื่อมต่อฐานข้อมูลไม่สำเร็จ (ตรวจสอบ URL หรือ Network)", "error");
@@ -284,19 +284,19 @@ export default function App() {
   useEffect(() => {
     if (SCRIPT_URL && !SCRIPT_URL.includes("URL_ที่คุณได้มา")) {
         loadData();
+    } else {
+        setAppDb({ reports: [], policies: [], units: [], tasks: [], isLoaded: true });
     }
   }, []);
 
   const callApi = async (method, action, data, idKey = "", idValue = "") => {
       try {
-          // Google Apps Script ต้องการ mode 'no-cors' เพื่อไม่ให้ถูกบล็อกการส่งข้อมูลแบบ POST จาก Browser โดยตรง
           await fetch(SCRIPT_URL, {
               method: 'POST',
               mode: 'no-cors',
               headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
               body: JSON.stringify({ method, action, data, idKey, idValue })
           });
-          // สั่งโหลดข้อมูลใหม่หลังบันทึก เนื่องจากโหมด no-cors ไม่สามารถอ่านค่าตอบกลับได้
           setTimeout(loadData, 1500);
           return true;
       } catch (e) {
@@ -513,9 +513,12 @@ function LoginScreen({ onLogin, isLoading, appDb, loadData, deployError }) {
                การตั้งค่าตอน Deploy Script ไม่ถูกต้อง กรุณากลับไปที่ Google Apps Script แล้วทำตามนี้:
              </p>
              <ol className="text-xs text-amber-200 space-y-1 pl-4 list-decimal">
-                <li>กด <b>Deploy</b> {">"} <b>New deployment</b></li>
-                <li>ตรง "Who has access" <b className="text-white">ต้องเลือกเป็น "Anyone" (ทุกคน) เท่านั้น!</b></li>
-                <li>กด Deploy แล้วนำลิงก์ใหม่มาใส่ในโค้ด (บรรทัดที่ 17)</li>
+                <li>กดปุ่ม <b>Deploy (การทำให้ใช้งานได้)</b> ที่มุมขวาบน</li>
+                <li>เลือก <b>Manage deployments (จัดการการทำให้ใช้งานได้)</b></li>
+                <li>กดที่ไอคอนรูปดินสอ (แก้ไข) ด้านขวา</li>
+                <li>ตรง "Version (เวอร์ชัน)" <b className="text-white">ต้องเลือก "New (ใหม่)" เท่านั้น!</b></li>
+                <li>ตรง "Who has access (ผู้มีสิทธิ์เข้าถึง)" <b className="text-white">ต้องเลือก "Anyone (ทุกคน)" เท่านั้น!</b></li>
+                <li>กดปุ่ม <b>Deploy</b> เพื่อยืนยัน</li>
              </ol>
           </div>
         )}
@@ -2778,7 +2781,6 @@ function UnitsConfig({ appDb, showToast, callApi, refresh }) {
                   <option value="executive">ผู้บริหาร (ดู Dashboard ได้อย่างเดียว)</option>
                   <option value="admin">ผู้ดูแลระบบกลาง (Admin) (จัดการได้ทุกเมนู)</option>
                 </select>
-                <p className="text-[10px] text-slate-500 mt-2">* หมายเหตุ: ถ้าใช้ฐานข้อมูลจริง โปรดมั่นใจว่าสร้างตารางคอลัมน์ชื่อ <b>role</b> ไว้ในตาราง <b>units</b> แล้ว</p>
               </div>
 
               <div>
