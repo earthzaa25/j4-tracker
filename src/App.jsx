@@ -702,7 +702,7 @@ function TaskDashboard({ appDb, user }) {
           <div key={kpi.label} onClick={() => { setSelectedStatus(kpi.status); setSelectedRootCause(null); }} className={`p-6 md:p-8 rounded-2xl border-2 cursor-pointer transition-all transform hover:-translate-y-1.5 shadow-xl relative group overflow-hidden ${selectedStatus === kpi.status ? `ring-2 ring-offset-4 ring-offset-slate-900 border-transparent ${kpi.bg}` : `border-slate-700 bg-slate-800 hover:${kpi.border}`}`}>
              <MousePointerClick size={18} className={`absolute top-5 right-5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${kpi.color}`}/>
              <p className="text-slate-300 text-sm font-bold uppercase tracking-wider mb-1">{kpi.label}</p>
-             <h3 className={`text-4xl font-bold mt-2 ${kpi.color}`}>{kpi.val}</h3>
+             <h3 className={`text-4xl font-bold mt-2 font-mono ${kpi.color}`}>{kpi.val}</h3>
           </div>
         ))}
       </div>
@@ -1530,11 +1530,12 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
                        
                        {/* แก้ไขให้เลือกหน่วยงานได้สำหรับงานติดตามภารกิจ */}
                        <div>
-                         <label className="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-widest">หน่วยรับผิดชอบหลัก</label>
+                         <label className="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-widest">หน่วยรับผิดชอบหลัก <span className="text-red-500">*</span></label>
                          <select 
                            name="primary_unit" 
                            defaultValue={editData?.primary_unit || user.unitName} 
-                           className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-sky-500 text-sky-400 font-bold transition-colors shadow-inner cursor-pointer"
+                           disabled={user.role !== 'admin'}
+                           className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-sky-500 text-sky-400 font-bold transition-colors shadow-inner cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
                          >
                            {(appDb.units||[]).filter(u=>u.role==='user'||!u.role).map(u => (
                              <option key={u.id} value={u.name}>{u.name}</option>
@@ -1638,7 +1639,7 @@ function ReportForm({ appDb, user, showToast, setView, callApi, refresh }) {
                 <input type="date" name="report_date" defaultValue={new Date().toISOString().substring(0,10)} required className="w-full bg-slate-800 border border-slate-600 focus:border-amber-500 rounded-2xl p-5 outline-none font-mono text-lg shadow-sm" style={{colorScheme:'dark'}}/>
               </div>
               <div className="bg-slate-900/60 p-8 rounded-3xl border border-slate-700 relative overflow-hidden shadow-inner">
-                <div className="absolute right-0 bottom-0 opacity-5 text-amber-500 transform translate-x-4 translate-y-4"><PieChart size={140}/></div>
+                <div className="absolute right-0 bottom-0 opacity-10"><PieChart size={140}/></div>
                 <label className="text-sm font-bold text-slate-300 block mb-3 relative z-10 uppercase tracking-widest flex items-center gap-2"><Target size={18} className="text-emerald-500"/> ความคืบหน้าสะสม (%) <span className="text-red-500">*</span></label>
                 <div className="relative z-10">
                   <input type="number" name="progress_percent" min="0" max="100" required defaultValue="0" className="w-full bg-slate-800 border border-slate-600 focus:border-amber-500 rounded-2xl p-5 outline-none text-4xl font-mono text-center text-amber-400 font-bold shadow-sm"/>
@@ -1744,6 +1745,8 @@ function History({ appDb, user, showToast, callApi, refresh }) {
 // ============================================================
 function UnitsConfig({ appDb, showToast, callApi, refresh }) {
   const units = appDb.units || [];
+  const [isModalOpen, setModalOpen] = useState(false);
+  const [editData, setEditData] = useState(null);
   
   const handleDelete = async (id) => { 
     if(window.confirm('คำเตือน: ยืนยันลบบัญชีนี้ออกจากระบบอย่างถาวร?')) { 
@@ -1752,17 +1755,45 @@ function UnitsConfig({ appDb, showToast, callApi, refresh }) {
     } 
   }
 
+  const handleSave = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const newName = fd.get('name').trim();
+    const newPasscode = fd.get('passcode').trim();
+    const newRole = fd.get('role');
+
+    if (!newName) {
+      showToast('กรุณากรอกชื่อหน่วยงาน/บัญชี', 'error');
+      return;
+    }
+
+    const isUpdating = !!editData;
+    const unitId = isUpdating ? editData.id : `U-${Date.now()}`;
+    const payload = { id: unitId, name: newName, passcode: newPasscode, role: newRole };
+
+    showToast('กำลังบันทึกข้อมูล...');
+    const success = await callApi(isUpdating ? "update" : "insert", "units", payload, "id", unitId);
+    if (success) {
+      showToast(isUpdating ? 'แก้ไขบัญชีเรียบร้อย' : 'เพิ่มบัญชีเรียบร้อย', 'ok');
+      setModalOpen(false);
+      refresh();
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-6xl mx-auto animate-fade-in-up">
        <div className="bg-slate-800 p-8 rounded-3xl border border-slate-700 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div>
             <h2 className="text-2xl font-bold flex items-center gap-3 text-amber-500">
                <div className="bg-amber-500/20 p-3 rounded-xl border border-amber-500/30 shadow-inner"><Users size={28}/></div>
-               จัดการบัญชีผู้ใช้ระบบ (Google Sheets)
+               จัดการบัญชีผู้ใช้ระบบ
             </h2>
-            <p className="text-sm text-slate-400 mt-3 bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">หากต้องการแก้ไขรหัสผ่าน หรือเพิ่มบัญชีใหม่จำนวนมาก <b className="text-amber-400">ให้ทำในแผ่นงาน Google Sheets (Sheet: units) โดยตรงจะสะดวกที่สุด</b> แล้วกดปุ่มซิงค์ข้อมูลด้านขวา</p>
+            <p className="text-sm text-slate-400 mt-3 bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">สามารถเพิ่ม ลบ หรือแก้ไขรหัสผ่านบัญชีการใช้งานของระบบได้ที่นี่ หรือแก้ไขผ่าน Google Sheets ได้เช่นกัน</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
+             <button onClick={() => { setEditData(null); setModalOpen(true); }} className="bg-amber-600 text-white px-6 py-4 rounded-xl text-base font-bold flex items-center gap-2 hover:bg-amber-500 transition-all shadow-lg hover:scale-105 active:scale-95 whitespace-nowrap">
+                <Plus size={20}/> เพิ่มบัญชีใหม่
+             </button>
              <button onClick={refresh} className="bg-sky-600 text-white px-6 py-4 rounded-xl text-base font-bold flex items-center gap-2 hover:bg-sky-500 transition-all shadow-lg hover:scale-105 active:scale-95 whitespace-nowrap">
                 <CloudUpload size={20}/> ซิงค์ฐานข้อมูล
              </button>
@@ -1796,7 +1827,10 @@ function UnitsConfig({ appDb, showToast, callApi, refresh }) {
                           </span>
                        </td>
                        <td className="p-6 font-mono text-emerald-400 tracking-widest text-xl text-center font-bold">{u.passcode}</td>
-                       <td className="p-6 text-center">
+                       <td className="p-6 text-center whitespace-nowrap">
+                          <button onClick={()=>{setEditData(u); setModalOpen(true);}} className="text-sky-400 hover:text-white bg-slate-900 hover:bg-sky-600 p-3 rounded-xl border border-slate-700 hover:border-sky-500 transition-all shadow-sm mr-2">
+                             <Edit size={20}/>
+                          </button>
                           <button onClick={()=>handleDelete(u.id)} className="text-slate-400 hover:text-white bg-slate-900 hover:bg-red-600 p-3 rounded-xl border border-slate-700 hover:border-red-500 transition-all shadow-sm">
                              <Trash2 size={20}/>
                           </button>
@@ -1808,6 +1842,52 @@ function UnitsConfig({ appDb, showToast, callApi, refresh }) {
             </table>
           </div>
        </div>
+
+       {/* Modal เพิ่ม/แก้ไข บัญชี */}
+       {isModalOpen && (
+          <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md overflow-y-auto">
+             <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+               <div className="relative transform overflow-hidden bg-slate-800 p-8 md:p-10 rounded-3xl w-full max-w-2xl text-left text-white shadow-2xl border border-slate-600 my-8 animate-fade-in-up">
+                  <div className="flex justify-between items-center mb-8 border-b border-slate-700 pb-5">
+                     <h3 className="text-3xl font-bold text-amber-500 flex items-center gap-4 tracking-wide">
+                        <div className="bg-amber-500/20 p-3 rounded-2xl shadow-inner border border-amber-500/30">{editData?<Edit size={28}/>:<Plus size={28}/>}</div> 
+                        {editData?'แก้ไขบัญชีผู้ใช้':'เพิ่มบัญชีใหม่'}
+                     </h3>
+                     <button onClick={()=>setModalOpen(false)} className="text-slate-400 hover:text-white bg-slate-900 p-3 rounded-full transition-colors border border-slate-700 hover:bg-red-600 hover:border-red-500"><X size={24}/></button>
+                  </div>
+                  
+                  <form onSubmit={handleSave} className="space-y-6">
+                     <div className="bg-slate-900/50 p-6 rounded-3xl border border-slate-700 space-y-5 shadow-inner">
+                       <div>
+                         <label className="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-widest">ชื่อหน่วยงาน / ชื่อบัญชี <span className="text-red-500">*</span></label>
+                         <input name="name" defaultValue={editData?.name} required className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-amber-500 text-slate-100 transition-colors text-lg" placeholder="เช่น กก.กบ.ทหาร"/>
+                       </div>
+                       
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div>
+                            <label className="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-widest">ระดับสิทธิ์ (Role) <span className="text-red-500">*</span></label>
+                            <select name="role" defaultValue={editData?.role || 'user'} className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-amber-500 transition-colors font-bold text-slate-200">
+                               <option value="user">User (หน่วยงานปฏิบัติการ)</option>
+                               <option value="executive">Executive (ผู้บริหาร)</option>
+                               <option value="admin">Admin (ผู้ดูแลระบบ)</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-widest">รหัสผ่าน (Passcode) <span className="text-red-500">*</span></label>
+                            <input name="passcode" defaultValue={editData?.passcode} required className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-amber-500 transition-colors font-mono text-emerald-400 font-bold tracking-widest text-lg" placeholder="ตั้งรหัสผ่าน..."/>
+                          </div>
+                       </div>
+                     </div>
+
+                     <div className="flex justify-end gap-4 pt-6 mt-8 border-t border-slate-700">
+                       <button type="button" onClick={()=>setModalOpen(false)} className="px-8 py-4 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold transition-colors text-lg">ยกเลิก</button>
+                       <button type="submit" className="px-8 py-4 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl shadow-[0_4px_20px_rgba(245,158,11,0.3)] transition-transform hover:-translate-y-1 flex items-center gap-3 text-lg"><Send size={22}/> บันทึกข้อมูลบัญชี</button>
+                     </div>
+                  </form>
+               </div>
+             </div>
+          </div>
+       )}
     </div>
   )
 }
