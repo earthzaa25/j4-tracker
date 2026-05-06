@@ -16,7 +16,7 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwPShuEyd348SncMpf9x
 
 const LOGO_URL = "/S__22413315.jpg";
 const GARUDA_URL = "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Garuda_Emblem_of_Thailand.svg/150px-Garuda_Emblem_of_Thailand.svg.png";
-const geminiApiKey = import.meta.env?.VITE_GEMINI_API_KEY || ''; 
+const geminiApiKey = ''; 
 
 // ============================================================
 // ค่าคงที่และตัวแปรระบบ
@@ -315,7 +315,7 @@ function LoginScreen({ onLogin, isLoading, appDb, loadData, deployError }) {
                <AlertTriangle size={18}/> กำลังใช้งาน "โหมดทดลอง (Demo)"
              </h3>
              <p className="text-xs text-slate-300 mb-2 leading-relaxed">
-               ดึงข้อมูลจาก Google Sheets ไม่สำเร็จ คุณสามารถล็อกอินด้วย <b className="text-white bg-slate-700 px-1 rounded">รหัสผ่าน: 1234</b> เพื่อดูตัวอย่างหน้าตาเว็บได้ทันที
+               ดึงข้อมูลจาก Google Sheets ไม่สำเร็จ คุณสามารถล็อกอินด้วย <b className="text-white bg-slate-700 px-1 rounded">รหัสผ่าน: 1234</b> หรือ <b className="text-white bg-slate-700 px-1 rounded">5721118</b> เพื่อดูตัวอย่างหน้าตาเว็บได้ทันที
              </p>
           </div>
         )}
@@ -464,7 +464,7 @@ export default function App() {
          isLoaded: true,
          isDemoMode: true
       });
-      showToast("ระบบออฟไลน์: เข้าสู่โหมดจำลองการทำงาน", "error");
+      if(!appDb.isDemoMode) showToast("ระบบออฟไลน์: เข้าสู่โหมดจำลองการทำงาน", "error");
     } finally { 
       setIsSyncing(false); 
     }
@@ -474,13 +474,32 @@ export default function App() {
   useEffect(() => { 
     if (SCRIPT_URL && !SCRIPT_URL.includes("URL_ที่คุณได้มา")) {
       loadData(); 
+    } else {
+        // Force Demo mode if URL is not configured
+        setAppDb({
+            ...MOCK_DB,
+            isLoaded: true,
+            isDemoMode: true
+        });
     }
   }, []);
 
   // ฟังก์ชันยิง API อัปเดตข้อมูล (POST) ไปยัง Google Sheets
   const callApi = async (method, action, data, idKey, idValue) => {
     if (appDb.isDemoMode) {
-      showToast("ในโหมดจำลอง จะไม่สามารถบันทึกข้อมูลลงฐานข้อมูลจริงได้", "error");
+      // Simulate local state update for Demo mode
+      setAppDb(prev => {
+          const newData = { ...prev };
+          if (method === 'insert') {
+              newData[action] = [...newData[action], data];
+          } else if (method === 'update') {
+              newData[action] = newData[action].map(item => item[idKey] === idValue ? { ...item, ...data } : item);
+          } else if (method === 'delete') {
+              newData[action] = newData[action].filter(item => item[idKey] !== idValue);
+          }
+          return newData;
+      });
+      
       return true; // Simulate success in demo mode
     }
 
@@ -567,7 +586,8 @@ export default function App() {
         <div className="h-24 flex items-center justify-between px-6 border-b border-slate-700 shrink-0 bg-slate-900/30">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center p-1.5 shadow-md border border-amber-500/20">
-              <img src={LOGO_URL} alt="Logo" className="w-full h-full object-contain" />
+              <img src={LOGO_URL} alt="Logo" className="w-full h-full object-contain" 
+                 onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/100x100/1e293b/f59e0b?text=J4'; }} />
             </div>
             <div>
               <h1 className="font-bold text-xl leading-tight text-white tracking-wide">J4 Tracker</h1>
@@ -622,7 +642,7 @@ export default function App() {
       {/* ============================================================ */}
       <div className="lg:hidden print-hide fixed top-0 left-0 right-0 h-16 bg-slate-800 border-b border-slate-700 z-50 flex items-center justify-between px-5 shadow-md">
          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-white rounded-md flex items-center justify-center p-1"><img src={LOGO_URL} alt="Logo" className="w-full h-full object-contain" /></div>
+            <div className="w-8 h-8 bg-white rounded-md flex items-center justify-center p-1"><img src={LOGO_URL} alt="Logo" className="w-full h-full object-contain" onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/100x100/1e293b/f59e0b?text=J4'; }} /></div>
             <h1 className="font-bold text-white tracking-wide">J4 Tracker</h1>
          </div>
          <button onClick={()=>setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-slate-300 p-2 hover:bg-slate-700 rounded-lg transition-colors">
@@ -671,7 +691,7 @@ export default function App() {
               <div className="bg-orange-500/20 p-2 rounded-full text-orange-400"><AlertTriangle size={24}/></div>
               <div>
                 <p className="font-bold text-orange-400">ระบบทำงานในโหมดออฟไลน์ / จำลอง (Demo Mode)</p>
-                <p className="text-xs text-slate-300">เนื่องจากไม่สามารถดึงข้อมูลจาก Google Sheets ได้ ข้อมูลที่คุณเห็นหรือบันทึกตอนนี้ จะไม่ถูกส่งไปที่ฐานข้อมูลจริง</p>
+                <p className="text-xs text-slate-300">เนื่องจากไม่สามารถดึงข้อมูลจาก Google Sheets ได้ ข้อมูลที่คุณเห็นหรือบันทึกตอนนี้ จะเก็บไว้ชั่วคราวและไม่ถูกส่งไปที่ฐานข้อมูลจริง</p>
               </div>
             </div>
           )}
@@ -1069,6 +1089,7 @@ function TaskDashboard({ appDb, user }) {
   const [fiscalYear, setFiscalYear] = useState('ALL');
   const [selectedStatus, setSelectedStatus] = useState(null);
   const [selectedRootCause, setSelectedRootCause] = useState(null);
+  const [expandedTaskId, setExpandedTaskId] = useState(null);
   
   const currentUnits = useMemo(() => (appDb.units || []).filter(u => u.role === 'user' || !u.role), [appDb.units]);
 
@@ -1250,36 +1271,90 @@ function TaskDashboard({ appDb, user }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50">
-              {filteredTasksList.map(t => (
-                <tr key={t.task_id} className="hover:bg-slate-700/40 transition-colors align-top">
-                  <td className="p-5 text-slate-200">
-                    <p className="font-bold text-base leading-relaxed mb-1" title={t.task_name}>{t.task_name}</p>
-                    <p className="text-[11px] text-slate-400 font-mono mb-2"><Clock size={12} className="inline mr-1.5 mb-0.5 text-slate-500"/> กำหนด: {formatDate(t.start_date)} - {formatDate(t.end_date)}</p>
+              {filteredTasksList.map(t => {
+                let parsedSubtasks = [];
+                if (t.subtasks) {
+                  try {
+                    parsedSubtasks = typeof t.subtasks === 'string' ? JSON.parse(t.subtasks) : t.subtasks;
+                  } catch(e) {}
+                }
+                const hasSubtasks = parsedSubtasks && parsedSubtasks.length > 0;
+                const isExpanded = expandedTaskId === t.task_id;
+
+                return (
+                  <React.Fragment key={t.task_id}>
+                    <tr 
+                      onClick={() => hasSubtasks && setExpandedTaskId(isExpanded ? null : t.task_id)}
+                      className={`transition-colors align-top ${hasSubtasks ? 'cursor-pointer hover:bg-slate-700/60' : 'hover:bg-slate-700/40'} ${isExpanded ? 'bg-slate-800/80' : ''}`}
+                    >
+                      <td className="p-5 text-slate-200">
+                        <div className="flex justify-between items-start gap-4">
+                          <div>
+                            <p className="font-bold text-base leading-relaxed mb-1" title={t.task_name}>{t.task_name}</p>
+                            <p className="text-[11px] text-slate-400 font-mono mb-2"><Clock size={12} className="inline mr-1.5 mb-0.5 text-slate-500"/> กำหนด: {formatDate(t.start_date)} - {formatDate(t.end_date)}</p>
+                            
+                            {t.status === 'ล่าช้า/ติดปัญหา' && t.root_cause && (
+                              <div className="block mt-2">
+                                <div className="text-[11px] text-red-400 bg-red-950/40 border border-red-900/50 px-3 py-2 rounded-lg inline-flex items-center gap-1.5">
+                                  <AlertOctagon size={14}/> <span className="font-bold">สาเหตุหลัก:</span> {t.root_cause}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          {hasSubtasks && (
+                            <div className="mt-1 text-slate-500 shrink-0 bg-slate-900/50 p-1.5 rounded-lg border border-slate-700">
+                              {isExpanded ? <ChevronUp size={18} className="text-amber-500"/> : <ChevronDown size={18}/>}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-5 text-sm font-medium text-sky-400 whitespace-nowrap pt-6">{t.primary_unit}</td>
+                      <td className="p-5 text-center whitespace-nowrap pt-6">
+                        <span className={`px-4 py-2 rounded-full text-xs font-bold border shadow-sm ${TASK_STATUS[t.status] || TASK_STATUS['รอดำเนินการ']}`}>{t.status}</span>
+                      </td>
+                      <td className="p-5 pt-6">
+                        <div className="flex flex-col items-center gap-2 mt-1">
+                          <span className="text-lg font-bold font-mono drop-shadow-md" style={{ color: getBarColor(t.progress_percent) }}>{t.progress_percent}%</span>
+                          <div className="w-full bg-slate-900 h-2.5 rounded-full overflow-hidden border border-slate-700 shadow-inner">
+                            <div className="h-full rounded-full transition-all duration-1000 relative" style={{ width: `${t.progress_percent}%`, backgroundColor: getBarColor(t.progress_percent) }}>
+                               <div className="absolute inset-0 bg-white/20"></div>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
                     
-                    {t.status === 'ล่าช้า/ติดปัญหา' && t.root_cause && (
-                      <div className="block mt-2">
-                        <div className="text-[11px] text-red-400 bg-red-950/40 border border-red-900/50 px-3 py-2 rounded-lg inline-flex items-center gap-1.5">
-                          <AlertOctagon size={14}/> <span className="font-bold">สาเหตุหลัก:</span> {t.root_cause}
-                        </div>
-                      </div>
+                    {/* Expanded Subtasks Row */}
+                    {isExpanded && hasSubtasks && (
+                      <tr className="bg-slate-900/40 border-b border-slate-700/50">
+                        <td colSpan={4} className="p-0">
+                          <div className="pl-8 py-5 pr-5 border-l-4 border-sky-500 ml-[18px] animate-fade-in-up shadow-inner">
+                            <h5 className="text-[11px] font-bold text-sky-400 mb-3 flex items-center gap-2 uppercase tracking-widest">
+                              <GitMerge size={14} /> แผนงาน/ภารกิจย่อย ({parsedSubtasks.filter(s=>s.done).length}/{parsedSubtasks.length})
+                            </h5>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {parsedSubtasks.map((st, i) => (
+                                <div key={i} className={`flex items-start gap-3 p-3 rounded-xl border ${st.done ? 'bg-emerald-950/20 border-emerald-900/30' : 'bg-slate-800 border-slate-700/50'}`}>
+                                  <div className="mt-0.5 shrink-0">
+                                    {st.done ? (
+                                      <CheckCircle2 size={16} className="text-emerald-500 drop-shadow-md" />
+                                    ) : (
+                                      <Circle size={16} className="text-slate-500" />
+                                    )}
+                                  </div>
+                                  <span className={`text-sm leading-relaxed ${st.done ? 'text-slate-400 line-through' : 'text-slate-200'}`}>
+                                    {st.text}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
                     )}
-                  </td>
-                  <td className="p-5 text-sm font-medium text-sky-400 whitespace-nowrap pt-6">{t.primary_unit}</td>
-                  <td className="p-5 text-center whitespace-nowrap pt-6">
-                    <span className={`px-4 py-2 rounded-full text-xs font-bold border shadow-sm ${TASK_STATUS[t.status] || TASK_STATUS['รอดำเนินการ']}`}>{t.status}</span>
-                  </td>
-                  <td className="p-5 pt-6">
-                    <div className="flex flex-col items-center gap-2 mt-1">
-                      <span className="text-lg font-bold font-mono drop-shadow-md" style={{ color: getBarColor(t.progress_percent) }}>{t.progress_percent}%</span>
-                      <div className="w-full bg-slate-900 h-2.5 rounded-full overflow-hidden border border-slate-700 shadow-inner">
-                        <div className="h-full rounded-full transition-all duration-1000 relative" style={{ width: `${t.progress_percent}%`, backgroundColor: getBarColor(t.progress_percent) }}>
-                           <div className="absolute inset-0 bg-white/20"></div>
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                  </React.Fragment>
+                );
+              })}
               {filteredTasksList.length === 0 && (
                 <tr><td colSpan={4} className="p-16 text-center text-slate-500 text-lg">ไม่มีข้อมูลภารกิจตามเงื่อนไขที่เลือก</td></tr>
               )}
@@ -1786,9 +1861,9 @@ function Policies({ appDb, user, showToast, callApi, refresh }) {
       
       {/* Modal เพิ่ม/แก้ไขข้อสั่งการ */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-md overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
-             <div className="relative transform overflow-hidden bg-slate-800 p-8 md:p-10 rounded-3xl w-full max-w-4xl text-left text-white shadow-2xl border border-slate-600 my-8 animate-fade-in-up">
+        <div className="fixed inset-0 bg-black/80 z-[100] backdrop-blur-md overflow-y-auto">
+          <div className="flex min-h-screen items-start justify-center p-4 md:p-8">
+             <div className="my-auto relative transform overflow-hidden bg-slate-800 p-8 md:p-10 rounded-3xl w-full max-w-4xl text-left text-white shadow-2xl border border-slate-600 animate-fade-in-up">
                <div className="flex justify-between items-center mb-8 border-b border-slate-700 pb-5">
                  <h3 className="text-3xl font-bold text-amber-500 flex items-center gap-4 tracking-wide">
                    <div className="bg-amber-500/20 p-3 rounded-2xl shadow-inner border border-amber-500/30">{editData?<Edit size={28}/>:<Plus size={28}/>}</div> 
@@ -1855,6 +1930,7 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
   const [search, setSearch] = useState(''); 
   const [isModalOpen, setModalOpen] = useState(false); 
   const [editData, setEditData] = useState(null);
+  const [expandedTaskId, setExpandedTaskId] = useState(null);
   
   // State สำหรับจัดการงานย่อย (Subtasks)
   const [subtasks, setSubtasks] = useState([]);
@@ -1870,6 +1946,20 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
     t.task_name.toLowerCase().includes(search.toLowerCase()) || 
     t.primary_unit.toLowerCase().includes(search.toLowerCase())
   ).sort((a,b)=>new Date(a.start_date)-new Date(b.start_date));
+
+  // ฟังก์ชันสำหรับ ปักหมุด / เลิกปักหมุด
+  const handleToggleImportant = async (e, task) => {
+    e.stopPropagation(); // สำคัญ: ป้องกันไม่ให้คลิกแล้วแถวขยาย (ถ้ามี subtask)
+    const updatedStatus = !task.is_important;
+    const payload = { ...task, is_important: updatedStatus };
+    
+    showToast(updatedStatus ? 'ปักหมุดภารกิจสำคัญแล้ว' : 'ยกเลิกการปักหมุด', 'ok');
+    
+    const success = await callApi("update", "tasks", payload, "task_id", task.task_id);
+    if (success) { 
+      refresh(); 
+    }
+  };
 
   // เปิด Modal และโหลดข้อมูล (รวมถึง งานย่อย)
   const openModal = (data = null) => {
@@ -2002,52 +2092,116 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
                     catch(e) {}
                   }
                   const completedSt = tSubtasks.filter(s=>s.done).length;
+                  const hasSubtasks = tSubtasks && tSubtasks.length > 0;
+                  const isExpanded = expandedTaskId === t.task_id;
 
                   return (
-                  <tr key={t.task_id} className="hover:bg-slate-700/40 transition-colors align-top group">
-                     <td className="p-6">
-                       <p className="font-bold text-slate-100 text-base leading-relaxed mb-2" title={t.task_name}>{t.task_name}</p>
-                       
-                       {/* โชว์สถานะงานย่อยถ้ามี */}
-                       {tSubtasks.length > 0 && (
-                         <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium mb-3 bg-slate-900/50 px-2 py-1.5 rounded-lg border border-slate-700/50 w-max">
-                           <CheckSquare size={14} className="text-emerald-500"/> งานย่อย: <span className="text-white ml-1">{completedSt}/{tSubtasks.length}</span>
-                         </div>
-                       )}
+                  <React.Fragment key={t.task_id}>
+                    <tr 
+                      onClick={() => hasSubtasks && setExpandedTaskId(isExpanded ? null : t.task_id)}
+                      className={`transition-colors align-top ${hasSubtasks ? 'cursor-pointer hover:bg-slate-700/60' : 'hover:bg-slate-700/40'} ${isExpanded ? 'bg-slate-800/80' : ''}`}
+                    >
+                       <td className="p-6">
+                         <div className="flex justify-between items-start gap-4">
+                           <div className="flex items-start gap-3 w-full">
+                              {/* ปุ่มปักหมุดติดดาว */}
+                              <button
+                                 onClick={(e) => handleToggleImportant(e, t)}
+                                 className={`mt-0.5 shrink-0 transition-transform hover:scale-125 ${t.is_important ? 'text-amber-500' : 'text-slate-600 hover:text-amber-500/50'}`}
+                                 title={t.is_important ? "ยกเลิกปักหมุดภารกิจสำคัญ" : "ปักหมุดไปที่หน้าสรุปผู้บริหาร"}
+                               >
+                                 <Star size={20} className={t.is_important ? 'fill-amber-500 drop-shadow-md' : ''} />
+                               </button>
+                               
+                              <div className="flex-1">
+                                <p className="font-bold text-slate-100 text-base leading-relaxed mb-2" title={t.task_name}>{t.task_name}</p>
+                                
+                                {/* โชว์สถานะงานย่อยถ้ามี */}
+                                {hasSubtasks && (
+                                  <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium mb-3 bg-slate-900/50 px-2 py-1.5 rounded-lg border border-slate-700/50 w-max">
+                                    <CheckSquare size={14} className="text-emerald-500"/> งานย่อย: <span className="text-white ml-1">{completedSt}/{tSubtasks.length}</span>
+                                  </div>
+                                )}
 
-                       {t.note && <p className="text-xs text-slate-400 bg-slate-900/60 p-3 rounded-lg border border-slate-700/50 line-clamp-2 mt-2 leading-relaxed shadow-inner font-medium"><span className="text-sky-500 font-bold mb-1 block">หมายเหตุล่าสุด:</span>{t.note}</p>}
-                     </td>
-                     <td className="p-6">
-                        <span className="text-sm font-bold text-sky-400 bg-sky-900/20 px-4 py-2 rounded-xl border border-sky-500/30 block w-max whitespace-nowrap shadow-sm">{t.primary_unit}</span>
-                     </td>
-                     <td className="p-6 text-center">
-                        <div className="text-xs text-slate-400 font-mono bg-slate-900/80 rounded-xl p-3 border border-slate-700 inline-block w-max shadow-inner">
-                          <span className="text-slate-500 block mb-1.5 font-bold tracking-wider">เริ่ม: {formatDate(t.start_date)}</span>
-                          <span className="text-emerald-400 font-bold block border-t border-slate-700/50 pt-1.5 tracking-wider">สิ้นสุด: {formatDate(t.end_date)}</span>
-                        </div>
-                     </td>
-                     <td className="p-6 text-center whitespace-nowrap">
-                       <span className={`px-4 py-2 rounded-full text-xs font-bold border shadow-sm ${TASK_STATUS[t.status] || TASK_STATUS['รอดำเนินการ']}`}>{t.status}</span>
-                     </td>
-                     <td className="p-6 text-center">
-                       <div className="flex flex-col items-center gap-2 mt-2">
-                          <span className="text-2xl font-bold font-mono drop-shadow-md" style={{color:getBarColor(t.progress_percent)}}>{t.progress_percent}%</span>
-                          <div className="w-full bg-slate-900 h-3 rounded-full border border-slate-700 overflow-hidden shadow-inner">
-                            <div className="h-full rounded-full transition-all duration-1000 relative" style={{width:`${t.progress_percent}%`, background:getBarColor(t.progress_percent)}}>
-                              <div className="absolute inset-0 bg-white/20"></div>
-                            </div>
-                          </div>
-                       </div>
-                     </td>
-                     {user.role !== 'executive' && (
-                       <td className="p-6 text-center whitespace-nowrap">
-                         <div className="flex justify-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => openModal(t)} className="text-sky-400 hover:text-white p-2.5 rounded-xl bg-sky-900/30 hover:bg-sky-600 transition-colors shadow-sm mr-1"><Edit size={18}/></button>
-                          {(user.role === 'admin' || t.primary_unit === user.unitName) && <button onClick={() => handleDelete(t.task_id)} className="text-red-400 hover:text-white p-2.5 rounded-xl bg-red-900/30 hover:bg-red-600 transition-colors shadow-sm"><Trash2 size={18}/></button>}
+                                {t.status === 'ล่าช้า/ติดปัญหา' && t.root_cause && (
+                                  <div className="block mt-2 mb-3">
+                                    <div className="text-[11px] text-red-400 bg-red-950/40 border border-red-900/50 px-3 py-2 rounded-lg inline-flex items-center gap-1.5">
+                                      <AlertOctagon size={14}/> <span className="font-bold">สาเหตุหลัก:</span> {t.root_cause}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {t.note && <p className="text-xs text-slate-400 bg-slate-900/60 p-3 rounded-lg border border-slate-700/50 line-clamp-2 mt-2 leading-relaxed shadow-inner font-medium"><span className="text-sky-500 font-bold mb-1 block">หมายเหตุล่าสุด:</span>{t.note}</p>}
+                              </div>
+                           </div>
+                           {hasSubtasks && (
+                             <div className="mt-1 text-slate-500 shrink-0 bg-slate-900/50 p-1.5 rounded-lg border border-slate-700">
+                               {isExpanded ? <ChevronUp size={18} className="text-amber-500"/> : <ChevronDown size={18}/>}
+                             </div>
+                           )}
                          </div>
                        </td>
-                     )}
-                  </tr>
+                       <td className="p-6">
+                          <span className="text-sm font-bold text-sky-400 bg-sky-900/20 px-4 py-2 rounded-xl border border-sky-500/30 block w-max whitespace-nowrap shadow-sm">{t.primary_unit}</span>
+                       </td>
+                       <td className="p-6 text-center">
+                          <div className="text-xs text-slate-400 font-mono bg-slate-900/80 rounded-xl p-3 border border-slate-700 inline-block w-max shadow-inner">
+                            <span className="text-slate-500 block mb-1.5 font-bold tracking-wider">เริ่ม: {formatDate(t.start_date)}</span>
+                            <span className="text-emerald-400 font-bold block border-t border-slate-700/50 pt-1.5 tracking-wider">สิ้นสุด: {formatDate(t.end_date)}</span>
+                          </div>
+                       </td>
+                       <td className="p-6 text-center whitespace-nowrap">
+                         <span className={`px-4 py-2 rounded-full text-xs font-bold border shadow-sm ${TASK_STATUS[t.status] || TASK_STATUS['รอดำเนินการ']}`}>{t.status}</span>
+                       </td>
+                       <td className="p-6 text-center">
+                         <div className="flex flex-col items-center gap-2 mt-2">
+                            <span className="text-2xl font-bold font-mono drop-shadow-md" style={{color:getBarColor(t.progress_percent)}}>{t.progress_percent}%</span>
+                            <div className="w-full bg-slate-900 h-3 rounded-full border border-slate-700 overflow-hidden shadow-inner">
+                              <div className="h-full rounded-full transition-all duration-1000 relative" style={{width:`${t.progress_percent}%`, background:getBarColor(t.progress_percent)}}>
+                                <div className="absolute inset-0 bg-white/20"></div>
+                              </div>
+                            </div>
+                         </div>
+                       </td>
+                       {user.role !== 'executive' && (
+                         <td className="p-6 text-center whitespace-nowrap">
+                           <div className="flex justify-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                            <button onClick={() => openModal(t)} className="text-sky-400 hover:text-white p-2.5 rounded-xl bg-sky-900/30 hover:bg-sky-600 transition-colors shadow-sm mr-1"><Edit size={18}/></button>
+                            {(user.role === 'admin' || t.primary_unit === user.unitName) && <button onClick={() => handleDelete(t.task_id)} className="text-red-400 hover:text-white p-2.5 rounded-xl bg-red-900/30 hover:bg-red-600 transition-colors shadow-sm"><Trash2 size={18}/></button>}
+                           </div>
+                         </td>
+                       )}
+                    </tr>
+                    
+                    {/* Expanded Subtasks Row */}
+                    {isExpanded && hasSubtasks && (
+                      <tr className="bg-slate-900/40 border-b border-slate-700/50">
+                        <td colSpan={6} className="p-0">
+                          <div className="pl-8 py-5 pr-5 border-l-4 border-sky-500 ml-[46px] animate-fade-in-up shadow-inner">
+                            <h5 className="text-[11px] font-bold text-sky-400 mb-3 flex items-center gap-2 uppercase tracking-widest">
+                              <GitMerge size={14} /> แผนงาน/ภารกิจย่อย ({tSubtasks.filter(s=>s.done).length}/{tSubtasks.length})
+                            </h5>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {tSubtasks.map((st, i) => (
+                                <div key={i} className={`flex items-start gap-3 p-3 rounded-xl border ${st.done ? 'bg-emerald-950/20 border-emerald-900/30' : 'bg-slate-800 border-slate-700/50'}`}>
+                                  <div className="mt-0.5 shrink-0">
+                                    {st.done ? (
+                                      <CheckCircle2 size={16} className="text-emerald-500 drop-shadow-md" />
+                                    ) : (
+                                      <Circle size={16} className="text-slate-500" />
+                                    )}
+                                  </div>
+                                  <span className={`text-sm leading-relaxed ${st.done ? 'text-slate-400 line-through' : 'text-slate-200'}`}>
+                                    {st.text}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 )})}
                 {filtered.length===0&&<tr><td colSpan="6" className="p-20 text-center text-slate-500 text-xl border-dashed border-2 border-slate-700/50 m-4 rounded-2xl bg-slate-900/30">ไม่มีข้อมูลภารกิจในขณะนี้</td></tr>}
              </tbody>
@@ -2058,8 +2212,8 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
        {/* Modal ฟอร์มงาน พร้อมระบบ Checklist (Subtasks) */}
        {isModalOpen && (
           <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md overflow-y-auto">
-             <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
-               <div className="relative transform overflow-hidden bg-slate-800 p-8 md:p-10 rounded-3xl w-full max-w-4xl text-left text-white shadow-2xl border border-slate-600 my-8 animate-fade-in-up">
+             <div className="flex min-h-screen items-start justify-center p-4 md:p-8">
+               <div className="my-auto relative transform overflow-hidden bg-slate-800 p-8 md:p-10 rounded-3xl w-full max-w-4xl text-left text-white shadow-2xl border border-slate-600 animate-fade-in-up">
                   <div className="flex justify-between items-center mb-8 border-b border-slate-700 pb-5">
                      <h3 className="text-3xl font-bold text-sky-400 flex items-center gap-4 tracking-wide">
                         <div className="bg-sky-500/20 p-3 rounded-2xl shadow-inner border border-sky-500/30">{editData?<Activity size={28}/>:<Plus size={28}/>}</div> 
@@ -2464,8 +2618,8 @@ function UnitsConfig({ appDb, showToast, callApi, refresh }) {
        {/* Modal เพิ่ม/แก้ไข บัญชี */}
        {isModalOpen && (
           <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md overflow-y-auto">
-             <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
-               <div className="relative transform overflow-hidden bg-slate-800 p-8 md:p-10 rounded-3xl w-full max-w-2xl text-left text-white shadow-2xl border border-slate-600 my-8 animate-fade-in-up">
+             <div className="flex min-h-screen items-start justify-center p-4 md:p-8">
+               <div className="my-auto relative transform overflow-hidden bg-slate-800 p-8 md:p-10 rounded-3xl w-full max-w-2xl text-left text-white shadow-2xl border border-slate-600 animate-fade-in-up">
                   <div className="flex justify-between items-center mb-8 border-b border-slate-700 pb-5">
                      <h3 className="text-3xl font-bold text-amber-500 flex items-center gap-4 tracking-wide">
                         <div className="bg-amber-500/20 p-3 rounded-2xl shadow-inner border border-amber-500/30">{editData?<Edit size={28}/>:<Plus size={28}/>}</div> 
