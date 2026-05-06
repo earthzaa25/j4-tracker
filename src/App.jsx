@@ -16,6 +16,7 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwgZZURz1cGNglxjEK-n
 
 const LOGO_URL = "/S__22413315.jpg";
 const GARUDA_URL = "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Garuda_Emblem_of_Thailand.svg/150px-Garuda_Emblem_of_Thailand.svg.png";
+const geminiApiKey = import.meta.env?.VITE_GEMINI_API_KEY || ''; 
 
 // ============================================================
 // ค่าคงที่และตัวแปรระบบ
@@ -54,14 +55,15 @@ const ROOT_CAUSES = [
 
 const ITEMS_PER_PAGE = 10;
 
+const FALLBACK_ACCOUNTS = [
+  { id: "A-1", name: "ผู้ดูแลระบบกลาง (Admin)", passcode: "5721118", role: "admin" }, 
+  { id: "E-1", name: "ผู้บริหารระดับสูง", passcode: "1111", role: "executive" }, 
+  { id: "U-1", name: "กกล.กบ.ทหาร", passcode: "1234", role: "user" }
+];
+
 // ข้อมูลจำลองสำหรับโหมด Offline / Demo
 const MOCK_DB = {
-  units: [
-    { id: "A-1", name: "ผู้ดูแลระบบกลาง (Admin)", passcode: "5721118", role: "admin" }, 
-    { id: "E-1", name: "ผู้บริหารระดับสูง", passcode: "1111", role: "executive" }, 
-    { id: "U-1", name: "กกล.กบ.ทหาร", passcode: "1234", role: "user" },
-    { id: "U-2", name: "กช.กบ.ทหาร", passcode: "1234", role: "user" }
-  ],
+  units: FALLBACK_ACCOUNTS,
   policies: [
     { policy_id: "POL-1", policy_no: "1", category: "นโยบายหลัก", commander: "ผบ.ทสส.", order: "ทดสอบการเชื่อมต่อระบบและรายงานผลเบื้องต้น", timeframe: "ภายใน ก.ย. 68", primary_unit: "กกล.กบ.ทหาร", is_important: true },
     { policy_id: "POL-2", policy_no: "2", category: "สั่งการเพิ่มเติม", commander: "รอง ผบ.ทสส.", order: "จัดเตรียมแผนงบประมาณปี 2568 สำหรับหน่วยงานที่เกี่ยวข้อง", timeframe: "ภายใน ต.ค. 67", primary_unit: "กช.กบ.ทหาร", is_important: false }
@@ -77,156 +79,77 @@ const MOCK_DB = {
 // ============================================================
 // ฟังก์ชันช่วยเหลือ (Helpers)
 // ============================================================
-const getBarColor = (progress) => { 
-  if (progress === 100) return '#10b981'; 
-  if (progress >= 91) return '#0ea5e9'; 
-  if (progress >= 51) return '#a855f7'; 
-  if (progress >= 21) return '#f97316'; 
+const getBarColor = (p) => { 
+  if (p === 100) return '#10b981'; 
+  if (p >= 91) return '#0ea5e9'; 
+  if (p >= 51) return '#a855f7'; 
+  if (p >= 21) return '#f97316'; 
   return '#ef4444'; 
 };
 
-const formatDate = (dateString) => { 
-  if (!dateString) return '-'; 
-  try { 
-    return new Date(dateString).toLocaleDateString('th-TH', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
-    }); 
-  } catch (e) { 
-    return dateString; 
-  } 
+const formatDate = (d) => { 
+  if (!d) return '-'; 
+  try { return new Date(d).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' }); } 
+  catch (e) { return d; } 
 };
 
 const getEscalationBadge = (endDate) => { 
   if (!endDate) return null; 
-  
-  const today = new Date();
-  today.setHours(0,0,0,0);
-  const end = new Date(endDate);
-  
-  const diffTime = today - end;
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)); 
-  
-  if (diffDays >= 15) {
-    return { label: '🔥 วิกฤต (>15 วัน)', class: 'bg-red-600 text-white animate-pulse shadow-lg' }; 
-  }
-  if (diffDays >= 7) {
-    return { label: '⚠️ รุนแรง (>7 วัน)', class: 'bg-orange-500 text-white' }; 
-  }
-  if (diffDays > 0) {
-    return { label: '👀 เฝ้าระวัง', class: 'bg-amber-500 text-white' }; 
-  }
+  const diffDays = Math.floor((new Date().setHours(0,0,0,0) - new Date(endDate)) / 86400000); 
+  if (diffDays >= 15) return { label: '🔥 วิกฤต (>15 วัน)', class: 'bg-red-600 text-white animate-pulse shadow-lg' }; 
+  if (diffDays >= 7) return { label: '⚠️ รุนแรง (>7 วัน)', class: 'bg-orange-500 text-white' }; 
+  if (diffDays > 0) return { label: '👀 เฝ้าระวัง', class: 'bg-amber-500 text-white' }; 
   return null; 
 };
 
 const getDeadlineStatus = (endDate, status) => { 
   if (!endDate) return { label: '-', color: 'text-slate-400 bg-slate-800 border-slate-700' }; 
-  
-  if (status === 'เสร็จสิ้น') {
-    return { label: 'สำเร็จทันเวลา', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' }; 
-  }
-  
-  const today = new Date();
-  today.setHours(0,0,0,0);
-  const end = new Date(endDate);
-  
-  const diffTime = end - today;
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-  
-  if (diffDays < 0) {
-    return { label: `ล่าช้า ${Math.abs(diffDays)} วัน`, color: 'text-red-400 bg-red-500/10 border-red-500/30 font-bold' }; 
-  }
-  if (diffDays <= 7) {
-    return { label: `เหลือ ${diffDays} วัน`, color: 'text-amber-400 bg-amber-500/10 border-amber-500/30' }; 
-  }
+  if (status === 'เสร็จสิ้น') return { label: 'สำเร็จทันเวลา', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' }; 
+  const diffDays = Math.ceil((new Date(endDate) - new Date().setHours(0,0,0,0)) / 86400000); 
+  if (diffDays < 0) return { label: `ล่าช้า ${Math.abs(diffDays)} วัน`, color: 'text-red-400 bg-red-500/10 border-red-500/30 font-bold' }; 
+  if (diffDays <= 7) return { label: `เหลือ ${diffDays} วัน`, color: 'text-amber-400 bg-amber-500/10 border-amber-500/30' }; 
   return { label: `เหลือ ${diffDays} วัน`, color: 'text-sky-400 bg-sky-500/10 border-sky-500/30' }; 
 };
 
 function getFiscalYearDates(fyString) { 
   const fyNum = parseInt(fyString) - 543; 
-  return { 
-    start: `${fyNum - 1}-10-01`, 
-    end: `${fyNum}-09-30T23:59:59` 
-  }; 
+  return { start: `${fyNum - 1}-10-01`, end: `${fyNum}-09-30T23:59:59` }; 
 }
 
 const exportToExcel = (data, filename) => {
   if (!data || !data.length) return;
-  
   let table = '<table><thead><tr>'; 
-  Object.keys(data[0]).forEach(k => {
-    table += `<th>${k}</th>`;
-  }); 
+  Object.keys(data[0]).forEach(k => table += `<th>${k}</th>`); 
   table += '</tr></thead><tbody>';
-  
   data.forEach(r => { 
     table += '<tr>'; 
-    Object.values(r).forEach(v => {
-      table += `<td>${v || '-'}</td>`;
-    }); 
+    Object.values(r).forEach(v => table += `<td>${v||'-'}</td>`); 
     table += '</tr>'; 
   }); 
   table += '</tbody></table>';
-  
-  const html = `
-    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-      <head><meta charset="utf-8" /></head>
-      <body>${table}</body>
-    </html>
-  `;
-  
-  const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
-  const link = document.createElement('a'); 
-  link.href = URL.createObjectURL(blob); 
-  link.download = `${filename}.xls`; 
-  link.click();
+  const blob = new Blob([`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8" /></head><body>${table}</body></html>`], { type: 'application/vnd.ms-excel' });
+  const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `${filename}.xls`; link.click();
 };
 
 // ============================================================
-// UI Components ส่วนกลาง
+// UI Components
 // ============================================================
 function Pagination({ currentPage, totalItems, onPageChange }) {
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
   if (totalPages <= 1) return null;
-  
   return (
     <div className="flex justify-center items-center gap-4 mt-8 pb-4 print-hide">
-      <button 
-        onClick={() => onPageChange(currentPage - 1)} 
-        disabled={currentPage === 1} 
-        className="p-2.5 rounded-lg bg-slate-800 border border-slate-700 disabled:opacity-30 text-slate-300 hover:bg-slate-700 transition-colors shadow-sm"
-      >
-        <ChevronLeft size={20}/>
-      </button>
-      
-      <span className="text-sm text-slate-400 font-medium">
-        หน้า {currentPage} จาก {totalPages}
-      </span>
-      
-      <button 
-        onClick={() => onPageChange(currentPage + 1)} 
-        disabled={currentPage === totalPages} 
-        className="p-2.5 rounded-lg bg-slate-800 border border-slate-700 disabled:opacity-30 text-slate-300 hover:bg-slate-700 transition-colors shadow-sm"
-      >
-        <ChevronRight size={20}/>
-      </button>
+      <button onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1} className="p-2.5 rounded-lg bg-slate-800 border border-slate-700 disabled:opacity-30 text-slate-300 hover:bg-slate-700 transition-colors shadow-sm"><ChevronLeft size={20}/></button>
+      <span className="text-sm text-slate-400 font-medium">หน้า {currentPage} จาก {totalPages}</span>
+      <button onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages} className="p-2.5 rounded-lg bg-slate-800 border border-slate-700 disabled:opacity-30 text-slate-300 hover:bg-slate-700 transition-colors shadow-sm"><ChevronRight size={20}/></button>
     </div>
   );
 }
 
 function NavItem({ icon, label, isActive, onClick }) {
   return (
-    <button 
-      onClick={onClick} 
-      className={`flex items-center w-full px-4 py-3.5 rounded-xl transition-all font-medium ${
-        isActive 
-          ? 'bg-amber-600 text-white shadow-lg' 
-          : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
-      }`}
-    >
-      <span className="shrink-0">{icon}</span>
-      <span className="ml-3 truncate text-sm">{label}</span>
+    <button onClick={onClick} className={`flex items-center w-full px-4 py-3.5 rounded-xl transition-all font-medium ${isActive ? 'bg-amber-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'}`}>
+      <span className="shrink-0">{icon}</span><span className="ml-3 truncate text-sm">{label}</span>
     </button>
   );
 }
@@ -240,29 +163,14 @@ function LoginScreen({ onLogin, isLoading, appDb, loadData, deployError }) {
   const [password, setPassword] = useState('');
   const [localError, setLocalError] = useState('');
 
-  useEffect(() => { 
-    if (accounts.length > 0 && !accountId) {
-      setAccountId(accounts[0].id); 
-    }
-  }, [accounts, accountId]);
+  useEffect(() => { if (accounts.length > 0 && !accountId) setAccountId(accounts[0].id); }, [accounts, accountId]);
 
   const handleSubmit = (e) => {
-    e.preventDefault(); 
-    setLocalError('');
-    
-    if (accounts.length === 0) { 
-      setLocalError('ไม่มีข้อมูลบัญชีในระบบ กรุณาตรวจสอบการตั้งค่าฐานข้อมูล'); 
-      return; 
-    }
-    
+    e.preventDefault(); setLocalError('');
+    if (accounts.length === 0) { setLocalError('ไม่มีข้อมูลบัญชีในระบบ กรุณาตรวจสอบการตั้งค่าฐานข้อมูล'); return; }
     const account = accounts.find(a => a.id === accountId);
     if (!account) return;
-    
-    if (String(password) !== String(account.passcode)) { 
-      setLocalError('รหัสผ่านไม่ถูกต้อง (สำหรับ Demo ใช้ 1234 หรือ 5721118)'); 
-      return; 
-    }
-    
+    if (String(password) !== String(account.passcode)) { setLocalError('รหัสผ่านไม่ถูกต้อง (สำหรับ Demo ใช้ 1234 หรือ 5721118)'); return; }
     onLogin(account.name, account.role || 'user');
   };
 
@@ -282,92 +190,45 @@ function LoginScreen({ onLogin, isLoading, appDb, loadData, deployError }) {
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background decoration */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl translate-x-1/3 -translate-y-1/3 z-0"></div>
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl -translate-x-1/3 translate-y-1/3 z-0"></div>
 
       <div className="bg-slate-800 p-8 md:p-10 rounded-3xl shadow-2xl w-full max-w-md border border-slate-700 relative z-10 animate-fade-in-up">
-        
         <div className="text-center mb-10">
           <div className="bg-white w-28 h-28 rounded-3xl flex items-center justify-center mx-auto mb-6 p-2 shadow-[0_0_20px_rgba(245,158,11,0.3)]">
-            <img 
-              src={LOGO_URL} 
-              alt="J4" 
-              className="w-full h-full object-contain" 
-              onError={(e) => {
-                e.target.onerror = null; 
-                e.target.src = 'https://placehold.co/100x100/1e293b/f59e0b?text=J4';
-              }} 
-            />
+            <img src={LOGO_URL} alt="J4" className="w-full h-full object-contain" onError={(e)=>{e.target.onerror = null; e.target.src = 'https://placehold.co/100x100/1e293b/f59e0b?text=J4';}} />
           </div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-100 mb-2 tracking-wide">ระบบติดตามผลการปฏิบัติ</h1>
           <p className="text-amber-500 text-sm font-bold tracking-widest uppercase">J4 Command Center</p>
         </div>
 
-        {/* แจ้งเตือน Mode จำลองการทำงาน */}
         {appDb.isDemoMode && (
           <div className="mb-6 bg-orange-950/50 border border-orange-500 p-5 rounded-xl text-left shadow-lg">
-             <h3 className="text-orange-400 font-bold text-sm mb-3 flex items-center gap-2">
-               <AlertTriangle size={18}/> กำลังใช้งาน "โหมดทดลอง (Demo)"
-             </h3>
-             <p className="text-xs text-slate-300 mb-2 leading-relaxed">
-               ดึงข้อมูลจาก Google Sheets ไม่สำเร็จ คุณสามารถล็อกอินด้วย <b className="text-white bg-slate-700 px-1 rounded">รหัสผ่าน: 1234</b> เพื่อดูตัวอย่างหน้าตาเว็บได้ทันที
-             </p>
+             <h3 className="text-orange-400 font-bold text-sm mb-3 flex items-center gap-2"><AlertTriangle size={18}/> กำลังใช้งาน "โหมดทดลอง (Demo)"</h3>
+             <p className="text-xs text-slate-300 mb-2 leading-relaxed">ดึงข้อมูลจาก Google Sheets ไม่สำเร็จ คุณสามารถล็อกอินด้วย <b className="text-white bg-slate-700 px-1 rounded">รหัสผ่าน: 1234</b> หรือ <b className="text-white bg-slate-700 px-1 rounded">5721118</b> เพื่อดูตัวอย่างหน้าตาเว็บได้ทันที</p>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block text-slate-400 text-xs font-bold mb-2 uppercase tracking-wider">เลือกบัญชีผู้ใช้งาน</label>
-            <select 
-              value={accountId} 
-              onChange={(e) => { 
-                setAccountId(e.target.value); 
-                setLocalError(''); 
-              }} 
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl p-4 text-slate-100 outline-none focus:border-amber-500 transition-colors shadow-inner font-medium"
-            >
+            <select value={accountId} onChange={(e) => { setAccountId(e.target.value); setLocalError(''); }} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-4 text-slate-100 outline-none focus:border-amber-500 transition-colors shadow-inner font-medium">
               {accounts.length === 0 && <option value="">ไม่มีข้อมูลในฐานระบบ</option>}
               {adminAccounts.length > 0 && <optgroup label="--- ผู้ดูแลระบบกลาง ---">{adminAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</optgroup>}
               {execAccounts.length > 0 && <optgroup label="--- ผู้บริหาร ---">{execAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</optgroup>}
               {userAccounts.length > 0 && <optgroup label="--- หน่วยงานปฏิบัติการ ---">{userAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</optgroup>}
             </select>
           </div>
-          
           <div>
-            <label className="block text-slate-400 text-xs font-bold mb-2 uppercase tracking-wider flex items-center gap-2">
-              <Lock size={14}/> รหัสผ่าน
-            </label>
-            <input 
-              type="password" 
-              value={password} 
-              onChange={(e) => setPassword(e.target.value)} 
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl p-4 text-slate-100 outline-none focus:border-amber-500 transition-colors tracking-[0.3em] font-mono shadow-inner" 
-              placeholder="••••••••" 
-            />
+            <label className="block text-slate-400 text-xs font-bold mb-2 uppercase tracking-wider flex items-center gap-2"><Lock size={14}/> รหัสผ่าน</label>
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-4 text-slate-100 outline-none focus:border-amber-500 transition-colors tracking-[0.3em] font-mono shadow-inner" placeholder="••••••••" />
           </div>
-          
-          {localError && (
-            <div className="bg-red-500/10 border border-red-500/20 py-3 px-4 rounded-xl flex items-center gap-2 text-red-400 text-sm font-medium animate-pulse">
-              <AlertTriangle size={16}/> {localError}
-            </div>
-          )}
-          
-          <button 
-            type="submit" 
-            className="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-4 rounded-xl shadow-[0_4px_15px_rgba(245,158,11,0.3)] transition-all hover:-translate-y-0.5 active:translate-y-0 text-lg mt-2 flex items-center justify-center gap-2"
-          >
-            เข้าสู่ระบบ <ChevronRight size={20}/>
-          </button>
+          {localError && <div className="bg-red-500/10 border border-red-500/20 py-3 px-4 rounded-xl flex items-center gap-2 text-red-400 text-sm font-medium animate-pulse"><AlertTriangle size={16}/> {localError}</div>}
+          <button type="submit" className="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-4 rounded-xl shadow-[0_4px_15px_rgba(245,158,11,0.3)] transition-all hover:-translate-y-0.5 active:translate-y-0 text-lg mt-2 flex items-center justify-center gap-2">เข้าสู่ระบบ <ChevronRight size={20}/></button>
         </form>
         
         <div className="mt-8 text-center border-t border-slate-700/50 pt-6">
-           <button 
-             onClick={loadData} 
-             className="text-slate-400 text-xs hover:text-white transition-colors flex items-center justify-center gap-1.5 mx-auto font-medium"
-           >
-             <RefreshCcw size={14}/> โหลดการเชื่อมต่อใหม่
-           </button>
+           <button onClick={loadData} className="text-slate-400 text-xs hover:text-white transition-colors flex items-center justify-center gap-1.5 mx-auto font-medium"><RefreshCcw size={14}/> โหลดการเชื่อมต่อใหม่</button>
         </div>
       </div>
     </div>
@@ -380,136 +241,51 @@ function LoginScreen({ onLogin, isLoading, appDb, loadData, deployError }) {
 export default function App() {
   const [user, setUser] = useState(null);
   const [view, setView] = useState('DASHBOARD_POLICY');
-  const [appDb, setAppDb] = useState({ 
-    policies: [], 
-    reports: [], 
-    tasks: [], 
-    units: [], 
-    isLoaded: false,
-    isDemoMode: false
-  });
+  const [appDb, setAppDb] = useState({ policies: [], reports: [], tasks: [], units: [], isLoaded: false, isDemoMode: false });
   const [toastData, setToastData] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [deployError, setDeployError] = useState(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const showToast = (msg, type = 'ok') => { 
-    setToastData({ msg, type }); 
-    setTimeout(() => setToastData(null), 3000); 
-  };
+  const showToast = (msg, type = 'ok') => { setToastData({ msg, type }); setTimeout(() => setToastData(null), 3000); };
 
-  // ดึงข้อมูลทั้งหมดจาก Google Sheets พร้อมตรวจสอบ Error แบบละเอียด
   const loadData = async () => {
-    setIsSyncing(true); 
-    setDeployError(null);
+    setIsSyncing(true); setDeployError(null);
     try {
       const actions = ['units', 'policies', 'reports', 'tasks'];
-      
       const results = await Promise.all(actions.map(async (action) => {
         const url = `${SCRIPT_URL}?action=${action}&t=${Date.now()}`;
-        
         const res = await fetch(url, { redirect: "follow" }); 
         const text = await res.text();
-        
-        // ตรวจจับกรณีที่ Google ส่ง HTML Login กลับมา
-        if (text.trim().startsWith('<') || text.includes('<!DOCTYPE html>')) {
-          throw new Error("PERMISSION");
-        }
-        
-        try {
-          return JSON.parse(text);
-        } catch (parseErr) {
-          throw new Error("PARSE_ERROR"); 
-        }
+        if (text.trim().startsWith('<') || text.includes('<!DOCTYPE html>')) throw new Error("PERMISSION");
+        return JSON.parse(text);
       }));
 
-      setAppDb({ 
-        units: results[0] || [], 
-        policies: results[1] || [], 
-        reports: results[2] || [], 
-        tasks: results[3] || [], 
-        isLoaded: true,
-        isDemoMode: false
-      });
+      setAppDb({ units: results[0] || [], policies: results[1] || [], reports: results[2] || [], tasks: results[3] || [], isLoaded: true, isDemoMode: false });
       if(user) showToast("ซิงค์ข้อมูลล่าสุดเรียบร้อย", "ok");
-      
     } catch (err) {
-      console.error("Fetch Execution Error:", err);
+      console.error("Fetch Error:", err);
       setDeployError(err.message === "PERMISSION" ? "PERMISSION" : "NETWORK");
-      
-      // สลับไปใช้ข้อมูลจำลองหากโหลดล้มเหลว
-      setAppDb({
-         ...MOCK_DB,
-         isLoaded: true,
-         isDemoMode: true
-      });
+      setAppDb({ ...MOCK_DB, isLoaded: true, isDemoMode: true });
       showToast("ระบบออฟไลน์: เข้าสู่โหมดจำลองการทำงาน", "error");
-    } finally { 
-      setIsSyncing(false); 
-    }
+    } finally { setIsSyncing(false); }
   };
 
-  useEffect(() => { 
-    if (SCRIPT_URL && !SCRIPT_URL.includes("URL_ที่คุณได้มา")) {
-      loadData(); 
-    }
-  }, []);
+  useEffect(() => { if (SCRIPT_URL && !SCRIPT_URL.includes("URL_ที่คุณได้มา")) loadData(); }, []);
 
   const callApi = async (method, action, data, idKey, idValue) => {
-    if (appDb.isDemoMode) {
-      showToast("ในโหมดจำลอง จะไม่สามารถบันทึกข้อมูลลงฐานข้อมูลจริงได้", "error");
-      return true;
-    }
-
+    if (appDb.isDemoMode) { showToast("โหมดจำลอง: ข้อมูลจะไม่ถูกบันทึกจริง", "error"); return true; }
     try {
-      await fetch(SCRIPT_URL, { 
-        method: 'POST', 
-        mode: 'no-cors',
-        headers: { 
-          'Content-Type': 'text/plain;charset=utf-8' 
-        }, 
-        body: JSON.stringify({ method, action, data, idKey, idValue }) 
-      });
-      
-      setTimeout(loadData, 2000); 
-      return true;
-    } catch (err) { 
-      showToast("บันทึกไม่สำเร็จ ตรวจสอบอินเทอร์เน็ต", "error"); 
-      return false; 
-    }
+      await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ method, action, data, idKey, idValue }) });
+      setTimeout(loadData, 2000); return true;
+    } catch (err) { showToast("บันทึกไม่สำเร็จ ตรวจสอบอินเทอร์เน็ต", "error"); return false; }
   };
 
-  const handleLogin = (unitName, role) => {
-    setUser({ 
-      id: `session-${Date.now()}`, 
-      unitName: unitName, 
-      role: role || 'user' 
-    });
-    setView(role === 'executive' ? 'EXEC_SUMMARY' : 'DASHBOARD_POLICY');
-  };
+  const handleLogin = (unitName, role) => { setUser({ id: `session-${Date.now()}`, unitName: unitName, role: role || 'user' }); setView(role === 'executive' ? 'EXEC_SUMMARY' : 'DASHBOARD_POLICY'); };
+  const handleLogout = () => { setUser(null); setView('DASHBOARD_POLICY'); };
+  const navigateTo = (viewName) => { setView(viewName); setIsMobileMenuOpen(false); };
 
-  const handleLogout = () => { 
-    setUser(null); 
-    setView('DASHBOARD_POLICY'); 
-  };
-
-  const navigateTo = (viewName) => {
-    setView(viewName);
-    setIsMobileMenuOpen(false);
-  };
-
-  if (!user || !appDb.isLoaded) {
-    return (
-      <LoginScreen 
-        onLogin={handleLogin} 
-        isLoading={!appDb.isLoaded} 
-        appDb={appDb} 
-        loadData={loadData} 
-        deployError={deployError} 
-      />
-    );
-  }
-
+  if (!user || !appDb.isLoaded) return <LoginScreen onLogin={handleLogin} isLoading={!appDb.isLoaded} appDb={appDb} loadData={loadData} deployError={deployError} />;
   const isAdminOrExec = user.role === 'admin' || user.role === 'executive';
 
   return (
@@ -519,97 +295,45 @@ export default function App() {
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; border: 2px solid #0f172a; } 
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
-        
-        @keyframes fadeInUp { 
-          from { opacity: 0; transform: translateY(15px); } 
-          to { opacity: 1; transform: translateY(0); } 
-        } 
-        .animate-fade-in-up { animation: fadeInUp 0.4s ease-out forwards; } 
-        
-        @media print { 
-          .print-hide { display: none !important; } 
-          .bg-slate-900, .bg-slate-800 { background: white !important; color: black !important; border: 1px solid #ccc !important; box-shadow: none !important; } 
-          .text-slate-100, .text-slate-200, .text-slate-300, .text-slate-400 { color: #333 !important; }
-          body { background: white !important; }
-        }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } } 
+        .animate-fade-in-up { animation: fadeInUp 0.5s ease-out forwards; } 
+        @media print { .print-hide { display: none !important; } .bg-slate-900, .bg-slate-800 { background: white !important; color: black !important; border: 1px solid #ccc !important; box-shadow: none !important; } .text-slate-100, .text-slate-200, .text-slate-300, .text-slate-400 { color: #333 !important; } body { background: white !important; } }
       `}</style>
       
-      {/* ============================================================ */}
-      {/* Sidebar - Desktop */}
-      {/* ============================================================ */}
       <aside className="print-hide fixed left-0 top-0 h-screen z-40 bg-slate-800 border-r border-slate-700 flex flex-col w-72 hidden lg:flex shadow-2xl">
-        
         <div className="h-24 flex items-center justify-between px-6 border-b border-slate-700 shrink-0 bg-slate-900/30">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center p-1.5 shadow-md border border-amber-500/20">
-              <img src={LOGO_URL} alt="Logo" className="w-full h-full object-contain" />
-            </div>
-            <div>
-              <h1 className="font-bold text-xl leading-tight text-white tracking-wide">J4 Tracker</h1>
-              <span className="text-[10px] text-amber-500 uppercase tracking-widest font-bold">G-Sheets App</span>
-            </div>
-          </div>
+          <div className="flex items-center gap-4"><div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center p-1.5 shadow-md border border-amber-500/20"><img src={LOGO_URL} alt="Logo" className="w-full h-full object-contain" /></div><div><h1 className="font-bold text-xl leading-tight text-white tracking-wide">J4 Tracker</h1><span className="text-[10px] text-amber-500 uppercase tracking-widest font-bold">G-Sheets App</span></div></div>
         </div>
-        
         <div className="p-6 border-b border-slate-700 bg-slate-800/80">
           <p className="text-[10px] text-slate-400 mb-1.5 uppercase tracking-wider font-bold">บัญชีเข้าใช้งาน:</p>
-          <div className="flex items-center gap-3">
-             <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-500 border border-amber-500/30 shrink-0">
-               <Users size={16}/>
-             </div>
-             <p className="font-bold text-amber-400 truncate text-sm leading-snug" title={user.unitName}>{user.unitName}</p>
-          </div>
+          <div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-500 border border-amber-500/30 shrink-0"><Users size={16}/></div><p className="font-bold text-amber-400 truncate text-sm leading-snug" title={user.unitName}>{user.unitName}</p></div>
         </div>
-        
         <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1.5 custom-scrollbar">
           <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">ระบบรายงานภาพรวม</p>
           <NavItem icon={<LayoutDashboard size={20}/>} label="ภาพรวมนโยบาย" isActive={view==='DASHBOARD_POLICY'} onClick={()=>navigateTo('DASHBOARD_POLICY')} />
           <NavItem icon={<PieChart size={20}/>} label="ภาพรวมภารกิจ" isActive={view==='DASHBOARD_TASK'} onClick={()=>navigateTo('DASHBOARD_TASK')} />
           {isAdminOrExec && <NavItem icon={<Briefcase size={20}/>} label="บทสรุปผู้บริหาร" isActive={view==='EXEC_SUMMARY'} onClick={()=>navigateTo('EXEC_SUMMARY')} />}
-          
           <div className="border-t border-slate-700/50 my-6"></div>
-          
           <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">ระบบปฏิบัติการ</p>
-          
           <NavItem icon={<ScrollText size={20}/>} label="ฐานข้อมูลนโยบาย" isActive={view==='POLICIES'} onClick={()=>navigateTo('POLICIES')} />
           <NavItem icon={<CheckSquare size={20}/>} label="ติดตามภารกิจ (Tasks)" isActive={view==='TASKS'} onClick={()=>navigateTo('TASKS')} />
           {user.role !== 'executive' && <NavItem icon={<FilePlus size={20}/>} label="บันทึกรายงานผล" isActive={view==='REPORT_FORM'} onClick={()=>navigateTo('REPORT_FORM')} />}
           <NavItem icon={<HistoryIcon size={20}/>} label="ประวัติรายงานผล" isActive={view==='HISTORY'} onClick={()=>navigateTo('HISTORY')} />
-          
-          {user.role === 'admin' && (
-            <>
-              <div className="border-t border-slate-700/50 my-6"></div>
-              <NavItem icon={<Users size={20}/>} label="ตั้งค่าบัญชีใช้งาน" isActive={view==='UNITS_CONFIG'} onClick={()=>navigateTo('UNITS_CONFIG')} />
-            </>
-          )}
+          {user.role === 'admin' && <><div className="border-t border-slate-700/50 my-6"></div><NavItem icon={<Users size={20}/>} label="ตั้งค่าหน่วยงาน/บัญชี" isActive={view==='UNITS_CONFIG'} onClick={()=>navigateTo('UNITS_CONFIG')} /></>}
         </nav>
-        
         <div className="p-5 border-t border-slate-700 bg-slate-900/30">
-          <button onClick={handleLogout} className="flex items-center justify-center gap-2 bg-slate-800 border border-slate-700 hover:bg-red-600 hover:border-red-500 hover:text-white text-slate-300 w-full py-3.5 rounded-xl transition-all font-bold shadow-sm">
-            <LogOut size={18}/> ออกจากระบบ
-          </button>
+          <button onClick={handleLogout} className="flex items-center justify-center gap-2 bg-slate-800 border border-slate-700 hover:bg-red-600 hover:border-red-500 hover:text-white text-slate-300 w-full py-3.5 rounded-xl transition-all font-bold shadow-sm"><LogOut size={18}/> ออกจากระบบ</button>
         </div>
       </aside>
 
-      {/* ============================================================ */}
-      {/* Mobile Topbar & Overlay Menu */}
-      {/* ============================================================ */}
       <div className="lg:hidden print-hide fixed top-0 left-0 right-0 h-16 bg-slate-800 border-b border-slate-700 z-50 flex items-center justify-between px-5 shadow-md">
-         <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-white rounded-md flex items-center justify-center p-1"><img src={LOGO_URL} alt="Logo" className="w-full h-full object-contain" /></div>
-            <h1 className="font-bold text-white tracking-wide">J4 Tracker</h1>
-         </div>
-         <button onClick={()=>setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-slate-300 p-2 hover:bg-slate-700 rounded-lg transition-colors">
-            {isMobileMenuOpen ? <X size={24}/> : <List size={24}/>}
-         </button>
+         <div className="flex items-center gap-3"><div className="w-8 h-8 bg-white rounded-md flex items-center justify-center p-1"><img src={LOGO_URL} alt="Logo" className="w-full h-full object-contain" /></div><h1 className="font-bold text-white tracking-wide">J4 Tracker</h1></div>
+         <button onClick={()=>setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-slate-300 p-2 hover:bg-slate-700 rounded-lg transition-colors">{isMobileMenuOpen ? <X size={24}/> : <List size={24}/>}</button>
       </div>
 
       {isMobileMenuOpen && (
         <div className="lg:hidden print-hide fixed inset-0 top-16 bg-slate-900 z-40 overflow-y-auto pb-20 animate-fade-in-up">
-           <div className="p-6 border-b border-slate-800 bg-slate-800/50">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">บัญชีผู้ใช้:</p>
-              <p className="text-amber-500 font-bold text-lg">{user.unitName}</p>
-           </div>
+           <div className="p-6 border-b border-slate-800 bg-slate-800/50"><p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">บัญชีผู้ใช้:</p><p className="text-amber-500 font-bold text-lg">{user.unitName}</p></div>
            <div className="p-4 space-y-1.5">
               <NavItem icon={<LayoutDashboard size={20}/>} label="ภาพรวมนโยบาย" isActive={view==='DASHBOARD_POLICY'} onClick={()=>navigateTo('DASHBOARD_POLICY')} />
               <NavItem icon={<PieChart size={20}/>} label="ภาพรวมภารกิจ" isActive={view==='DASHBOARD_TASK'} onClick={()=>navigateTo('DASHBOARD_TASK')} />
@@ -619,46 +343,30 @@ export default function App() {
               <NavItem icon={<CheckSquare size={20}/>} label="ติดตามภารกิจ (Tasks)" isActive={view==='TASKS'} onClick={()=>navigateTo('TASKS')} />
               {user.role !== 'executive' && <NavItem icon={<FilePlus size={20}/>} label="บันทึกรายงานผล" isActive={view==='REPORT_FORM'} onClick={()=>navigateTo('REPORT_FORM')} />}
               <NavItem icon={<HistoryIcon size={20}/>} label="ประวัติรายงานผล" isActive={view==='HISTORY'} onClick={()=>navigateTo('HISTORY')} />
-              {user.role === 'admin' && <NavItem icon={<Users size={20}/>} label="ตั้งค่าผู้ใช้งาน" isActive={view==='UNITS_CONFIG'} onClick={()=>navigateTo('UNITS_CONFIG')} />}
-              
-              <div className="mt-8 p-4">
-                <button onClick={()=>{setUser(null); setIsMobileMenuOpen(false);}} className="w-full bg-red-600 hover:bg-red-500 text-white py-4 rounded-xl flex items-center justify-center gap-2 font-bold shadow-lg">
-                  <LogOut size={20}/> ออกจากระบบ
-                </button>
-              </div>
+              {user.role === 'admin' && <NavItem icon={<Users size={20}/>} label="ตั้งค่าหน่วยงาน/บัญชี" isActive={view==='UNITS_CONFIG'} onClick={()=>navigateTo('UNITS_CONFIG')} />}
+              <div className="mt-8 p-4"><button onClick={()=>{setUser(null); setIsMobileMenuOpen(false);}} className="w-full bg-red-600 hover:bg-red-500 text-white py-4 rounded-xl flex items-center justify-center gap-2 font-bold shadow-lg"><LogOut size={20}/> ออกจากระบบ</button></div>
            </div>
         </div>
       )}
 
-      {/* ============================================================ */}
-      {/* Main Content Area */}
-      {/* ============================================================ */}
       <main className="flex-1 lg:ml-72 pt-20 lg:pt-0 p-4 md:p-8 min-h-screen overflow-y-auto custom-scrollbar relative">
         <div className="max-w-7xl mx-auto pb-24">
           
           {appDb.isDemoMode && (
             <div className="mb-6 bg-orange-950/80 border border-orange-500/50 p-4 rounded-2xl flex items-center gap-4 animate-pulse">
               <div className="bg-orange-500/20 p-2 rounded-full text-orange-400"><AlertTriangle size={24}/></div>
-              <div>
-                <p className="font-bold text-orange-400">ระบบทำงานในโหมดออฟไลน์ / จำลอง (Demo Mode)</p>
-                <p className="text-xs text-slate-300">เนื่องจากไม่สามารถดึงข้อมูลจาก Google Sheets ได้ ข้อมูลที่คุณเห็นหรือบันทึกตอนนี้ จะไม่ถูกส่งไปที่ฐานข้อมูลจริง</p>
-              </div>
+              <div><p className="font-bold text-orange-400">ระบบทำงานในโหมดออฟไลน์ / จำลอง (Demo Mode)</p><p className="text-xs text-slate-300">เนื่องจากไม่สามารถดึงข้อมูลจาก Google Sheets ได้ ข้อมูลที่คุณเห็นหรือบันทึกตอนนี้ จะไม่ถูกส่งไปที่ฐานข้อมูลจริง</p></div>
             </div>
           )}
 
           <div className="flex justify-between items-center mb-8 bg-slate-800/80 p-4 md:p-5 rounded-2xl border border-slate-700 backdrop-blur-sm print-hide shadow-md">
-            <h2 className="text-slate-300 font-bold flex items-center gap-2 md:gap-3 text-sm md:text-base tracking-wide">
-              <ShieldCheck size={22} className="text-amber-500"/> ระบบอำนวยการ J4 Command Center
-            </h2>
-            <div className="flex items-center gap-3">
+            <h2 className="text-slate-300 font-bold flex items-center gap-2 md:gap-3 text-sm md:text-base tracking-wide"><ShieldCheck size={22} className="text-amber-500"/> ระบบอำนวยการ J4 Command Center</h2>
+            <div className="flex items-center gap-3 md:gap-4">
               {isSyncing && <span className="text-amber-500 text-xs font-bold flex items-center gap-1.5 bg-amber-500/10 px-3 py-1.5 rounded-full border border-amber-500/20 shadow-sm"><RefreshCcw size={12} className="animate-spin"/> อัปเดตข้อมูล</span>}
-              <button onClick={loadData} className="p-2.5 bg-slate-900 rounded-xl hover:bg-slate-700 text-slate-400 transition-colors border border-slate-700 shadow-sm hover:text-white" title="ซิงค์ข้อมูลล่าสุด">
-                <RefreshCcw size={18}/>
-              </button>
+              <button onClick={loadData} className="p-2.5 bg-slate-900 rounded-xl hover:bg-slate-700 text-slate-400 transition-colors border border-slate-700 shadow-sm hover:text-white" title="ซิงค์ข้อมูลล่าสุด"><RefreshCcw size={18}/></button>
             </div>
           </div>
 
-          {/* Router Views Management */}
           {view === 'DASHBOARD_POLICY' && <PolicyDashboard appDb={appDb} user={user} />}
           {view === 'DASHBOARD_TASK' && <TaskDashboard appDb={appDb} user={user} />}
           {view === 'EXEC_SUMMARY' && <ExecutiveSummary appDb={appDb} />}
@@ -671,7 +379,6 @@ export default function App() {
         </div>
       </main>
 
-      {/* Floating Toast Notification */}
       {toastData && (
         <div className="fixed top-6 right-6 z-[100] px-6 py-4 rounded-xl shadow-2xl border bg-slate-800 text-white flex items-center gap-3 animate-fade-in-up" style={{borderColor: toastData.type === 'ok' ? '#10b981' : '#ef4444'}}>
           {toastData.type === 'ok' ? <CheckCircle className="text-emerald-500" size={24}/> : <AlertTriangle className="text-red-500" size={24}/>}
@@ -693,96 +400,68 @@ function PolicyDashboard({ appDb, user }) {
   const [fiscalYear, setFiscalYear] = useState('ALL');
   const [filterStart, setFilterStart] = useState('');
   const [filterEnd, setFilterEnd] = useState('');
-  
   const [selectedStatus, setSelectedStatus] = useState(null);
   const [expandedPolicyId, setExpandedPolicyId] = useState(null);
 
   useEffect(() => {
     if (fiscalYear !== 'ALL' && fiscalYear !== 'CUSTOM') {
       const dates = getFiscalYearDates(fiscalYear);
-      setFilterStart(dates.start);
-      setFilterEnd(dates.end.substring(0, 10));
+      setFilterStart(dates.start); setFilterEnd(dates.end.substring(0, 10));
     } else if (fiscalYear === 'ALL') {
-      setFilterStart(''); 
-      setFilterEnd('');
+      setFilterStart(''); setFilterEnd('');
     }
   }, [fiscalYear]);
 
-  const currentUnits = useMemo(() => {
-    return (appDb.units || []).filter(u => u.role === 'user' || !u.role);
-  }, [appDb.units]);
-
+  const currentUnits = useMemo(() => (appDb.units || []).filter(u => u.role === 'user' || !u.role), [appDb.units]);
   const basePolicies = useMemo(() => {
     let f = appDb.policies || [];
-    if (filterUnit !== 'ALL') {
-      f = f.filter(p => p.primary_unit === filterUnit || p.secondary_units?.includes(filterUnit) || p.primary_unit === 'ทุกหน่วย');
-    }
+    if (filterUnit !== 'ALL') f = f.filter(p => p.primary_unit === filterUnit || p.secondary_units?.includes(filterUnit) || p.primary_unit === 'ทุกหน่วย');
     return f;
   }, [appDb.policies, filterUnit]);
 
   const baseReports = useMemo(() => {
     let r = appDb.reports || [];
-    if (filterUnit !== 'ALL') {
-      r = r.filter(x => x.unit_name === filterUnit);
-    }
+    if (filterUnit !== 'ALL') r = r.filter(x => x.unit_name === filterUnit);
     if (filterStart) r = r.filter(x => new Date(x.report_date) >= new Date(filterStart));
-    if (filterEnd) {
-      const end = new Date(filterEnd); 
-      end.setHours(23, 59, 59, 999);
-      r = r.filter(x => new Date(x.report_date) <= end);
-    }
+    if (filterEnd) { const end = new Date(filterEnd); end.setHours(23, 59, 59, 999); r = r.filter(x => new Date(x.report_date) <= end); }
     return r;
   }, [appDb.reports, filterUnit, filterStart, filterEnd]);
 
   const tasksByPolicy = useMemo(() => {
     const map = {};
-    (appDb.tasks || []).forEach(t => {
-       if (t.policy_id) { 
-         if (!map[t.policy_id]) map[t.policy_id] = []; 
-         map[t.policy_id].push(t); 
-       }
-    });
+    (appDb.tasks || []).forEach(t => { if (t.policy_id) { if (!map[t.policy_id]) map[t.policy_id] = []; map[t.policy_id].push(t); } });
     return map;
   }, [appDb.tasks]);
 
   const overallStats = useMemo(() => {
     const pIds = basePolicies.map(p => p.policy_id); 
     const reps = baseReports.filter(r => pIds.includes(r.policy_id));
-    
     const progList = basePolicies.map(po => { 
       const rs = reps.filter(r => r.policy_id === po.policy_id).sort((a, b) => new Date(b.report_date || b.created_at) - new Date(a.report_date || a.created_at));
       return { progress: rs.length ? (rs[0].progress_percent || 0) : 0 }; 
     });
-    
     return {
-      total: progList.length, 
-      completed: progList.filter(x => x.progress === 100).length, 
-      inProgress: progList.filter(x => x.progress > 0 && x.progress < 100).length, 
-      notStarted: progList.filter(x => x.progress === 0).length,
+      total: progList.length, completed: progList.filter(x => x.progress === 100).length, 
+      inProgress: progList.filter(x => x.progress > 0 && x.progress < 100).length, notStarted: progList.filter(x => x.progress === 0).length,
       avg: progList.length > 0 ? (progList.reduce((a, b) => a + (b.progress || 0), 0) / progList.length) : 0
     };
   }, [basePolicies, baseReports]);
 
   const getStatusBucket = (progress) => {
-    if (progress === 100) return 'เสร็จแล้ว (100%)';
-    if (progress >= 91) return 'กำลังจะแล้วเสร็จ (91-99%)';
-    if (progress >= 51) return 'ดำเนินการต่อเนื่อง (51-90%)';
-    if (progress >= 21) return 'อยู่ระหว่างดำเนินการ (21-50%)';
+    if (progress === 100) return 'เสร็จแล้ว (100%)'; if (progress >= 91) return 'กำลังจะแล้วเสร็จ (91-99%)';
+    if (progress >= 51) return 'ดำเนินการต่อเนื่อง (51-90%)'; if (progress >= 21) return 'อยู่ระหว่างดำเนินการ (21-50%)';
     return 'ต่ำกว่าเกณฑ์ (0-20%)';
   };
 
   const renderTimeline = (pid) => {
     const validTasks = (tasksByPolicy[pid] || []).filter(t => t.start_date && t.end_date);
-    
     if (validTasks.length === 0) {
       return (
         <div className="bg-slate-900/80 p-5 rounded-xl text-center border border-slate-700/50 mt-3 shadow-inner">
-           <CalendarDays size={24} className="mx-auto text-slate-500 mb-3 opacity-30"/>
-           <p className="text-slate-400 text-xs font-medium">ยังไม่มีการระบุไทม์ไลน์ภารกิจย่อยในข้อสั่งการนี้</p>
+           <CalendarDays size={24} className="mx-auto text-slate-500 mb-3 opacity-30"/><p className="text-slate-400 text-xs font-medium">ยังไม่มีการระบุไทม์ไลน์ภารกิจย่อยในข้อสั่งการนี้</p>
         </div>
       );
     }
-
     const minDate = Math.min(...validTasks.map(t => new Date(t.start_date).getTime())); 
     const maxDate = Math.max(...validTasks.map(t => new Date(t.end_date).getTime()));
     const totalDuration = maxDate - minDate || 1; 
@@ -792,16 +471,11 @@ function PolicyDashboard({ appDb, user }) {
         <div className="min-w-[600px] space-y-4">
           <div className="flex border-b border-slate-700 pb-3 mb-3">
             <div className="w-1/3 text-amber-500 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"><CalendarDays size={14}/> ภารกิจย่อย</div>
-            <div className="w-2/3 flex justify-between text-[10px] text-slate-500 font-mono font-bold tracking-widest px-2">
-              <span>{formatDate(minDate)}</span>
-              <span>{formatDate(maxDate)}</span>
-            </div>
+            <div className="w-2/3 flex justify-between text-[10px] text-slate-500 font-mono font-bold tracking-widest px-2"><span>{formatDate(minDate)}</span><span>{formatDate(maxDate)}</span></div>
           </div>
-          
           {validTasks.sort((a,b) => new Date(a.start_date) - new Date(b.start_date)).map(t => {
             const leftPercent = Math.max(0, ((new Date(t.start_date).getTime() - minDate) / totalDuration) * 100); 
             const widthPercent = Math.max(1, ((new Date(t.end_date).getTime() - new Date(t.start_date).getTime()) / totalDuration) * 100);
-            
             return (
               <div key={t.task_id} className="flex text-xs items-center group">
                 <div className="w-1/3 truncate pr-4 flex flex-col border-r border-slate-700/50">
@@ -809,15 +483,7 @@ function PolicyDashboard({ appDb, user }) {
                   <span className="text-[10px] text-slate-500 font-medium">{formatDate(t.start_date)} - {formatDate(t.end_date)}</span>
                 </div>
                 <div className="w-2/3 relative bg-slate-800 rounded-md h-6 border border-slate-700 overflow-hidden shadow-inner ml-3">
-                  <div 
-                    className={`absolute h-full rounded-md shadow flex items-center px-1.5 transition-all duration-500 ease-out ${
-                      t.status === 'เสร็จสิ้น' ? 'bg-emerald-500/90' : 
-                      t.status === 'ล่าช้า/ติดปัญหา' ? 'bg-red-500/90 animate-pulse' : 
-                      'bg-sky-500/90'
-                    }`} 
-                    style={{left: `${leftPercent}%`, width: `${widthPercent}%`, minWidth: '6px'}}
-                    title={`${t.status} - ${t.progress_percent}%`}
-                  >
+                  <div className={`absolute h-full rounded-md shadow flex items-center px-1.5 transition-all duration-500 ease-out ${t.status === 'เสร็จสิ้น' ? 'bg-emerald-500/90' : t.status === 'ล่าช้า/ติดปัญหา' ? 'bg-red-500/90 animate-pulse' : 'bg-sky-500/90'}`} style={{left: `${leftPercent}%`, width: `${widthPercent}%`, minWidth: '6px'}} title={`${t.status} - ${t.progress_percent}%`}>
                     {widthPercent > 10 && <span className="text-[10px] font-bold text-white drop-shadow-md truncate font-mono">{t.progress_percent}%</span>}
                   </div>
                 </div>
@@ -831,121 +497,54 @@ function PolicyDashboard({ appDb, user }) {
 
   const renderSection = (title, icon, sectionPolicies) => {
     if (sectionPolicies.length === 0) return null;
-    
     let list = sectionPolicies.map(po => {
       const rs = baseReports.filter(r => r.policy_id === po.policy_id).sort((a,b) => new Date(b.report_date) - new Date(a.report_date));
       const prog = rs.length ? (rs[0].progress_percent || 0) : 0;
-      return { 
-        id: po.policy_id, 
-        short: `[${po.policy_no||'-'}] ${po.order.substring(0,80)}...`, 
-        order: po.order,
-        prog: prog, 
-        bucket: getStatusBucket(prog), 
-        tCount: (tasksByPolicy[po.policy_id]||[]).length, 
-        is_important: po.is_important, 
-        cmd: po.commander 
-      };
+      return { id: po.policy_id, short: `[${po.policy_no||'-'}] ${po.order.substring(0,80)}...`, order: po.order, prog: prog, bucket: getStatusBucket(prog), tCount: (tasksByPolicy[po.policy_id]||[]).length, is_important: po.is_important, cmd: po.commander };
     });
-    
     const cmds = [...new Set(sectionPolicies.map(p => p.commander))];
     
     return (
       <div className="mt-12 pt-8 border-t-2 border-slate-700/80 animate-fade-in-up">
-        <div className="flex items-center gap-4 mb-8">
-          <div className="p-3 bg-amber-500/20 text-amber-500 rounded-xl border border-amber-500/30 shadow-inner">{icon}</div>
-          <h2 className="text-2xl font-bold tracking-wide">{title}</h2>
-        </div>
-
+        <div className="flex items-center gap-4 mb-8"><div className="p-3 bg-amber-500/20 text-amber-500 rounded-xl border border-amber-500/30 shadow-inner">{icon}</div><h2 className="text-2xl font-bold tracking-wide">{title}</h2></div>
         {cmds.map(cmd => {
            const cList = list.filter(l => l.cmd === cmd); 
            const filtered = selectedStatus ? cList.filter(l => l.bucket === selectedStatus) : cList;
-           
-           const statsCount = [
-             { n:'เสร็จแล้ว (100%)', v: cList.filter(x => x.prog === 100).length },
-             { n:'กำลังจะแล้วเสร็จ (91-99%)', v: cList.filter(x => x.prog >= 91 && x.prog <= 99).length },
-             { n:'ดำเนินการต่อเนื่อง (51-90%)', v: cList.filter(x => x.prog >= 51 && x.prog <= 90).length },
-             { n:'อยู่ระหว่างดำเนินการ (21-50%)', v: cList.filter(x => x.prog >= 21 && x.prog <= 50).length },
-             { n:'ต่ำกว่าเกณฑ์ (0-20%)', v: cList.filter(x => x.prog <= 20).length }
-           ].filter(x => x.v > 0);
-           
-           let cum = 0; 
-           const bgDonut = statsCount.map(s => {
-             const st = cum; 
-             cum += (s.v / cList.length) * 100; 
-             return `${STATUS_COLORS[s.n]} ${st}% ${cum}%`;
-           }).join(', ');
+           const statsCount = [{ n:'เสร็จแล้ว (100%)', v: cList.filter(x => x.prog === 100).length }, { n:'กำลังจะแล้วเสร็จ (91-99%)', v: cList.filter(x => x.prog >= 91 && x.prog <= 99).length }, { n:'ดำเนินการต่อเนื่อง (51-90%)', v: cList.filter(x => x.prog >= 51 && x.prog <= 90).length }, { n:'อยู่ระหว่างดำเนินการ (21-50%)', v: cList.filter(x => x.prog >= 21 && x.prog <= 50).length }, { n:'ต่ำกว่าเกณฑ์ (0-20%)', v: cList.filter(x => x.prog <= 20).length }].filter(x => x.v > 0);
+           let cum = 0; const bgDonut = statsCount.map(s => { const st = cum; cum += (s.v / cList.length) * 100; return `${STATUS_COLORS[s.n]} ${st}% ${cum}%`; }).join(', ');
            
            return (
              <div key={cmd} className="mb-10 bg-slate-800/30 p-6 md:p-8 rounded-3xl border border-slate-700/50 shadow-sm">
-               <h3 className="text-xl font-bold text-sky-400 mb-6 flex items-center gap-2">
-                 <ShieldCheck size={24}/> ผู้สั่งการ: <span className="text-white ml-1">{cmd}</span>
-                 <span className="text-xs bg-slate-800 px-3 py-1.5 rounded-full text-slate-400 border border-slate-700 ml-3 shadow-inner">ทั้งหมด {cList.length} เรื่อง</span>
-               </h3>
-
+               <h3 className="text-xl font-bold text-sky-400 mb-6 flex items-center gap-2"><ShieldCheck size={24}/> ผู้สั่งการ: <span className="text-white ml-1">{cmd}</span><span className="text-xs bg-slate-800 px-3 py-1.5 rounded-full text-slate-400 border border-slate-700 ml-3 shadow-inner">ทั้งหมด {cList.length} เรื่อง</span></h3>
                <div className="grid lg:grid-cols-12 gap-8">
-                 {/* Chart Section */}
                  <div className="lg:col-span-4 bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg flex flex-col items-center">
                     <h4 className="font-bold mb-6 text-slate-300 w-full text-center text-sm uppercase tracking-widest">สัดส่วนความคืบหน้า</h4>
-                    
                     <div className="w-52 h-52 rounded-full mb-8 cursor-pointer transform hover:scale-105 transition-all shadow-2xl relative" onClick={() => setSelectedStatus(null)} style={{ background: cList.length > 0 ? `conic-gradient(${bgDonut})` : '#334155' }}>
-                       <div className="absolute inset-0 m-auto w-36 h-36 bg-slate-800 rounded-full flex flex-col items-center justify-center border-4 border-slate-800 shadow-inner">
-                         <span className="font-bold text-4xl text-white">{cList.length}</span>
-                         <span className="text-[10px] text-slate-400 mt-1 uppercase tracking-widest font-bold">ข้อสั่งการ</span>
-                       </div>
+                       <div className="absolute inset-0 m-auto w-36 h-36 bg-slate-800 rounded-full flex flex-col items-center justify-center border-4 border-slate-800 shadow-inner"><span className="font-bold text-4xl text-white">{cList.length}</span><span className="text-[10px] text-slate-400 mt-1 uppercase tracking-widest font-bold">ข้อสั่งการ</span></div>
                     </div>
-
                     <div className="w-full text-xs space-y-2 mt-auto">
                        {statsCount.map(s => (
                          <div key={s.n} onClick={() => setSelectedStatus(s.n === selectedStatus ? null : s.n)} className={`flex justify-between items-center p-3 rounded-xl cursor-pointer transition-all border shadow-sm ${selectedStatus === s.n ? 'bg-slate-700 border-amber-500 scale-105' : 'border-slate-700/50 bg-slate-900/30 hover:bg-slate-700/50 hover:border-slate-600'}`}>
-                           <div className="flex items-center gap-2.5">
-                             <span className="w-3.5 h-3.5 rounded-full shadow-inner" style={{ background: STATUS_COLORS[s.n] }}></span>
-                             <span className={selectedStatus === s.n ? 'text-amber-400 font-bold' : 'text-slate-300 font-medium'}>{s.n}</span>
-                           </div>
-                           <span className="font-bold text-slate-100 text-sm">{s.v}</span>
+                           <div className="flex items-center gap-2.5"><span className="w-3.5 h-3.5 rounded-full shadow-inner" style={{ background: STATUS_COLORS[s.n] }}></span><span className={selectedStatus === s.n ? 'text-amber-400 font-bold' : 'text-slate-300 font-medium'}>{s.n}</span></div><span className="font-bold text-slate-100 text-sm">{s.v}</span>
                          </div>
                        ))}
                     </div>
                  </div>
-
-                 {/* List Section */}
                  <div className="lg:col-span-8 bg-slate-800 p-6 md:p-8 rounded-2xl border border-slate-700 shadow-lg flex flex-col">
-                    <h4 className="font-bold mb-6 text-slate-300 flex justify-between items-center text-sm uppercase tracking-widest border-b border-slate-700 pb-4">
-                      รายการข้อสั่งการ 
-                      {selectedStatus && <span className="text-[10px] bg-amber-500/20 text-amber-500 px-3 py-1.5 rounded-full border border-amber-500/30 font-bold tracking-normal normal-case">ตัวกรอง: {selectedStatus}</span>}
-                    </h4>
+                    <h4 className="font-bold mb-6 text-slate-300 flex justify-between items-center text-sm uppercase tracking-widest border-b border-slate-700 pb-4">รายการข้อสั่งการ {selectedStatus && <span className="text-[10px] bg-amber-500/20 text-amber-500 px-3 py-1.5 rounded-full border border-amber-500/30 font-bold tracking-normal normal-case">ตัวกรอง: {selectedStatus}</span>}</h4>
                     <div className="flex-1 overflow-y-auto max-h-[450px] space-y-4 pr-3 custom-scrollbar">
                        {filtered.map(p => (
                          <div key={p.id} className={`p-5 rounded-2xl border transition-all shadow-sm ${expandedPolicyId === p.id ? 'bg-slate-700/60 border-amber-500' : 'bg-slate-900 border-slate-700 hover:border-amber-500/50'}`}>
                            <div className="flex justify-between cursor-pointer group" onClick={() => setExpandedPolicyId(expandedPolicyId === p.id ? null : p.id)}>
-                             <div className="text-sm font-bold text-slate-200 pr-6 leading-relaxed flex items-start gap-2">
-                               {p.is_important && <Star size={16} className="shrink-0 text-amber-500 fill-amber-500 mt-0.5 drop-shadow-md"/>}
-                               <span className="group-hover:text-amber-400 transition-colors" title={p.order}>{p.short}</span>
-                             </div>
-                             <div className="flex flex-col items-end shrink-0">
-                               <span className="font-mono font-bold text-xl drop-shadow-md" style={{ color: getBarColor(p.prog) }}>{p.prog}%</span>
-                               {expandedPolicyId === p.id ? <ChevronUp size={18} className="text-amber-500 mt-1"/> : <ChevronDown size={18} className="text-slate-500 mt-1 group-hover:text-amber-500 transition-colors"/>}
-                             </div>
+                             <div className="text-sm font-bold text-slate-200 pr-6 leading-relaxed flex items-start gap-2">{p.is_important && <Star size={16} className="shrink-0 text-amber-500 fill-amber-500 mt-0.5 drop-shadow-md"/><span className="group-hover:text-amber-400 transition-colors" title={p.order}>{p.short}</span></div>
+                             <div className="flex flex-col items-end shrink-0"><span className="font-mono font-bold text-xl drop-shadow-md" style={{ color: getBarColor(p.prog) }}>{p.prog}%</span>{expandedPolicyId === p.id ? <ChevronUp size={18} className="text-amber-500 mt-1"/> : <ChevronDown size={18} className="text-slate-500 mt-1 group-hover:text-amber-500 transition-colors"/>}</div>
                            </div>
-                           
-                           <div className="w-full bg-slate-800 h-2 mt-4 rounded-full overflow-hidden border border-slate-700 shadow-inner">
-                             <div className="h-full rounded-full transition-all duration-1000 relative" style={{ width: `${p.prog}%`, background: getBarColor(p.prog) }}>
-                               <div className="absolute inset-0 bg-white/20"></div>
-                             </div>
-                           </div>
-                           
-                           {p.tCount > 0 && !expandedPolicyId && (
-                             <p className="text-[11px] text-sky-400 mt-4 flex items-center gap-1.5 font-bold"><GitMerge size={14}/> ภารกิจย่อยในระบบ {p.tCount} งาน <span className="text-slate-500 font-normal">(คลิกเพื่อดูไทม์ไลน์)</span></p>
-                           )}
-                           
+                           <div className="w-full bg-slate-800 h-2 mt-4 rounded-full overflow-hidden border border-slate-700 shadow-inner"><div className="h-full rounded-full transition-all duration-1000 relative" style={{ width: `${p.prog}%`, background: getBarColor(p.prog) }}><div className="absolute inset-0 bg-white/20"></div></div></div>
+                           {p.tCount > 0 && !expandedPolicyId && <p className="text-[11px] text-sky-400 mt-4 flex items-center gap-1.5 font-bold"><GitMerge size={14}/> ภารกิจย่อยในระบบ {p.tCount} งาน <span className="text-slate-500 font-normal">(คลิกเพื่อดูไทม์ไลน์)</span></p>}
                            {expandedPolicyId === p.id && renderTimeline(p.id)}
                          </div>
                        ))}
-                       {filtered.length === 0 && (
-                         <div className="text-center py-16 text-slate-500 border-2 border-dashed border-slate-700 rounded-xl">
-                            <FilterX size={40} className="mx-auto mb-3 opacity-20"/>
-                            <p className="text-base font-medium">ไม่พบข้อสั่งการตามเงื่อนไขที่เลือก</p>
-                         </div>
-                       )}
+                       {filtered.length === 0 && <div className="text-center py-16 text-slate-500 border-2 border-dashed border-slate-700 rounded-xl"><FilterX size={40} className="mx-auto mb-3 opacity-20"/><p className="text-base font-medium">ไม่พบข้อสั่งการตามเงื่อนไขที่เลือก</p></div>}
                     </div>
                  </div>
                </div>
@@ -958,40 +557,20 @@ function PolicyDashboard({ appDb, user }) {
 
   return (
     <div className="space-y-6 animate-fade-in-up text-slate-100">
-      
-      {/* Filters & Actions Bar */}
       <div className="bg-slate-800 p-6 md:p-8 rounded-2xl border border-slate-700 shadow-lg print-hide flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative overflow-hidden">
         <div className="absolute right-0 top-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl translate-x-1/2 -translate-y-1/2"></div>
         <div className="relative z-10">
-          <h2 className="text-2xl md:text-3xl font-bold flex items-center gap-3 text-white mb-1.5">
-            <LayoutDashboard size={32} className="text-amber-500"/> ภาพรวมนโยบายและข้อสั่งการ
-          </h2>
+          <h2 className="text-2xl md:text-3xl font-bold flex items-center gap-3 text-white mb-1.5"><LayoutDashboard size={32} className="text-amber-500"/> ภาพรวมนโยบายและข้อสั่งการ</h2>
           <p className="text-sm text-slate-400 font-medium">คลิกที่กราฟโดนัทเพื่อคัดกรอง หรือ <b className="text-amber-400">คลิกที่ชื่อนโยบาย</b> เพื่อดู Timeline การปฏิบัติงาน</p>
         </div>
-        
         <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto relative z-10">
-          {selectedStatus && (
-            <button onClick={() => setSelectedStatus(null)} className="text-sm font-bold bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white px-5 py-3 rounded-xl transition-colors flex items-center gap-2 shadow-sm">
-              <FilterX size={18}/> ล้างตัวกรอง
-            </button>
-          )}
-          <select value={filterUnit} onChange={e => setFilterUnit(e.target.value)} disabled={!isAdminOrExec} className="flex-1 md:w-auto bg-slate-900 px-4 py-3 rounded-xl border border-slate-600 text-sm font-bold text-white outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 disabled:opacity-50 transition-colors shadow-inner">
-            <option value="ALL">- ทุกหน่วยงาน -</option>
-            {(appDb.units||[]).filter(u => u.role === 'user' || !u.role).map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
-          </select>
-          <select value={fiscalYear} onChange={e => setFiscalYear(e.target.value)} className="flex-1 md:w-auto bg-slate-900 px-4 py-3 rounded-xl border border-slate-600 text-sm font-bold text-white outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-colors shadow-inner">
-            <option value="ALL">- ทุกปีงบประมาณ -</option>
-            <option value="2567">ปีงบประมาณ 2567</option>
-            <option value="2568">ปีงบประมาณ 2568</option>
-            <option value="2569">ปีงบประมาณ 2569</option>
-          </select>
-          <button onClick={() => window.print()} className="bg-indigo-600 hover:bg-indigo-500 text-white p-3 rounded-xl transition-all shadow-lg hover:-translate-y-0.5" title="พิมพ์รายงานภาพรวม">
-            <Printer size={20}/>
-          </button>
+          {selectedStatus && <button onClick={() => setSelectedStatus(null)} className="text-sm font-bold bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white px-5 py-3 rounded-xl transition-colors flex items-center gap-2 shadow-sm"><FilterX size={18}/> ล้างตัวกรอง</button>}
+          <select value={filterUnit} onChange={e => setFilterUnit(e.target.value)} disabled={!isAdminOrExec} className="flex-1 md:w-auto bg-slate-900 px-4 py-3 rounded-xl border border-slate-600 text-sm font-bold text-white outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 disabled:opacity-50 transition-colors shadow-inner"><option value="ALL">- ทุกหน่วยงาน -</option>{(appDb.units||[]).filter(u => u.role === 'user' || !u.role).map(u => <option key={u.id} value={u.name}>{u.name}</option>)}</select>
+          <select value={fiscalYear} onChange={e => setFiscalYear(e.target.value)} className="flex-1 md:w-auto bg-slate-900 px-4 py-3 rounded-xl border border-slate-600 text-sm font-bold text-white outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-colors shadow-inner"><option value="ALL">- ทุกปีงบประมาณ -</option><option value="2567">ปีงบประมาณ 2567</option><option value="2568">ปีงบประมาณ 2568</option><option value="2569">ปีงบประมาณ 2569</option></select>
+          <button onClick={() => window.print()} className="bg-indigo-600 hover:bg-indigo-500 text-white p-3 rounded-xl transition-all shadow-lg hover:-translate-y-0.5" title="พิมพ์รายงานภาพรวม"><Printer size={20}/></button>
         </div>
       </div>
 
-      {/* KPI Overview Cards */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-5 print-hide">
         {[
           { l: 'ข้อสั่งการรวม', v: overallStats.total, s: null, c: 'text-white', bg: 'bg-slate-800 border-slate-600', ic: <ScrollText size={24} className="text-slate-500"/> },
@@ -1002,25 +581,15 @@ function PolicyDashboard({ appDb, user }) {
           <div key={k.l} onClick={() => setSelectedStatus(k.s)} className={`p-6 md:p-8 rounded-2xl border-2 cursor-pointer transition-all duration-300 transform hover:-translate-y-1.5 shadow-xl relative group overflow-hidden ${selectedStatus === k.s ? 'ring-2 ring-offset-4 ring-offset-slate-900 border-transparent ' + k.bg : k.bg}`}>
             <div className="absolute -right-4 -bottom-4 opacity-20 transform group-hover:scale-125 transition-transform duration-500">{k.ic}</div>
             <MousePointerClick size={18} className={`absolute top-5 right-5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${k.c}`}/>
-            
-            <p className="text-slate-300 text-sm font-bold tracking-wider uppercase mb-1">{k.l}</p>
-            <h3 className={`text-5xl font-bold mt-2 font-mono ${k.c}`}>{k.v}</h3>
+            <p className="text-slate-300 text-sm font-bold tracking-wider uppercase mb-1">{k.l}</p><h3 className={`text-5xl font-bold mt-2 font-mono ${k.c}`}>{k.v}</h3>
           </div>
         ))}
       </div>
 
-      {/* Policy Sections */}
       <div className="space-y-16">
         {renderSection('นโยบายหลัก', <ShieldCheck size={36}/>, basePolicies.filter(p => p.category === 'นโยบายหลัก'))}
         {renderSection('สั่งการเพิ่มเติม', <FileText size={36}/>, basePolicies.filter(p => p.category === 'สั่งการเพิ่มเติม'))}
-        
-        {basePolicies.length === 0 && (
-          <div className="text-center py-24 text-slate-500 bg-slate-800/50 rounded-3xl border-2 border-slate-700 border-dashed shadow-inner">
-            <LayoutDashboard size={64} className="mx-auto mb-5 opacity-20" />
-            <p className="text-xl font-bold">ไม่พบข้อมูลนโยบายหรือข้อสั่งการในระบบ</p>
-            <p className="text-sm mt-2">โปรดรอการขึ้นทะเบียนจากแอดมิน หรือเปลี่ยนการคัดกรอง</p>
-          </div>
-        )}
+        {basePolicies.length === 0 && <div className="text-center py-24 text-slate-500 bg-slate-800/50 rounded-3xl border-2 border-slate-700 border-dashed shadow-inner"><LayoutDashboard size={64} className="mx-auto mb-5 opacity-20" /><p className="text-xl font-bold">ไม่พบข้อมูลนโยบายหรือข้อสั่งการในระบบ</p><p className="text-sm mt-2">โปรดรอการขึ้นทะเบียนจากแอดมิน หรือเปลี่ยนการคัดกรอง</p></div>}
       </div>
     </div>
   );
@@ -1052,6 +621,7 @@ function TaskDashboard({ appDb, user }) {
     const totalTasks = baseTasks.length;
     const completedTasks = baseTasks.filter(t => t.status === 'เสร็จสิ้น').length;
     const delayedTasks = baseTasks.filter(t => t.status === 'ล่าช้า/ติดปัญหา').length;
+    const avgProgress = totalTasks > 0 ? baseTasks.reduce((a, b) => a + (Number(b.progress_percent) || 0), 0) / totalTasks : 0;
     
     const statusCount = [
       { name: 'เสร็จสิ้น', value: completedTasks },
@@ -1067,7 +637,7 @@ function TaskDashboard({ appDb, user }) {
     });
     const rootCausesArray = Object.entries(rootCounts).map(([cause, count]) => ({ cause, count })).sort((a,b) => b.count - a.count);
 
-    return { totalTasks, completedTasks, delayedTasks, statusCount, rootCausesArray };
+    return { totalTasks, completedTasks, delayedTasks, avgProgress, statusCount, rootCausesArray };
   }, [baseTasks]);
 
   const filteredTasksList = useMemo(() => {
@@ -1132,7 +702,7 @@ function TaskDashboard({ appDb, user }) {
           <div key={kpi.label} onClick={() => { setSelectedStatus(kpi.status); setSelectedRootCause(null); }} className={`p-6 md:p-8 rounded-2xl border-2 cursor-pointer transition-all transform hover:-translate-y-1.5 shadow-xl relative group overflow-hidden ${selectedStatus === kpi.status ? `ring-2 ring-offset-4 ring-offset-slate-900 border-transparent ${kpi.bg}` : `border-slate-700 bg-slate-800 hover:${kpi.border}`}`}>
              <MousePointerClick size={18} className={`absolute top-5 right-5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${kpi.color}`}/>
              <p className="text-slate-300 text-sm font-bold uppercase tracking-wider mb-1">{kpi.label}</p>
-             <h3 className={`text-5xl font-bold mt-2 font-mono ${kpi.color}`}>{kpi.val}</h3>
+             <h3 className={`text-4xl font-bold mt-2 ${kpi.color}`}>{kpi.val}</h3>
           </div>
         ))}
       </div>
@@ -1220,7 +790,7 @@ function TaskDashboard({ appDb, user }) {
                 <tr key={t.task_id} className="hover:bg-slate-700/40 transition-colors align-top">
                   <td className="p-5 text-slate-200">
                     <p className="font-bold text-base leading-relaxed mb-1" title={t.task_name}>{t.task_name}</p>
-                    <p className="text-xs text-slate-500 font-mono mb-2"><Clock size={12} className="inline mr-1.5 mb-0.5 text-slate-500"/> กำหนด: {formatDate(t.start_date)} - {formatDate(t.end_date)}</p>
+                    <p className="text-[11px] text-slate-400 font-mono mb-2"><Clock size={12} className="inline mr-1.5 mb-0.5 text-slate-500"/> กำหนด: {formatDate(t.start_date)} - {formatDate(t.end_date)}</p>
                     
                     {t.status === 'ล่าช้า/ติดปัญหา' && t.root_cause && (
                       <div className="block mt-2">
@@ -1752,7 +1322,7 @@ function Policies({ appDb, user, showToast, callApi, refresh }) {
       
       {/* Modal เพิ่ม/แก้ไขข้อสั่งการ */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md overflow-y-auto">
+        <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-md overflow-y-auto">
           <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
              <div className="relative transform overflow-hidden bg-slate-800 p-8 md:p-10 rounded-3xl w-full max-w-4xl text-left text-white shadow-2xl border border-slate-600 my-8 animate-fade-in-up">
                <div className="flex justify-between items-center mb-8 border-b border-slate-700 pb-5">
@@ -1957,7 +1527,20 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
                           <div><label className="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-widest">วันที่เริ่ม <span className="text-red-500">*</span></label><input type="date" name="start_date" defaultValue={editData?.start_date?editData.start_date.substring(0,10):new Date().toISOString().substring(0,10)} required className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-sky-500 transition-colors font-mono" style={{colorScheme:'dark'}}/></div>
                           <div><label className="text-xs font-bold text-emerald-400 mb-2 block flex items-center gap-1.5 uppercase tracking-widest"><Clock size={14}/> วันกำหนดเสร็จ (Deadline)</label><input type="date" name="end_date" defaultValue={editData?.end_date?editData.end_date.substring(0,10):''} required className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-emerald-500 transition-colors text-emerald-400 font-mono font-bold shadow-inner" style={{colorScheme:'dark'}}/></div>
                        </div>
-                       <div><label className="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-widest">หน่วยรับผิดชอบหลัก</label><input name="primary_unit" value={editData?.primary_unit||user.unitName} readOnly={user.role!=='admin'} className="w-full bg-slate-900 p-4 rounded-xl border border-slate-700 text-sky-500 font-bold opacity-70 cursor-not-allowed"/></div>
+                       
+                       {/* แก้ไขให้เลือกหน่วยงานได้สำหรับงานติดตามภารกิจ */}
+                       <div>
+                         <label className="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-widest">หน่วยรับผิดชอบหลัก</label>
+                         <select 
+                           name="primary_unit" 
+                           defaultValue={editData?.primary_unit || user.unitName} 
+                           className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-sky-500 text-sky-400 font-bold transition-colors shadow-inner cursor-pointer"
+                         >
+                           {(appDb.units||[]).filter(u=>u.role==='user'||!u.role).map(u => (
+                             <option key={u.id} value={u.name}>{u.name}</option>
+                           ))}
+                         </select>
+                       </div>
                      </div>
 
                      <div className="bg-sky-950/20 p-8 rounded-3xl border border-sky-900/50 space-y-6 shadow-inner relative overflow-hidden">
@@ -2179,9 +1762,11 @@ function UnitsConfig({ appDb, showToast, callApi, refresh }) {
             </h2>
             <p className="text-sm text-slate-400 mt-3 bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">หากต้องการแก้ไขรหัสผ่าน หรือเพิ่มบัญชีใหม่จำนวนมาก <b className="text-amber-400">ให้ทำในแผ่นงาน Google Sheets (Sheet: units) โดยตรงจะสะดวกที่สุด</b> แล้วกดปุ่มซิงค์ข้อมูลด้านขวา</p>
           </div>
-          <button onClick={refresh} className="bg-sky-600 text-white px-6 py-4 rounded-xl text-base font-bold flex items-center gap-2 hover:bg-sky-500 transition-all shadow-lg hover:scale-105 active:scale-95 whitespace-nowrap">
-             <CloudUpload size={20}/> ซิงค์ฐานข้อมูลล่าสุด
-          </button>
+          <div className="flex gap-3">
+             <button onClick={refresh} className="bg-sky-600 text-white px-6 py-4 rounded-xl text-base font-bold flex items-center gap-2 hover:bg-sky-500 transition-all shadow-lg hover:scale-105 active:scale-95 whitespace-nowrap">
+                <CloudUpload size={20}/> ซิงค์ฐานข้อมูล
+             </button>
+          </div>
        </div>
        
        <div className="bg-slate-800 rounded-3xl border border-slate-700 overflow-hidden shadow-2xl">
