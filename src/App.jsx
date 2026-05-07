@@ -16,7 +16,6 @@ import {
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwPShuEyd348SncMpf9x2472fSeHyzHBvEqbOh_mz11X1eD_2p8Pkr5g9eiPFnHO8U_0A/exec";
 
 const LOGO_URL = "/S__22413315.jpg";
-const GARUDA_URL = "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Garuda_Emblem_of_Thailand.svg/150px-Garuda_Emblem_of_Thailand.svg.png";
 
 // ============================================================
 // ค่าคงที่และตัวแปรระบบ
@@ -223,10 +222,6 @@ function LoginScreen({ onLogin, isLoading, appDb, loadData, deployError }) {
             เข้าสู่ระบบ <ChevronRight size={20}/>
           </button>
         </form>
-        
-        <div className="mt-8 text-center border-t border-slate-700/50 pt-6">
-           <button onClick={loadData} className="text-slate-400 text-xs hover:text-white transition-colors flex items-center justify-center gap-1.5 mx-auto font-medium"><RefreshCcw size={14}/> โหลดการเชื่อมต่อใหม่</button>
-        </div>
       </div>
     </div>
   );
@@ -429,7 +424,7 @@ export default function App() {
             </div>
           )}
 
-          {/* Top Bar (มี Z-index สูงสุด เพื่อให้ Dropdown แจ้งเตือนไม่โดนบัง) */}
+          {/* Top Bar */}
           <div className="flex justify-between items-center mb-8 bg-slate-800/90 p-4 rounded-xl border border-slate-700 backdrop-blur-md print-hide shadow-md relative z-[100]">
             <h2 className="text-slate-200 font-bold flex items-center gap-2 md:gap-3 text-sm md:text-base tracking-wide">
               <ShieldCheck size={22} className="text-amber-500"/> J4 Command Center
@@ -444,38 +439,37 @@ export default function App() {
                   <Bell size={18} className={notificationsList.length > 0 ? "animate-pulse text-amber-400" : ""} />
                   {notificationsList.length > 0 && <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full shadow-md border-2 border-slate-800">{notificationsList.length}</span>}
                 </button>
-
-                {/* 🔔 Notification Dropdown (ตั้งค่า absolute z-[999] ให้ลอยทับทุกอย่าง) */}
-                {isNotificationOpen && (
-                  <>
-                    {/* ฉากหลังใสสำหรับกดปิด */}
-                    <div className="fixed inset-0 z-[998]" onClick={() => setIsNotificationOpen(false)}></div>
-                    <div className="absolute right-0 mt-3 w-80 md:w-96 bg-slate-800 rounded-2xl border border-slate-600 shadow-2xl z-[999] overflow-hidden flex flex-col max-h-[500px] animate-fade-in-up">
-                       <div className="p-4 bg-slate-900/80 border-b border-slate-700 flex justify-between items-center">
-                         <h3 className="font-bold text-slate-100 flex items-center gap-2"><Bell size={18} className="text-amber-500"/> แจ้งเตือนภารกิจ (Alerts)</h3>
-                         <span className="text-xs bg-red-500 text-white px-2 py-0.5 rounded-full font-bold">{notificationsList.length}</span>
-                       </div>
-                       <div className="overflow-y-auto flex-1 custom-scrollbar">
-                         {notificationsList.length > 0 ? notificationsList.map(n => (
-                           <div key={n.task_id} className={`p-4 border-b border-slate-700/50 hover:bg-slate-700/50 transition-colors cursor-pointer ${n.alertType === 'danger' ? 'bg-red-950/20' : 'bg-amber-950/10'}`} onClick={() => { navigateTo('TASKS'); setIsNotificationOpen(false); }}>
-                             <div className="flex justify-between items-start mb-1">
-                               <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${n.alertType === 'danger' ? 'bg-red-900/50 text-red-400 border-red-500/30' : 'bg-amber-900/50 text-amber-400 border-amber-500/30'}`}>{n.alertMsg}</span>
-                               <span className="text-[10px] text-slate-500 font-mono">{formatDate(n.end_date)}</span>
-                             </div>
-                             <p className="text-sm font-bold text-slate-200 mt-2 line-clamp-2">{n.task_name}</p>
-                             <p className="text-xs text-sky-400 mt-1 font-medium flex items-center gap-1"><Users size={12}/> {n.primary_unit}</p>
-                           </div>
-                         )) : (
-                           <div className="p-8 text-center text-slate-500">
-                             <CheckCircle size={40} className="mx-auto mb-3 opacity-20 text-emerald-500"/>
-                             <p className="text-sm font-bold">ไม่มีงานที่ล่าช้าหรือใกล้ถึงกำหนด</p>
-                           </div>
-                         )}
-                       </div>
-                    </div>
-                  </>
-                )}
               </div>
+
+              {/* 🔔 Notification Dropdown (Fixed position เพื่อไม่ให้โดนบัง) */}
+              {isNotificationOpen && (
+                <>
+                  <div className="fixed inset-0 z-[9998]" onClick={() => setIsNotificationOpen(false)}></div>
+                  <div className="fixed top-24 right-4 md:right-8 w-80 md:w-96 bg-slate-800 rounded-2xl border border-slate-600 shadow-[0_10px_50px_rgba(0,0,0,0.5)] z-[9999] overflow-hidden flex flex-col max-h-[500px] animate-fade-in-up">
+                     <div className="p-4 bg-slate-900/80 border-b border-slate-700 flex justify-between items-center">
+                       <h3 className="font-bold text-slate-100 flex items-center gap-2"><Bell size={18} className="text-amber-500"/> แจ้งเตือนภารกิจ (Alerts)</h3>
+                       <span className="text-xs bg-red-500 text-white px-2 py-0.5 rounded-full font-bold">{notificationsList.length}</span>
+                     </div>
+                     <div className="overflow-y-auto flex-1 custom-scrollbar">
+                       {notificationsList.length > 0 ? notificationsList.map(n => (
+                         <div key={n.task_id} className={`p-4 border-b border-slate-700/50 hover:bg-slate-700/50 transition-colors cursor-pointer ${n.alertType === 'danger' ? 'bg-red-950/20' : 'bg-amber-950/10'}`} onClick={() => { navigateTo('TASKS'); setIsNotificationOpen(false); }}>
+                           <div className="flex justify-between items-start mb-1">
+                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${n.alertType === 'danger' ? 'bg-red-900/50 text-red-400 border-red-500/30' : 'bg-amber-900/50 text-amber-400 border-amber-500/30'}`}>{n.alertMsg}</span>
+                             <span className="text-[10px] text-slate-500 font-mono">{formatDate(n.end_date)}</span>
+                           </div>
+                           <p className="text-sm font-bold text-slate-200 mt-2 line-clamp-2">{n.task_name}</p>
+                           <p className="text-xs text-sky-400 mt-1 font-medium flex items-center gap-1"><Users size={12}/> {n.primary_unit}</p>
+                         </div>
+                       )) : (
+                         <div className="p-8 text-center text-slate-500">
+                           <CheckCircle size={40} className="mx-auto mb-3 opacity-20 text-emerald-500"/>
+                           <p className="text-sm font-bold">ไม่มีงานที่ล่าช้าหรือใกล้ถึงกำหนด</p>
+                         </div>
+                       )}
+                     </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -532,7 +526,6 @@ function PolicyDashboard({ appDb, user }) {
     return r;
   }, [appDb.reports, filterUnit, fiscalYear]);
 
-  // ประมวลผลสำหรับ Data Storytelling (DS)
   const overallStats = useMemo(() => {
     const pIds = basePolicies.map(p => p.policy_id); 
     const reps = baseReports.filter(r => pIds.includes(r.policy_id));
@@ -553,7 +546,6 @@ function PolicyDashboard({ appDb, user }) {
     
     const avg = progList.length > 0 ? (progList.reduce((a, b) => a + (b.progress || 0), 0) / progList.length) : 0;
     
-    // หาหน่วยงานที่ทำเสร็จมากสุด
     let topUnit = { name: '-', done: 0 };
     Object.keys(unitScores).forEach(k => {
       if(unitScores[k].done > topUnit.done) topUnit = { name: k, done: unitScores[k].done };
@@ -578,7 +570,6 @@ function PolicyDashboard({ appDb, user }) {
     return 'ต่ำกว่าเกณฑ์ (0-20%)';
   };
 
-  // สร้างข้อความวิเคราะห์ DS อัตโนมัติ
   const renderDSInsight = () => {
     if (overallStats.total === 0) return null;
     let insightClass = 'from-amber-600/20 to-amber-900/20 border-amber-500/30 text-amber-100';
@@ -656,7 +647,7 @@ function PolicyDashboard({ appDb, user }) {
                     <div className="w-full text-xs space-y-2 mt-auto">
                        {statsCount.map(s => (
                          <div key={s.n} onClick={() => setSelectedStatus(s.n === selectedStatus ? null : s.n)} className={`flex justify-between items-center p-3 rounded-xl cursor-pointer transition-all border shadow-sm ${selectedStatus === s.n ? 'bg-slate-700 border-amber-500 scale-105' : 'border-slate-700/50 bg-slate-900/30 hover:bg-slate-700/50 hover:border-slate-600'}`}>
-                           <div className="flex items-center gap-2.5"><span className="w-3.5 h-3.5 rounded-full shadow-inner" style={{ background: STATUS_COLORS[s.n] }}></span><span className={selectedStatus === s.n ? 'text-amber-400 font-bold' : 'text-slate-300 font-medium'}>{s.n}</span></div><span className="font-bold text-slate-100 text-sm">{s.v}</span>
+                           <div className="flex items-center gap-2.5"><span className="w-3.5 h-3.5 rounded-full shadow-inner" style={{ background: STATUS_COLORS[s.n] }}></span><span className={selectedStatus === s.n ? 'text-amber-400 font-bold' : 'text-slate-300 font-medium'}>{s.n}</span></div><span className="font-bold text-xl text-slate-100">{s.value}</span>
                          </div>
                        ))}
                     </div>
@@ -685,8 +676,6 @@ function PolicyDashboard({ appDb, user }) {
 
   return (
     <div className="space-y-6 animate-fade-in-up text-slate-100">
-      
-      {/* Filters */}
       <div className="bg-slate-800 p-6 md:p-8 rounded-2xl border border-slate-700 shadow-lg print-hide flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative overflow-hidden z-10">
         <div className="relative z-10">
           <h2 className="text-2xl md:text-3xl font-bold flex items-center gap-3 text-white mb-1.5"><LayoutDashboard size={32} className="text-amber-500"/> ภาพรวมนโยบายและข้อสั่งการ</h2>
@@ -700,7 +689,6 @@ function PolicyDashboard({ appDb, user }) {
 
       {renderDSInsight()}
 
-      {/* KPI Overview Cards */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-5 print-hide">
         {[
           { l: 'ข้อสั่งการรวม', v: overallStats.total, s: null, c: 'text-white', bg: 'bg-slate-800 border-slate-600', ic: <ScrollText size={24} className="text-slate-500"/> },
@@ -715,7 +703,6 @@ function PolicyDashboard({ appDb, user }) {
         ))}
       </div>
 
-      {/* Bar Chart: เปรียบเทียบหน่วยงาน */}
       {filterUnit === 'ALL' && overallStats.unitScores.length > 0 && (
         <div className="bg-slate-800 p-6 md:p-8 rounded-2xl border border-slate-700 shadow-lg mt-6">
           <h3 className="font-bold text-slate-300 mb-6 flex items-center gap-2"><BarChart3 className="text-sky-400"/> เปรียบเทียบความสำเร็จจำแนกตามหน่วยงาน</h3>
@@ -736,7 +723,6 @@ function PolicyDashboard({ appDb, user }) {
         </div>
       )}
 
-      {/* Policy Sections */}
       <div className="space-y-16">
         {renderSection('นโยบายหลัก', <ShieldCheck size={36}/>, basePolicies.filter(p => p.category === 'นโยบายหลัก'))}
         {renderSection('สั่งการเพิ่มเติม', <FileText size={36}/>, basePolicies.filter(p => p.category === 'สั่งการเพิ่มเติม'))}
@@ -755,7 +741,7 @@ function TaskDashboard({ appDb, user }) {
   const [selectedStatus, setSelectedStatus] = useState(null);
   const [selectedRootCause, setSelectedRootCause] = useState(null);
   const [expandedTaskId, setExpandedTaskId] = useState(null);
-  const [viewMode, setViewMode] = useState('TABLE'); // 'TABLE' | 'KANBAN'
+  const [viewMode, setViewMode] = useState('TABLE');
   
   const currentUnits = useMemo(() => (appDb.units || []).filter(u => u.role === 'user' || !u.role), [appDb.units]);
 
@@ -798,12 +784,35 @@ function TaskDashboard({ appDb, user }) {
     return list.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
   }, [baseTasks, selectedStatus, selectedRootCause]);
 
-  // สร้างข้อความวิเคราะห์ DS อัตโนมัติ (Task DS)
+  const subtaskStats = useMemo(() => {
+    let total = 0;
+    let done = 0;
+    let pendingList = [];
+
+    filteredTasksList.forEach(t => {
+      let parsed = [];
+      if (t.subtasks) { try { parsed = typeof t.subtasks === 'string' ? JSON.parse(t.subtasks) : t.subtasks; } catch(e) {} }
+      parsed.forEach(st => {
+        total++;
+        if (st.done) {
+          done++;
+        } else {
+          pendingList.push({ ...st, parent_id: t.task_id, parent_name: t.task_name, unit: t.primary_unit, end_date: t.end_date, status: t.status });
+        }
+      });
+    });
+
+    pendingList.sort((a, b) => new Date(a.end_date) - new Date(b.end_date));
+
+    return { total, done, pending: total - done, pendingList };
+  }, [filteredTasksList]);
+
   const renderTaskDSInsight = () => {
     if (stats.totalTasks === 0) return null;
     let insightClass = 'from-sky-600/20 to-sky-900/20 border-sky-500/30 text-sky-100';
     let insightIcon = <Sparkles className="text-sky-400" size={24} />;
-    let text = `ภาพรวมการปฏิบัติงาน มีภารกิจทั้งหมด ${stats.totalTasks} รายการ ดำเนินการแล้วเสร็จ ${stats.completedTasks} รายการ `;
+    
+    let text = `ระบบกำลังขับเคลื่อนภารกิจทั้งหมด ${stats.totalTasks} รายการ (แยกเป็นงานย่อย/Checklist ทั้งสิ้น ${subtaskStats.total} งานย่อย สำเร็จแล้ว ${subtaskStats.done} งานย่อย) `;
     
     if (stats.delayedTasks > 0) {
       insightClass = 'from-red-600/20 to-red-900/20 border-red-500/30 text-red-100';
@@ -811,19 +820,36 @@ function TaskDashboard({ appDb, user }) {
       const topIssue = stats.rootCausesArray.length > 0 ? stats.rootCausesArray[0] : null;
       text += `🚨 พบภารกิจที่กำลังล่าช้า/ติดปัญหา จำนวน ${stats.delayedTasks} รายการ `;
       if (topIssue) {
-        text += `โดยสาเหตุหลักกว่า ${Math.round((topIssue.count / stats.delayedTasks) * 100)}% เกิดจากเรื่อง "${topIssue.cause}" ขอให้ผู้บริหารให้ความสำคัญในประเด็นดังกล่าว`;
+        text += `โดยสาเหตุหลักกว่า ${Math.round((topIssue.count / stats.delayedTasks) * 100)}% เกิดจากเรื่อง "${topIssue.cause}" มีงานย่อยตกค้างที่ต้องเร่งรัด ${subtaskStats.pending} รายการ ขอให้ผู้บริหารให้ความสำคัญในประเด็นดังกล่าว`;
       }
     } else {
-      text += `🎉 ยอดเยี่ยม! ไม่พบภารกิจที่ล่าช้าหรือติดปัญหาในระบบขณะนี้`;
+      text += `🎉 ยอดเยี่ยม! ไม่พบภารกิจที่ล่าช้าหรือติดปัญหาในระบบขณะนี้ การดำเนินงานภาพรวมถือว่าเป็นไปตามแผนที่กำหนดไว้`;
     }
 
+    const stPercent = subtaskStats.total > 0 ? (subtaskStats.done / subtaskStats.total) * 100 : 0;
+
     return (
-      <div className={`p-6 rounded-2xl border bg-gradient-to-r shadow-lg flex items-start gap-4 mb-6 ${insightClass} animate-fade-in-up`}>
-        <div className="shrink-0 mt-1 bg-slate-900/50 p-2 rounded-xl shadow-inner">{insightIcon}</div>
-        <div>
-          <h4 className="font-bold text-base mb-1.5 opacity-90 uppercase tracking-widest flex items-center gap-2">AI Data Insights</h4>
-          <p className="text-sm md:text-base leading-relaxed opacity-95">{text}</p>
+      <div className={`p-6 rounded-2xl border bg-gradient-to-r shadow-lg flex flex-col md:flex-row items-start gap-6 mb-6 ${insightClass} animate-fade-in-up`}>
+        <div className="flex items-start gap-4 flex-1">
+          <div className="shrink-0 mt-1 bg-slate-900/50 p-3 rounded-2xl shadow-inner">{insightIcon}</div>
+          <div>
+            <h4 className="font-bold text-base mb-1.5 opacity-90 uppercase tracking-widest flex items-center gap-2">AI Data Insights</h4>
+            <p className="text-sm md:text-base leading-relaxed opacity-95">{text}</p>
+          </div>
         </div>
+        
+        {subtaskStats.total > 0 && (
+          <div className="w-full md:w-1/3 bg-slate-900/40 p-4 rounded-xl shadow-inner border border-slate-700/30 shrink-0">
+             <p className="text-[10px] uppercase font-bold tracking-wider mb-2 opacity-80 flex items-center gap-1.5"><CheckSquare size={12}/> สัดส่วนความสำเร็จงานย่อยรวม (Micro-tasks)</p>
+             <div className="flex items-end gap-3 mb-2">
+                <span className="text-3xl font-bold font-mono drop-shadow-md">{stPercent.toFixed(0)}%</span>
+                <span className="text-xs opacity-70 mb-1">{subtaskStats.done} / {subtaskStats.total} งานย่อย</span>
+             </div>
+             <div className="w-full h-2.5 bg-slate-800/80 rounded-full overflow-hidden shadow-inner">
+                <div className="h-full bg-current rounded-full transition-all duration-1000" style={{ width: `${stPercent}%` }}></div>
+             </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -834,6 +860,8 @@ function TaskDashboard({ appDb, user }) {
     return `${TASK_STATUS_COLORS[d.name]} ${start}% ${cumulativePercent}%`;
   }).join(', ') : 'transparent 0% 100%';
 
+  const clearFilters = () => { setSelectedStatus(null); setSelectedRootCause(null); };
+
   return (
     <div className="space-y-6 animate-fade-in-up text-slate-100">
       <div className="bg-slate-800 p-6 md:p-8 rounded-2xl border border-slate-700 print-hide flex flex-col md:flex-row justify-between items-start md:items-center gap-6 shadow-xl relative z-10">
@@ -841,7 +869,7 @@ function TaskDashboard({ appDb, user }) {
           <h2 className="text-2xl md:text-3xl font-bold flex gap-3 text-amber-500 mb-1.5"><PieChart size={32}/> ภาพรวมการปฏิบัติภารกิจ (Tasks)</h2>
         </div>
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto relative z-10">
-          {(selectedStatus || selectedRootCause) && <button onClick={() => {setSelectedStatus(null); setSelectedRootCause(null);}} className="text-sm font-bold bg-red-500/20 text-red-400 px-5 py-3 rounded-xl flex items-center gap-2 hover:bg-red-500 hover:text-white transition-colors shadow-sm"><FilterX size={18}/> ล้างตัวกรอง</button>}
+          {(selectedStatus || selectedRootCause) && <button onClick={clearFilters} className="text-sm font-bold bg-red-500/20 text-red-400 px-5 py-3 rounded-xl flex items-center gap-2 hover:bg-red-500 hover:text-white transition-colors shadow-sm"><FilterX size={18}/> ล้างตัวกรอง</button>}
           <select value={filterUnit} onChange={e => setFilterUnit(e.target.value)} disabled={!isAdminOrExec} className="flex-1 md:w-auto bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-sm font-bold disabled:opacity-50 outline-none focus:border-amber-500 shadow-inner transition-colors"><option value="ALL">- ทุกหน่วยงาน -</option>{currentUnits.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}</select>
         </div>
       </div>
@@ -876,13 +904,14 @@ function TaskDashboard({ appDb, user }) {
                     <div className="flex items-center gap-3"><span className="w-3.5 h-3.5 rounded-full shadow-inner" style={{ background: TASK_STATUS_COLORS[s.name] }}></span><span className={`font-medium ${selectedStatus === s.name ? 'text-amber-400 font-bold' : 'text-slate-300'}`}>{s.name}</span></div><span className="font-bold text-xl text-slate-100">{s.value}</span>
                  </div>
                ))}
+               {stats.statusCount.length === 0 && <p className="text-center text-slate-500 text-sm py-4">ไม่มีข้อมูล</p>}
             </div>
          </div>
          
-         <div className="lg:col-span-8 bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl flex flex-col">
-            <h3 className="font-bold mb-6 flex gap-3 text-red-500 items-center border-b border-slate-700 pb-4 text-lg">
+         <div className="lg:col-span-4 bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl flex flex-col">
+            <h3 className="font-bold mb-6 flex gap-3 text-red-500 items-center border-b border-slate-700 pb-4 text-base lg:text-lg">
               <div className="bg-red-500/20 p-2 rounded-lg border border-red-500/30"><AlertOctagon size={20}/></div>
-              วิเคราะห์สาเหตุความล่าช้า 
+              สาเหตุความล่าช้า 
               {selectedRootCause && <span className="text-[10px] bg-red-900/50 text-red-300 px-3 py-1.5 rounded-full ml-auto border border-red-500/30 font-bold uppercase tracking-wider">กรอง: {selectedRootCause}</span>}
             </h3>
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-4 space-y-4 max-h-[450px]">
@@ -897,7 +926,46 @@ function TaskDashboard({ appDb, user }) {
                    </div>
                  );
                })}
-               {stats.rootCausesArray.length === 0 && <div className="text-center py-20 text-slate-500 border-2 border-dashed border-slate-700 rounded-2xl bg-slate-900/30"><CheckCircle size={48} className="mx-auto mb-4 opacity-30 text-emerald-500"/><p className="text-xl font-bold text-slate-400">ยอดเยี่ยม!</p><p className="text-sm mt-1">ไม่มีข้อมูลภารกิจที่ล่าช้าหรือติดปัญหาในระบบ</p></div>}
+               {stats.rootCausesArray.length === 0 && <div className="text-center py-16 text-slate-500 border-2 border-dashed border-slate-700 rounded-2xl bg-slate-900/30"><CheckCircle size={40} className="mx-auto mb-4 opacity-30 text-emerald-500"/><p className="text-base font-bold text-slate-400">ยอดเยี่ยม!</p><p className="text-xs mt-1">ไม่มีภารกิจที่ติดปัญหา</p></div>}
+            </div>
+         </div>
+
+         {/* 🎯 แผงแยกงานย่อยที่ยังไม่เสร็จ (Pending Subtasks Tracker) */}
+         <div className="lg:col-span-4 bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl flex flex-col relative overflow-hidden">
+            <div className="absolute right-0 bottom-0 opacity-5"><ListTodo size={150} className="text-sky-500"/></div>
+            <h3 className="font-bold mb-6 flex gap-3 text-sky-400 items-center border-b border-slate-700 pb-4 text-base lg:text-lg relative z-10">
+              <div className="bg-sky-500/20 p-2 rounded-lg border border-sky-500/30"><GitMerge size={20}/></div>
+              เจาะลึก: งานย่อยที่รอดำเนินการ
+              <span className="text-[10px] bg-sky-900/50 text-sky-300 px-3 py-1.5 rounded-full ml-auto border border-sky-500/30 font-bold shadow-sm">{subtaskStats.pending} งานย่อย</span>
+            </h3>
+            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-3 max-h-[450px] relative z-10">
+               {subtaskStats.pendingList.slice(0, 20).map((st, i) => {
+                 const deadline = getDeadlineStatus(st.end_date, st.status);
+                 return (
+                   <div key={i} className="p-4 rounded-xl border border-slate-700 bg-slate-900/60 hover:bg-slate-700/50 transition-colors shadow-sm">
+                      <div className="flex items-start gap-3">
+                         <div className="mt-0.5"><Circle size={14} className="text-slate-500" /></div>
+                         <div className="flex-1">
+                            <p className="text-sm font-bold text-slate-200 mb-2 leading-relaxed">{st.text}</p>
+                            <div className="flex justify-between items-end mt-2 pt-2 border-t border-slate-700/50">
+                               <div className="flex flex-col gap-1">
+                                 <span className="text-[10px] text-slate-400 font-medium truncate max-w-[150px]" title={st.parent_name}>จาก: {st.parent_name}</span>
+                                 <span className="text-[10px] font-bold text-amber-400">{st.unit}</span>
+                               </div>
+                               <span className={`text-[9px] px-1.5 py-0.5 rounded border font-mono ${deadline.color}`}><Clock size={10} className="inline mr-1"/>{deadline.label}</span>
+                            </div>
+                         </div>
+                      </div>
+                   </div>
+                 );
+               })}
+               {subtaskStats.pendingList.length === 0 && (
+                 <div className="text-center py-16 text-slate-500 border-2 border-dashed border-slate-700 rounded-2xl bg-slate-900/30">
+                   <CheckCircle2 size={40} className="mx-auto mb-4 opacity-30 text-emerald-500"/>
+                   <p className="text-base font-bold text-slate-400">เคลียร์งานย่อยหมดแล้ว!</p>
+                   <p className="text-xs mt-1">ไม่มีงานย่อยค้างในระบบ</p>
+                 </div>
+               )}
             </div>
          </div>
       </div>
@@ -908,7 +976,6 @@ function TaskDashboard({ appDb, user }) {
             <ListTodo size={22} className="text-amber-500" /> รายการภารกิจที่ตรงตามเงื่อนไข 
             {(selectedStatus || selectedRootCause) && <span className="bg-amber-600 text-white text-xs px-2.5 py-0.5 rounded-full shadow-sm ml-2">{filteredTasksList.length} รายการ</span>}
           </h3>
-          {/* Toggle Kanban / Table */}
           <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-700">
              <button onClick={() => setViewMode('TABLE')} className={`px-3 py-1.5 rounded-md text-xs font-bold flex items-center gap-1.5 transition-colors ${viewMode === 'TABLE' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}><List size={14}/> ตาราง</button>
              <button onClick={() => setViewMode('KANBAN')} className={`px-3 py-1.5 rounded-md text-xs font-bold flex items-center gap-1.5 transition-colors ${viewMode === 'KANBAN' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}><Kanban size={14}/> บอร์ดงาน</button>
@@ -941,7 +1008,6 @@ function TaskDashboard({ appDb, user }) {
                               <div className="flex items-center gap-3 mb-2">
                                 <span className={`text-[10px] px-2 py-0.5 rounded border font-mono ${deadline.color}`}><Clock size={10} className="inline mr-1 mb-0.5"/>{deadline.label}</span>
                               </div>
-                              {/* แจ้งเตือนข้อสั่งการแอดมิน */}
                               {t.admin_feedback && (
                                 <div className="mt-2 bg-amber-950/40 border border-amber-500/50 p-2.5 rounded-lg">
                                   <p className="text-[11px] text-amber-400 font-bold flex items-center gap-1.5 mb-1"><MessageCircle size={12}/> ข้อสั่งการ/ข้อเสนอแนะจากส่วนกลาง:</p>
@@ -1109,7 +1175,7 @@ function Policies({ appDb, user, showToast, callApi, refresh }) {
                      )}
                   </tr>
                 ))}
-                {filtered.length===0&&<tr><td col colSpan="6" className="p-20 text-center text-slate-500 text-xl border-dashed border-2 border-slate-700/50 m-4 rounded-2xl bg-slate-900/30">ไม่พบข้อมูลที่ค้นหา</td></tr>}
+                {filtered.length===0&&<tr><td colSpan="6" className="p-20 text-center text-slate-500 text-xl border-dashed border-2 border-slate-700/50 m-4 rounded-2xl bg-slate-900/30">ไม่พบข้อมูลที่ค้นหา</td></tr>}
              </tbody>
           </table>
         </div>
@@ -1224,7 +1290,6 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
     if (subtasks.length > 0) payload.subtasks = JSON.stringify(subtasks); else payload.subtasks = "";
     if(payload.status !== 'ล่าช้า/ติดปัญหา') payload.root_cause = '';
     
-    // Admin Feedback Logic
     if(isAdmin && data.admin_feedback) payload.admin_feedback = data.admin_feedback;
     
     showToast('กำลังอัปเดตภารกิจ...'); 
@@ -1288,7 +1353,6 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
                                 {t.status === 'ล่าช้า/ติดปัญหา' && t.root_cause && <div className="block mt-2 mb-3"><div className="text-[11px] text-red-400 bg-red-950/40 border border-red-900/50 px-3 py-2 rounded-lg inline-flex items-center gap-1.5"><AlertOctagon size={14}/> <span className="font-bold">สาเหตุหลัก:</span> {t.root_cause}</div></div>}
                                 {t.note && <p className="text-xs text-slate-400 bg-slate-900/60 p-3 rounded-lg border border-slate-700/50 line-clamp-2 mt-2 leading-relaxed shadow-inner font-medium"><span className="text-sky-500 font-bold mb-1 block">หมายเหตุล่าสุด:</span>{t.note}</p>}
                                 
-                                {/* 💬 แจ้งเตือนข้อสั่งการแอดมิน */}
                                 {t.admin_feedback && (
                                   <div className="mt-3 bg-amber-950/50 border-l-2 border-amber-500 p-2.5 rounded-r-lg">
                                     <p className="text-[11px] text-amber-400 font-bold flex items-center gap-1.5 mb-1"><MessageCircle size={12}/> ข้อสั่งการ/ข้อเสนอแนะจากส่วนกลาง:</p>
@@ -1328,7 +1392,7 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
                     
                     {isExpanded && hasSubtasks && (
                       <tr className="bg-slate-900/40 border-b border-slate-700/50">
-                        <td colSpan={6} className="p-0">
+                        <td colSpan="6" className="p-0">
                           <div className="pl-8 py-5 pr-5 border-l-4 border-sky-500 ml-[46px] animate-fade-in-up shadow-inner">
                             <h5 className="text-[11px] font-bold text-sky-400 mb-3 flex items-center gap-2 uppercase tracking-widest"><GitMerge size={14} /> แผนงาน/ภารกิจย่อย ({tSubtasks.filter(s=>s.done).length}/{tSubtasks.length})</h5>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1366,7 +1430,6 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
                        <h4 className="font-bold text-slate-300 border-b border-slate-700/50 pb-3 flex items-center gap-2 text-lg uppercase tracking-widest"><LayoutDashboard size={20} className="text-amber-500"/> ข้อมูลพื้นฐานภารกิจ</h4>
                        <div><label className="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-widest">ชื่องาน/ภารกิจ <span className="text-red-500">*</span></label><input name="task_name" defaultValue={editData?.task_name} required className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 text-slate-100 transition-colors text-lg" placeholder="พิมพ์ชื่องานที่นี่..."/></div>
                        
-                       {/* Dropdown เชื่อมโยงนโยบาย */}
                        <div>
                          <label className="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-widest">สนับสนุนนโยบายข้อใด (ถ้ามี)</label>
                          <select name="policy_id" defaultValue={editData?.policy_id || ''} className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-sky-500 transition-colors text-slate-200 shadow-inner">
@@ -1433,7 +1496,6 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
 
                        <div className="relative z-10"><label className="text-xs font-bold text-sky-300 mb-2 block uppercase tracking-widest">หมายเหตุ / อัปเดตล่าสุด</label><textarea name="note" defaultValue={editData?.note} rows="4" className="w-full bg-slate-900 p-4 rounded-xl border border-sky-700/50 outline-none focus:border-sky-400 transition-colors leading-relaxed shadow-inner text-base" placeholder="ระบุความคืบหน้าล่าสุดที่ได้ทำไป..."></textarea></div>
                        
-                       {/* 💬 Admin Feedback (เฉพาะ Admin ที่พิมพ์ได้) */}
                        {isAdmin && (
                          <div className="relative z-10 mt-6 pt-6 border-t border-sky-900/50">
                            <label className="text-xs font-bold text-amber-500 mb-2 block uppercase tracking-widest flex items-center gap-1.5"><MessageCircle size={14}/> ข้อสั่งการ/ข้อเสนอแนะจากส่วนกลาง (เฉพาะ Admin)</label>
