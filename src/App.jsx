@@ -16,7 +16,6 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwPShuEyd348SncMpf9x
 
 const LOGO_URL = "/S__22413315.jpg";
 const GARUDA_URL = "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Garuda_Emblem_of_Thailand.svg/150px-Garuda_Emblem_of_Thailand.svg.png";
-const geminiApiKey = ''; 
 
 // ============================================================
 // ค่าคงที่และตัวแปรระบบ
@@ -81,6 +80,7 @@ const MOCK_DB = {
       start_date: "2024-05-01", 
       end_date: "2024-05-31", 
       is_important: true,
+      policy_id: "POL-1",
       subtasks: JSON.stringify([
         { id: 1, text: "ตรวจสอบระบบฐานข้อมูล", done: true },
         { id: 2, text: "ทดสอบเพิ่มภารกิจย่อย", done: false }
@@ -103,7 +103,9 @@ const getBarColor = (p) => {
 const formatDate = (d) => { 
   if (!d) return '-'; 
   try { 
-    return new Date(d).toLocaleDateString('th-TH', { 
+    const date = new Date(d);
+    if (isNaN(date.getTime())) return d;
+    return date.toLocaleDateString('th-TH', { 
       year: 'numeric', 
       month: 'short', 
       day: 'numeric' 
@@ -113,22 +115,6 @@ const formatDate = (d) => {
   } 
 };
 
-const getEscalationBadge = (endDate) => { 
-  if (!endDate) return null; 
-  const diffDays = Math.floor((new Date().setHours(0,0,0,0) - new Date(endDate)) / 86400000); 
-  
-  if (diffDays >= 15) {
-    return { label: '🔥 วิกฤต (>15 วัน)', class: 'bg-red-600 text-white animate-pulse shadow-lg' };
-  }
-  if (diffDays >= 7) {
-    return { label: '⚠️ รุนแรง (>7 วัน)', class: 'bg-orange-500 text-white' };
-  }
-  if (diffDays > 0) {
-    return { label: '👀 เฝ้าระวัง', class: 'bg-amber-500 text-white' };
-  }
-  return null; 
-};
-
 const getDeadlineStatus = (endDate, status) => { 
   if (!endDate) return { label: '-', color: 'text-slate-400 bg-slate-800 border-slate-700' }; 
   
@@ -136,7 +122,10 @@ const getDeadlineStatus = (endDate, status) => {
     return { label: 'สำเร็จทันเวลา', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' };
   }
   
-  const diffDays = Math.ceil((new Date(endDate) - new Date().setHours(0,0,0,0)) / 86400000); 
+  const end = new Date(endDate);
+  if (isNaN(end.getTime())) return { label: 'วันที่ไม่ถูกต้อง', color: 'text-slate-400 bg-slate-800' };
+
+  const diffDays = Math.ceil((end - new Date().setHours(0,0,0,0)) / 86400000); 
   
   if (diffDays < 0) {
     return { label: `ล่าช้า ${Math.abs(diffDays)} วัน`, color: 'text-red-400 bg-red-500/10 border-red-500/30 font-bold' };
@@ -417,7 +406,6 @@ export default function App() {
     setTimeout(() => setToastData(null), 3000); 
   };
 
-  // ดึงข้อมูลทั้งหมดจาก Google Sheets พร้อมตรวจสอบ Error แบบละเอียด
   const loadData = async () => {
     setIsSyncing(true); 
     setDeployError(null);
@@ -425,13 +413,11 @@ export default function App() {
       const actions = ['units', 'policies', 'reports', 'tasks'];
       
       const results = await Promise.all(actions.map(async (action) => {
-        // เพิ่ม Cache buster `t` เพื่อป้องกันการโหลดข้อมูลเก่า
         const url = `${SCRIPT_URL}?action=${action}&t=${Date.now()}`;
         
         const res = await fetch(url, { redirect: "follow" }); 
         const text = await res.text();
         
-        // ถ้า Google ส่ง HTML Login กลับมา แปลว่าสิทธิ์เข้าถึง (Permissions) ผิด
         if (text.trim().startsWith('<') || text.includes('<!DOCTYPE html>')) {
           throw new Error("PERMISSION");
         }
@@ -458,7 +444,6 @@ export default function App() {
       console.error("Fetch Execution Error:", err);
       setDeployError(err.message === "PERMISSION" ? "PERMISSION" : "NETWORK");
       
-      // FALLBACK TO DEMO MODE: เมื่อโหลดข้อมูลล้มเหลว จะสลับไปใช้ข้อมูลจำลอง
       setAppDb({
          ...MOCK_DB,
          isLoaded: true,
@@ -470,12 +455,10 @@ export default function App() {
     }
   };
 
-  // ดึงข้อมูลครั้งแรกเมื่อเริ่มแอป
   useEffect(() => { 
     if (SCRIPT_URL && !SCRIPT_URL.includes("URL_ที่คุณได้มา")) {
       loadData(); 
     } else {
-        // Force Demo mode if URL is not configured
         setAppDb({
             ...MOCK_DB,
             isLoaded: true,
@@ -484,10 +467,9 @@ export default function App() {
     }
   }, []);
 
-  // ฟังก์ชันยิง API อัปเดตข้อมูล (POST) ไปยัง Google Sheets
   const callApi = async (method, action, data, idKey, idValue) => {
     if (appDb.isDemoMode) {
-      // Simulate local state update for Demo mode
+      showToast("ในโหมดจำลอง จะเก็บข้อมูลไว้ชั่วคราว ไม่ส่งไปฐานข้อมูลจริง", "error");
       setAppDb(prev => {
           const newData = { ...prev };
           if (method === 'insert') {
@@ -499,21 +481,19 @@ export default function App() {
           }
           return newData;
       });
-      
-      return true; // Simulate success in demo mode
+      return true;
     }
 
     try {
       await fetch(SCRIPT_URL, { 
         method: 'POST', 
-        mode: 'no-cors', // โหมดนี้จำเป็นสำหรับ Google Apps Script เพื่อไม่ให้ติด CORS Block
+        mode: 'no-cors',
         headers: { 
           'Content-Type': 'text/plain;charset=utf-8' 
         }, 
         body: JSON.stringify({ method, action, data, idKey, idValue }) 
       });
       
-      // หน่วงเวลาให้ Google Sheets บันทึกข้อมูลเสร็จก่อนโหลดใหม่
       setTimeout(loadData, 2000); 
       return true;
     } catch (err) { 
@@ -541,7 +521,6 @@ export default function App() {
     setIsMobileMenuOpen(false);
   };
 
-  // แสดงหน้า Login ถ้ายังไม่มีการ Login
   if (!user || !appDb.isLoaded) {
     return (
       <LoginScreen 
@@ -578,11 +557,8 @@ export default function App() {
         }
       `}</style>
       
-      {/* ============================================================ */}
-      {/* Sidebar - Desktop */}
-      {/* ============================================================ */}
+      {/* Sidebar Desktop */}
       <aside className="print-hide fixed left-0 top-0 h-screen z-40 bg-slate-800 border-r border-slate-700 flex flex-col w-72 hidden lg:flex shadow-2xl">
-        
         <div className="h-24 flex items-center justify-between px-6 border-b border-slate-700 shrink-0 bg-slate-900/30">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center p-1.5 shadow-md border border-amber-500/20">
@@ -607,7 +583,6 @@ export default function App() {
         </div>
         
         <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1.5 custom-scrollbar">
-          
           <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">ระบบรายงานภาพรวม</p>
           <NavItem icon={<LayoutDashboard size={20}/>} label="ภาพรวมนโยบาย" isActive={view==='DASHBOARD_POLICY'} onClick={()=>navigateTo('DASHBOARD_POLICY')} />
           <NavItem icon={<PieChart size={20}/>} label="ภาพรวมภารกิจ" isActive={view==='DASHBOARD_TASK'} onClick={()=>navigateTo('DASHBOARD_TASK')} />
@@ -616,7 +591,6 @@ export default function App() {
           <div className="border-t border-slate-700/50 my-6"></div>
           
           <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">ระบบปฏิบัติการ</p>
-          
           <NavItem icon={<ScrollText size={20}/>} label="ฐานข้อมูลนโยบาย" isActive={view==='POLICIES'} onClick={()=>navigateTo('POLICIES')} />
           <NavItem icon={<CheckSquare size={20}/>} label="ติดตามภารกิจ (Tasks)" isActive={view==='TASKS'} onClick={()=>navigateTo('TASKS')} />
           {user.role !== 'executive' && <NavItem icon={<FilePlus size={20}/>} label="บันทึกรายงานผล" isActive={view==='REPORT_FORM'} onClick={()=>navigateTo('REPORT_FORM')} />}
@@ -637,9 +611,7 @@ export default function App() {
         </div>
       </aside>
 
-      {/* ============================================================ */}
       {/* Mobile Topbar & Overlay Menu */}
-      {/* ============================================================ */}
       <div className="lg:hidden print-hide fixed top-0 left-0 right-0 h-16 bg-slate-800 border-b border-slate-700 z-50 flex items-center justify-between px-5 shadow-md">
          <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-white rounded-md flex items-center justify-center p-1"><img src={LOGO_URL} alt="Logo" className="w-full h-full object-contain" onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/100x100/1e293b/f59e0b?text=J4'; }} /></div>
@@ -660,14 +632,11 @@ export default function App() {
               <NavItem icon={<LayoutDashboard size={20}/>} label="ภาพรวมนโยบาย" isActive={view==='DASHBOARD_POLICY'} onClick={()=>navigateTo('DASHBOARD_POLICY')} />
               <NavItem icon={<PieChart size={20}/>} label="ภาพรวมภารกิจ" isActive={view==='DASHBOARD_TASK'} onClick={()=>navigateTo('DASHBOARD_TASK')} />
               {isAdminOrExec && <NavItem icon={<Briefcase size={20}/>} label="บทสรุปผู้บริหาร" isActive={view==='EXEC_SUMMARY'} onClick={()=>navigateTo('EXEC_SUMMARY')} />}
-              
               <div className="border-t border-slate-800 my-4"></div>
-              
               <NavItem icon={<ScrollText size={20}/>} label="ฐานข้อมูลนโยบาย" isActive={view==='POLICIES'} onClick={()=>navigateTo('POLICIES')} />
               <NavItem icon={<CheckSquare size={20}/>} label="ติดตามภารกิจ (Tasks)" isActive={view==='TASKS'} onClick={()=>navigateTo('TASKS')} />
               {user.role !== 'executive' && <NavItem icon={<FilePlus size={20}/>} label="บันทึกรายงานผล" isActive={view==='REPORT_FORM'} onClick={()=>navigateTo('REPORT_FORM')} />}
               <NavItem icon={<HistoryIcon size={20}/>} label="ประวัติรายงานผล" isActive={view==='HISTORY'} onClick={()=>navigateTo('HISTORY')} />
-              
               {user.role === 'admin' && <NavItem icon={<Users size={20}/>} label="ตั้งค่าผู้ใช้งาน" isActive={view==='UNITS_CONFIG'} onClick={()=>navigateTo('UNITS_CONFIG')} />}
               
               <div className="mt-8 p-4">
@@ -679,13 +648,10 @@ export default function App() {
         </div>
       )}
 
-      {/* ============================================================ */}
       {/* Main Content Area */}
-      {/* ============================================================ */}
       <main className="flex-1 lg:ml-72 pt-20 lg:pt-0 p-4 md:p-8 min-h-screen overflow-y-auto custom-scrollbar relative">
         <div className="max-w-7xl mx-auto pb-24">
           
-          {/* แจ้งเตือนเมื่ออยู่ในโหมดจำลอง */}
           {appDb.isDemoMode && (
             <div className="mb-6 bg-orange-950/80 border border-orange-500/50 p-4 rounded-2xl flex items-center gap-4 animate-pulse">
               <div className="bg-orange-500/20 p-2 rounded-full text-orange-400"><AlertTriangle size={24}/></div>
@@ -696,7 +662,7 @@ export default function App() {
             </div>
           )}
 
-          {/* Top Bar for Sync & Notifications */}
+          {/* Top Bar */}
           <div className="flex justify-between items-center mb-8 bg-slate-800/80 p-4 rounded-xl border border-slate-700 backdrop-blur-sm print-hide shadow-md">
             <h2 className="text-slate-300 font-medium flex items-center gap-2 md:gap-3 text-sm md:text-base tracking-wide">
               <ShieldCheck size={22} className="text-amber-500"/> ระบบอำนวยการ J4 Command Center
@@ -802,7 +768,11 @@ function PolicyDashboard({ appDb, user }) {
     const reps = baseReports.filter(r => pIds.includes(r.policy_id));
     
     const progList = basePolicies.map(po => { 
-      const rs = reps.filter(r => r.policy_id === po.policy_id).sort((a, b) => new Date(b.report_date || b.created_at) - new Date(a.report_date || a.created_at));
+      const rs = reps.filter(r => r.policy_id === po.policy_id).sort((a, b) => {
+        const d1 = new Date(b.report_date || b.created_at || 0).getTime();
+        const d2 = new Date(a.report_date || a.created_at || 0).getTime();
+        return (isNaN(d1)?0:d1) - (isNaN(d2)?0:d2);
+      });
       return { progress: rs.length ? (rs[0].progress_percent || 0) : 0 }; 
     });
     
@@ -885,7 +855,11 @@ function PolicyDashboard({ appDb, user }) {
     if (sectionPolicies.length === 0) return null;
     
     let list = sectionPolicies.map(po => {
-      const rs = baseReports.filter(r => r.policy_id === po.policy_id).sort((a,b) => new Date(b.report_date) - new Date(a.report_date));
+      const rs = baseReports.filter(r => r.policy_id === po.policy_id).sort((a,b) => {
+        const d1 = new Date(b.report_date || b.created_at || 0).getTime();
+        const d2 = new Date(a.report_date || a.created_at || 0).getTime();
+        return (isNaN(d1)?0:d1) - (isNaN(d2)?0:d2);
+      });
       const prog = rs.length ? (rs[0].progress_percent || 0) : 0;
       return { 
         id: po.policy_id, 
@@ -1098,7 +1072,12 @@ function TaskDashboard({ appDb, user }) {
     if (filterUnit !== 'ALL') tasks = tasks.filter(t => t.primary_unit === filterUnit || t.secondary_units?.includes(filterUnit));
     if (fiscalYear !== 'ALL') {
       const dates = getFiscalYearDates(fiscalYear);
-      tasks = tasks.filter(t => new Date(t.start_date) >= new Date(dates.start) && new Date(t.end_date) <= new Date(dates.end));
+      tasks = tasks.filter(t => {
+        const dStart = new Date(t.start_date);
+        const dEnd = new Date(t.end_date);
+        if (isNaN(dStart.getTime()) || isNaN(dEnd.getTime())) return false;
+        return dStart >= new Date(dates.start) && dEnd <= new Date(dates.end);
+      });
     }
     return tasks;
   }, [appDb.tasks, filterUnit, fiscalYear]);
@@ -1386,12 +1365,14 @@ function ExecutiveSummary({ appDb }) {
       const dates = getFiscalYearDates(fiscalYear);
       reports = reports.filter(r => {
         const d = new Date(r.report_date || r.created_at);
+        if (isNaN(d.getTime())) return false;
         return d >= new Date(dates.start) && d <= new Date(dates.end);
       });
     }
 
     policies.forEach(p => {
-      const shortName = `[ลำดับ ${p.policy_no || '-'}] ${p.order.substring(0, 40)}${p.order.length > 40 ? '...' : ''}`;
+      const orderText = p.order || '';
+      const shortName = `[ลำดับ ${p.policy_no || '-'}] ${orderText.substring(0, 40)}${orderText.length > 40 ? '...' : ''}`;
       if (unitStats[p.primary_unit]) {
         unitStats[p.primary_unit].totalPolicies += 1;
         unitStats[p.primary_unit].policyNames.push(shortName);
@@ -1415,14 +1396,17 @@ function ExecutiveSummary({ appDb }) {
     
     approvedReports.forEach(r => {
       const key = `${r.policy_id}_${r.unit_name}`;
-      if (!latestReports[key] || new Date(r.report_date) > new Date(latestReports[key].report_date)) {
+      const d = new Date(r.report_date || r.created_at);
+      const currLatest = latestReports[key] ? new Date(latestReports[key].report_date || latestReports[key].created_at) : new Date(0);
+      
+      if (!latestReports[key] || (!isNaN(d.getTime()) && d > currLatest)) {
         latestReports[key] = r;
       }
     });
 
     Object.values(latestReports).forEach(r => {
       if (unitStats[r.unit_name]) {
-        unitStats[r.unit_name].progressSum += r.progress_percent;
+        unitStats[r.unit_name].progressSum += (Number(r.progress_percent) || 0);
         unitStats[r.unit_name].reports += 1;
         if (r.progress_percent === 100) unitStats[r.unit_name].completed += 1;
       }
@@ -1434,11 +1418,19 @@ function ExecutiveSummary({ appDb }) {
       avgProgress: data.reports > 0 ? (data.progressSum / data.reports) : 0
     })).filter(u => u.totalPolicies > 0 || u.reports > 0).sort((a,b) => b.avgProgress - a.avgProgress);
 
-    const problemReports = reports.filter(r => r.problems && r.problems.trim().length > 2 && r.problems.trim() !== '-').sort((a, b) => new Date(b.report_date || b.created_at) - new Date(a.report_date || a.created_at));
+    const problemReports = reports.filter(r => r.problems && typeof r.problems === 'string' && r.problems.trim().length > 2 && r.problems.trim() !== '-').sort((a, b) => {
+      const d1 = new Date(b.report_date || b.created_at || 0).getTime();
+      const d2 = new Date(a.report_date || a.created_at || 0).getTime();
+      return (isNaN(d1)?0:d1) - (isNaN(d2)?0:d2);
+    });
 
     const today = new Date();
     today.setHours(0,0,0,0);
-    const todayUpdatesCount = reports.filter(r => new Date(r.created_at || r.report_date) >= today).length;
+    const todayUpdatesCount = reports.filter(r => {
+      const d = new Date(r.created_at || r.report_date);
+      if (isNaN(d.getTime())) return false;
+      return d >= today;
+    }).length;
 
     const trendData = [];
     for(let i=6; i>=0; i--) {
@@ -1447,6 +1439,7 @@ function ExecutiveSummary({ appDb }) {
       const label = d.toLocaleDateString('th-TH', {day:'numeric', month:'short'});
       const count = reports.filter(r => {
          const rd = new Date(r.created_at || r.report_date);
+         if (isNaN(rd.getTime())) return false;
          return rd.toISOString().substring(0,10) === dateStr;
       }).length;
       trendData.push({ label, count });
@@ -1564,15 +1557,20 @@ function ExecutiveSummary({ appDb }) {
             </h3>
             <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-3">
               {stats.importantPolicies.map(p => {
-                const reps = (appDb.reports || []).filter(r => r.policy_id === p.policy_id).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                const reps = (appDb.reports || []).filter(r => r.policy_id === p.policy_id).sort((a, b) => {
+                   const d1 = new Date(b.created_at || b.report_date || 0).getTime();
+                   const d2 = new Date(a.created_at || a.report_date || 0).getTime();
+                   return (isNaN(d1)?0:d1) - (isNaN(d2)?0:d2);
+                });
                 const progress = reps.length > 0 ? reps[0].progress_percent : 0;
+                const orderText = p.order || '';
                 return (
                   <div key={p.policy_id} className="p-6 bg-slate-900/80 rounded-2xl border border-slate-700/50 shadow-md hover:border-amber-500/50 transition-colors">
                     <div className="flex justify-between items-start mb-4">
                       <span className="text-xs font-bold text-sky-400 bg-sky-900/30 px-3 py-1.5 rounded-lg border border-sky-500/20">[{p.policy_no}] {p.commander}</span>
                       <span className="text-2xl font-mono font-bold drop-shadow-md" style={{ color: getBarColor(progress) }}>{progress}%</span>
                     </div>
-                    <p className="text-sm text-slate-200 leading-relaxed line-clamp-3 mb-5" title={p.order}>{p.order}</p>
+                    <p className="text-sm text-slate-200 leading-relaxed line-clamp-3 mb-5" title={orderText}>{orderText}</p>
                     <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden shadow-inner">
                       <div className="h-full rounded-full transition-all duration-1000 relative" style={{ width: `${progress}%`, backgroundColor: getBarColor(progress) }}>
                          <div className="absolute inset-0 bg-white/20"></div>
@@ -1844,9 +1842,10 @@ function Policies({ appDb, user, showToast, callApi, refresh }) {
                      <td className="p-6 text-sky-400 font-bold whitespace-nowrap tracking-wide">{p.primary_unit}</td>
                      {isAdmin&& (
                        <td className="p-6 text-center whitespace-nowrap">
-                         <div className="flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                           <button onClick={()=>{setEditData(p);setModalOpen(true);}} className="text-sky-400 p-2.5 bg-sky-900/30 rounded-xl hover:bg-sky-600 hover:text-white transition-all shadow-sm hover:scale-110"><Edit size={18}/></button>
-                           <button onClick={()=>handleDelete(p.policy_id)} className="text-red-400 p-2.5 bg-red-900/30 rounded-xl hover:bg-red-600 hover:text-white transition-all shadow-sm hover:scale-110"><Trash2 size={18}/></button>
+                         {/* เปลี่ยนจาก opacity-0 group-hover:opacity-100 ให้เห็นชัดตลอดเวลา */}
+                         <div className="flex justify-center gap-2 transition-opacity">
+                           <button onClick={()=>{setEditData(p);setModalOpen(true);}} className="text-sky-400 p-2.5 bg-sky-900/30 rounded-xl hover:bg-sky-600 hover:text-white transition-all shadow-sm hover:scale-110" title="แก้ไข"><Edit size={18}/></button>
+                           <button onClick={()=>handleDelete(p.policy_id)} className="text-red-400 p-2.5 bg-red-900/30 rounded-xl hover:bg-red-600 hover:text-white transition-all shadow-sm hover:scale-110" title="ลบ"><Trash2 size={18}/></button>
                          </div>
                        </td>
                      )}
@@ -1949,7 +1948,7 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
 
   // ฟังก์ชันสำหรับ ปักหมุด / เลิกปักหมุด
   const handleToggleImportant = async (e, task) => {
-    e.stopPropagation(); // สำคัญ: ป้องกันไม่ให้คลิกแล้วแถวขยาย (ถ้ามี subtask)
+    e.stopPropagation(); // ป้องกันไม่ให้คลิกแล้วแถวขยาย
     const updatedStatus = !task.is_important;
     const payload = { ...task, is_important: updatedStatus };
     
@@ -1961,13 +1960,12 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
     }
   };
 
-  // เปิด Modal และโหลดข้อมูล (รวมถึง งานย่อย)
+  // เปิด Modal และโหลดข้อมูล
   const openModal = (data = null) => {
     setEditData(data);
     setFormStatus(data?.status || 'รอดำเนินการ');
     setFormProgress(data?.progress_percent || 0);
 
-    // จำลองการแยก Subtasks จาก JSON String (ที่ถูกเก็บใน Google Sheets)
     let parsedSubtasks = [];
     if (data && data.subtasks) {
       try {
@@ -1981,7 +1979,6 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
     setModalOpen(true);
   };
 
-  // ฟังก์ชันจัดการงานย่อย (Subtasks)
   const handleAddSubtask = () => {
     if(!newSubtask.trim()) return;
     setSubtasks([...subtasks, { id: Date.now(), text: newSubtask.trim(), done: false }]);
@@ -1996,7 +1993,6 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
     setSubtasks(subtasks.filter(s => s.id !== id));
   };
 
-  // คำนวณเปอร์เซ็นต์อัตโนมัติเมื่องานย่อยเปลี่ยน
   useEffect(() => {
     if (subtasks.length > 0) {
       const doneCount = subtasks.filter(s => s.done).length;
@@ -2018,7 +2014,6 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
     const isUpdating = !!editData; 
     const taskId = isUpdating ? editData.task_id : `TSK-${Date.now()}`;
     
-    // เตรียมข้อมูลบันทึก
     const payload = { 
       ...data, 
       task_id: taskId, 
@@ -2026,14 +2021,12 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
       status: formStatus
     };
     
-    // แปลง Subtasks เป็น String ก่อนเก็บลง Sheets
     if (subtasks.length > 0) {
       payload.subtasks = JSON.stringify(subtasks);
     } else {
       payload.subtasks = "";
     }
     
-    // เคลียร์ root_cause ถ้าสถานะไม่ใช่ ล่าช้า
     if(payload.status !== 'ล่าช้า/ติดปัญหา') payload.root_cause = '';
     
     showToast('กำลังอัปเดตภารกิจ...'); 
@@ -2104,7 +2097,6 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
                        <td className="p-6">
                          <div className="flex justify-between items-start gap-4">
                            <div className="flex items-start gap-3 w-full">
-                              {/* ปุ่มปักหมุดติดดาว */}
                               <button
                                  onClick={(e) => handleToggleImportant(e, t)}
                                  className={`mt-0.5 shrink-0 transition-transform hover:scale-125 ${t.is_important ? 'text-amber-500' : 'text-slate-600 hover:text-amber-500/50'}`}
@@ -2116,7 +2108,6 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
                               <div className="flex-1">
                                 <p className="font-bold text-slate-100 text-base leading-relaxed mb-2" title={t.task_name}>{t.task_name}</p>
                                 
-                                {/* โชว์สถานะงานย่อยถ้ามี */}
                                 {hasSubtasks && (
                                   <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium mb-3 bg-slate-900/50 px-2 py-1.5 rounded-lg border border-slate-700/50 w-max">
                                     <CheckSquare size={14} className="text-emerald-500"/> งานย่อย: <span className="text-white ml-1">{completedSt}/{tSubtasks.length}</span>
@@ -2132,6 +2123,15 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
                                 )}
 
                                 {t.note && <p className="text-xs text-slate-400 bg-slate-900/60 p-3 rounded-lg border border-slate-700/50 line-clamp-2 mt-2 leading-relaxed shadow-inner font-medium"><span className="text-sky-500 font-bold mb-1 block">หมายเหตุล่าสุด:</span>{t.note}</p>}
+                                
+                                {/* แสดงนโยบายที่อ้างอิง */}
+                                {t.policy_id && (
+                                  <div className="mt-3 inline-block">
+                                    <span className="text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-1.5 rounded-lg flex items-center gap-1.5 font-bold shadow-sm">
+                                      <ShieldCheck size={12}/> สนับสนุนนโยบาย: [{(appDb.policies||[]).find(p => p.policy_id === t.policy_id)?.policy_no || '-'}]
+                                    </span>
+                                  </div>
+                                )}
                               </div>
                            </div>
                            {hasSubtasks && (
@@ -2145,33 +2145,37 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
                           <span className="text-sm font-bold text-sky-400 bg-sky-900/20 px-4 py-2 rounded-xl border border-sky-500/30 block w-max whitespace-nowrap shadow-sm">{t.primary_unit}</span>
                        </td>
                        <td className="p-6 text-center">
-                       <div className="flex flex-col items-center gap-2 mt-2">
-                          <span className="text-2xl font-bold font-mono drop-shadow-md" style={{color:getBarColor(t.progress_percent)}}>{t.progress_percent}%</span>
-                          <div className="w-full bg-slate-900 h-3 rounded-full border border-slate-700 overflow-hidden shadow-inner">
-                            <div className="h-full rounded-full transition-all duration-1000 relative" style={{width:`${t.progress_percent}%`, background:getBarColor(t.progress_percent)}}>
-                              <div className="absolute inset-0 bg-white/20"></div>
+                         <div className="flex flex-col items-center gap-2 mt-2">
+                            <span className="text-2xl font-bold font-mono drop-shadow-md" style={{color:getBarColor(t.progress_percent)}}>{t.progress_percent}%</span>
+                            <div className="w-full bg-slate-900 h-3 rounded-full border border-slate-700 overflow-hidden shadow-inner">
+                              <div className="h-full rounded-full transition-all duration-1000 relative" style={{width:`${t.progress_percent}%`, background:getBarColor(t.progress_percent)}}>
+                                <div className="absolute inset-0 bg-white/20"></div>
+                              </div>
                             </div>
-                          </div>
-                       </div>
-                     </td>
-                     {user.role !== 'executive' && (
-                       <td className="p-6 align-middle">
-                         <div className="flex flex-col gap-2 w-28 mx-auto" onClick={e => e.stopPropagation()}>
-                          <button onClick={() => openModal(t)} className="w-full bg-sky-500/20 text-sky-400 hover:bg-sky-500 hover:text-white border border-sky-500/30 py-2.5 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm">
-                            <Edit size={14}/> อัปเดตงาน
-                          </button>
-                          {(user.role === 'admin' || t.primary_unit === user.unitName) && (
-                            <button onClick={() => handleDelete(t.task_id)} className="w-full bg-slate-800 text-slate-400 hover:bg-red-500/20 hover:text-red-400 border border-slate-700 py-1.5 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-all">
-                              <Trash2 size={12}/> ลบ
-                            </button>
-                          )}
                          </div>
                        </td>
-                     )}
-                  </tr>
-                  
-                  {/* Expanded Subtasks Row */}
-                  {isExpanded && hasSubtasks && (
+                       <td className="p-6 text-center whitespace-nowrap">
+                         <span className={`px-4 py-2 rounded-full text-xs font-bold border shadow-sm ${TASK_STATUS[t.status] || TASK_STATUS['รอดำเนินการ']}`}>{t.status}</span>
+                       </td>
+                       {user.role !== 'executive' && (
+                         <td className="p-6 align-middle">
+                           {/* ปุ่มเห็นชัดตลอดเวลา */}
+                           <div className="flex flex-col gap-2 w-28 mx-auto transition-opacity" onClick={e => e.stopPropagation()}>
+                            <button onClick={() => openModal(t)} className="w-full bg-sky-500/20 text-sky-400 hover:bg-sky-500 hover:text-white border border-sky-500/30 py-2.5 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm">
+                              <Edit size={14}/> อัปเดตงาน
+                            </button>
+                            {(user.role === 'admin' || t.primary_unit === user.unitName) && (
+                              <button onClick={() => handleDelete(t.task_id)} className="w-full bg-slate-800 text-slate-400 hover:bg-red-500/20 hover:text-red-400 border border-slate-700 py-1.5 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-all shadow-sm">
+                                <Trash2 size={12}/> ลบ
+                              </button>
+                            )}
+                           </div>
+                         </td>
+                       )}
+                    </tr>
+                    
+                    {/* Expanded Subtasks Row */}
+                    {isExpanded && hasSubtasks && (
                       <tr className="bg-slate-900/40 border-b border-slate-700/50">
                         <td colSpan={6} className="p-0">
                           <div className="pl-8 py-5 pr-5 border-l-4 border-sky-500 ml-[46px] animate-fade-in-up shadow-inner">
@@ -2224,12 +2228,24 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
                      <div className="bg-slate-900/50 p-8 rounded-3xl border border-slate-700 space-y-6 shadow-inner">
                        <h4 className="font-bold text-slate-300 border-b border-slate-700/50 pb-3 flex items-center gap-2 text-lg uppercase tracking-widest"><LayoutDashboard size={20} className="text-amber-500"/> ข้อมูลพื้นฐานภารกิจ</h4>
                        <div><label className="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-widest">ชื่องาน/ภารกิจ <span className="text-red-500">*</span></label><input name="task_name" defaultValue={editData?.task_name} required className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 text-slate-100 transition-colors text-lg" placeholder="พิมพ์ชื่องานที่นี่..."/></div>
+                       
+                       {/* Dropdown เชื่อมโยงนโยบาย */}
+                       <div>
+                         <label className="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-widest flex items-center gap-2"><ShieldCheck size={14} className="text-amber-500"/> อ้างอิงนโยบาย/ข้อสั่งการ (ถ้ามี)</label>
+                         <select name="policy_id" defaultValue={editData?.policy_id || ''} className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-amber-500 transition-colors font-medium text-sm text-slate-200 shadow-inner cursor-pointer">
+                           <option value="">-- ไม่ระบุ (ภารกิจทั่วไป) --</option>
+                           {(appDb.policies||[]).map(p => (
+                             <option key={p.policy_id} value={p.policy_id}>[{p.policy_no||'-'}] {p.order.substring(0,100)}...</option>
+                           ))}
+                         </select>
+                       </div>
+
                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div><label className="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-widest">วันที่เริ่ม <span className="text-red-500">*</span></label><input type="date" name="start_date" defaultValue={editData?.start_date?editData.start_date.substring(0,10):new Date().toISOString().substring(0,10)} required className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-sky-500 transition-colors font-mono" style={{colorScheme:'dark'}}/></div>
                           <div><label className="text-xs font-bold text-emerald-400 mb-2 block flex items-center gap-1.5 uppercase tracking-widest"><Clock size={14}/> วันกำหนดเสร็จ (Deadline)</label><input type="date" name="end_date" defaultValue={editData?.end_date?editData.end_date.substring(0,10):''} required className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-emerald-500 transition-colors text-emerald-400 font-mono font-bold shadow-inner" style={{colorScheme:'dark'}}/></div>
                        </div>
                        
-                       {/* Dropdown ให้เลือกหน่วยงานได้สำหรับงานติดตามภารกิจ */}
+                       {/* Dropdown ให้เลือกหน่วยงานได้ */}
                        <div>
                          <label className="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-widest">หน่วยรับผิดชอบหลัก <span className="text-red-500">*</span></label>
                          <select 
@@ -2292,7 +2308,7 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
                               name="status" 
                               value={formStatus}
                               onChange={(e) => setFormStatus(e.target.value)}
-                              className="w-full bg-slate-900 p-4 rounded-xl border border-sky-700/50 outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-500 transition-colors font-bold text-base shadow-inner"
+                              className="w-full bg-slate-900 p-4 rounded-xl border border-sky-700/50 outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-500 transition-colors font-bold text-base shadow-inner cursor-pointer"
                             >
                               <option value="รอดำเนินการ">รอดำเนินการ</option>
                               <option value="กำลังดำเนินการ">กำลังดำเนินการ</option>
@@ -2322,7 +2338,7 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
                        {formStatus === 'ล่าช้า/ติดปัญหา' && (
                          <div className="bg-red-950/40 p-5 rounded-2xl border border-red-900/50 relative z-10 animate-fade-in-up">
                             <label className="text-xs font-bold text-red-400 mb-2 block uppercase tracking-widest flex items-center gap-2"><AlertOctagon size={16}/> กรุณาระบุสาเหตุหลัก (Root Cause) <span className="text-red-500">*</span></label>
-                            <select name="root_cause" defaultValue={editData?.root_cause || ''} required className="w-full bg-slate-900 p-4 rounded-xl border border-red-500/50 outline-none focus:border-red-500 transition-colors font-bold text-base shadow-inner text-slate-200">
+                            <select name="root_cause" defaultValue={editData?.root_cause || ''} required className="w-full bg-slate-900 p-4 rounded-xl border border-red-500/50 outline-none focus:border-red-500 transition-colors font-bold text-base shadow-inner text-slate-200 cursor-pointer">
                                <option value="">-- เลือกระบุสาเหตุที่ทำให้งานล่าช้า --</option>
                                {ROOT_CAUSES.map(rc => <option key={rc} value={rc}>{rc}</option>)}
                             </select>
@@ -2448,7 +2464,11 @@ function ReportForm({ appDb, user, showToast, setView, callApi, refresh }) {
 function History({ appDb, user, showToast, callApi, refresh }) {
   const reports = appDb.reports || [];
   const visible = (user.role === 'admin' || user.role === 'executive') ? reports : reports.filter(r => r.unit_name === user.unitName);
-  const sorted = visible.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+  const sorted = visible.sort((a,b) => {
+    const d1 = new Date(b.created_at || 0).getTime();
+    const d2 = new Date(a.created_at || 0).getTime();
+    return (isNaN(d1)?0:d1) - (isNaN(d2)?0:d2);
+  });
 
   const handleDelete = async (id) => {
     if(window.confirm('คุณแน่ใจหรือไม่ที่จะลบรายงานฉบับนี้ออกจากฐานข้อมูลอย่างถาวร?')) { 
@@ -2597,12 +2617,15 @@ function UnitsConfig({ appDb, showToast, callApi, refresh }) {
                        </td>
                        <td className="p-6 font-mono text-emerald-400 tracking-widest text-xl text-center font-bold">{u.passcode}</td>
                        <td className="p-6 text-center whitespace-nowrap">
-                          <button onClick={()=>{setEditData(u); setModalOpen(true);}} className="text-sky-400 hover:text-white bg-slate-900 hover:bg-sky-600 p-3 rounded-xl border border-slate-700 hover:border-sky-500 transition-all shadow-sm mr-2">
-                             <Edit size={20}/>
-                          </button>
-                          <button onClick={()=>handleDelete(u.id)} className="text-slate-400 hover:text-white bg-slate-900 hover:bg-red-600 p-3 rounded-xl border border-slate-700 hover:border-red-500 transition-all shadow-sm">
-                             <Trash2 size={20}/>
-                          </button>
+                          {/* นำ opacity ออกเพื่อให้ปุ่มเห็นชัดตลอดเวลา */}
+                          <div className="flex justify-center gap-2 transition-opacity">
+                            <button onClick={()=>{setEditData(u); setModalOpen(true);}} className="text-sky-400 hover:text-white bg-slate-900 hover:bg-sky-600 p-3 rounded-xl border border-slate-700 hover:border-sky-500 transition-all shadow-sm">
+                               <Edit size={20}/>
+                            </button>
+                            <button onClick={()=>handleDelete(u.id)} className="text-slate-400 hover:text-white bg-slate-900 hover:bg-red-600 p-3 rounded-xl border border-slate-700 hover:border-red-500 transition-all shadow-sm">
+                               <Trash2 size={20}/>
+                            </button>
+                          </div>
                        </td>
                     </tr>
                   ))}
