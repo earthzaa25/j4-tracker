@@ -2145,36 +2145,33 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
                           <span className="text-sm font-bold text-sky-400 bg-sky-900/20 px-4 py-2 rounded-xl border border-sky-500/30 block w-max whitespace-nowrap shadow-sm">{t.primary_unit}</span>
                        </td>
                        <td className="p-6 text-center">
-                          <div className="text-xs text-slate-400 font-mono bg-slate-900/80 rounded-xl p-3 border border-slate-700 inline-block w-max shadow-inner">
-                            <span className="text-slate-500 block mb-1.5 font-bold tracking-wider">เริ่ม: {formatDate(t.start_date)}</span>
-                            <span className="text-emerald-400 font-bold block border-t border-slate-700/50 pt-1.5 tracking-wider">สิ้นสุด: {formatDate(t.end_date)}</span>
-                          </div>
-                       </td>
-                       <td className="p-6 text-center whitespace-nowrap">
-                         <span className={`px-4 py-2 rounded-full text-xs font-bold border shadow-sm ${TASK_STATUS[t.status] || TASK_STATUS['รอดำเนินการ']}`}>{t.status}</span>
-                       </td>
-                       <td className="p-6 text-center">
-                         <div className="flex flex-col items-center gap-2 mt-2">
-                            <span className="text-2xl font-bold font-mono drop-shadow-md" style={{color:getBarColor(t.progress_percent)}}>{t.progress_percent}%</span>
-                            <div className="w-full bg-slate-900 h-3 rounded-full border border-slate-700 overflow-hidden shadow-inner">
-                              <div className="h-full rounded-full transition-all duration-1000 relative" style={{width:`${t.progress_percent}%`, background:getBarColor(t.progress_percent)}}>
-                                <div className="absolute inset-0 bg-white/20"></div>
-                              </div>
+                       <div className="flex flex-col items-center gap-2 mt-2">
+                          <span className="text-2xl font-bold font-mono drop-shadow-md" style={{color:getBarColor(t.progress_percent)}}>{t.progress_percent}%</span>
+                          <div className="w-full bg-slate-900 h-3 rounded-full border border-slate-700 overflow-hidden shadow-inner">
+                            <div className="h-full rounded-full transition-all duration-1000 relative" style={{width:`${t.progress_percent}%`, background:getBarColor(t.progress_percent)}}>
+                              <div className="absolute inset-0 bg-white/20"></div>
                             </div>
+                          </div>
+                       </div>
+                     </td>
+                     {user.role !== 'executive' && (
+                       <td className="p-6 align-middle">
+                         <div className="flex flex-col gap-2 w-28 mx-auto" onClick={e => e.stopPropagation()}>
+                          <button onClick={() => openModal(t)} className="w-full bg-sky-500/20 text-sky-400 hover:bg-sky-500 hover:text-white border border-sky-500/30 py-2.5 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm">
+                            <Edit size={14}/> อัปเดตงาน
+                          </button>
+                          {(user.role === 'admin' || t.primary_unit === user.unitName) && (
+                            <button onClick={() => handleDelete(t.task_id)} className="w-full bg-slate-800 text-slate-400 hover:bg-red-500/20 hover:text-red-400 border border-slate-700 py-1.5 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-all">
+                              <Trash2 size={12}/> ลบ
+                            </button>
+                          )}
                          </div>
                        </td>
-                       {user.role !== 'executive' && (
-                         <td className="p-6 text-center whitespace-nowrap">
-                           <div className="flex justify-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-                            <button onClick={() => openModal(t)} className="text-sky-400 hover:text-white p-2.5 rounded-xl bg-sky-900/30 hover:bg-sky-600 transition-colors shadow-sm mr-1"><Edit size={18}/></button>
-                            {(user.role === 'admin' || t.primary_unit === user.unitName) && <button onClick={() => handleDelete(t.task_id)} className="text-red-400 hover:text-white p-2.5 rounded-xl bg-red-900/30 hover:bg-red-600 transition-colors shadow-sm"><Trash2 size={18}/></button>}
-                           </div>
-                         </td>
-                       )}
-                    </tr>
-                    
-                    {/* Expanded Subtasks Row */}
-                    {isExpanded && hasSubtasks && (
+                     )}
+                  </tr>
+                  
+                  {/* Expanded Subtasks Row */}
+                  {isExpanded && hasSubtasks && (
                       <tr className="bg-slate-900/40 border-b border-slate-700/50">
                         <td colSpan={6} className="p-0">
                           <div className="pl-8 py-5 pr-5 border-l-4 border-sky-500 ml-[46px] animate-fade-in-up shadow-inner">
