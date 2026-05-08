@@ -634,6 +634,11 @@ export default function App() {
 function GanttChartDashboard({ appDb, user }) {
   const isAdminOrExec = user.role === 'admin' || user.role === 'executive';
   const [filterUnit, setFilterUnit] = useState(isAdminOrExec ? 'ALL' : user.unitName);
+  const [expandedTasks, setExpandedTasks] = useState({});
+
+  const toggleTask = (id) => {
+    setExpandedTasks(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
   const baseTasks = useMemo(() => {
     let tasks = appDb.tasks || [];
@@ -684,37 +689,78 @@ function GanttChartDashboard({ appDb, user }) {
           <div className="overflow-x-auto custom-scrollbar pb-4">
              <div className="min-w-[800px]">
                 {/* Timeline Header */}
-                <div className="flex border-b border-slate-700 pb-3 mb-4 sticky top-0 bg-slate-800 z-10">
-                   <div className="w-1/3 shrink-0 font-bold text-slate-400 text-sm pl-2">รายชื่อภารกิจ</div>
-                   <div className="w-2/3 flex justify-between text-xs text-slate-500 font-bold px-2 relative">
+                <div className="flex border-b border-slate-700 pb-3 mb-4 sticky top-0 bg-slate-800 z-20">
+                   <div className="w-1/3 shrink-0 font-bold text-slate-400 text-sm pl-4 flex items-center gap-2">
+                     <List size={16}/> รายชื่อภารกิจ
+                   </div>
+                   <div className="w-2/3 flex text-xs text-slate-500 font-bold relative">
                       {monthHeaders.map((m, i) => (
-                         <div key={i} className="flex-1 text-center border-l border-slate-700/50 border-dashed">{m}</div>
+                         <div key={i} className="flex-1 text-center relative border-l border-slate-700/50 pt-1 pb-1">
+                            {m}
+                            {/* Vertical Guide Line */}
+                            <div className="absolute left-0 top-full h-[800px] w-px bg-slate-700/30 pointer-events-none"></div>
+                         </div>
                       ))}
                    </div>
                 </div>
                 
                 {/* Tasks Bars */}
-                <div className="space-y-4">
+                <div className="space-y-3 relative z-10">
                    {baseTasks.map(t => {
                       const leftPercent = Math.max(0, ((new Date(t.start_date).getTime() - minTime) / (totalDays * 86400000)) * 100);
                       const widthPercent = Math.max(1, ((new Date(t.end_date).getTime() - new Date(t.start_date).getTime()) / (totalDays * 86400000)) * 100);
                       const barColor = t.status === 'เสร็จสิ้น' ? 'bg-emerald-500' : t.status === 'ล่าช้า/ติดปัญหา' ? 'bg-red-500' : 'bg-sky-500';
+                      
+                      let parsedSubtasks = [];
+                      if (t.subtasks) { try { parsedSubtasks = typeof t.subtasks === 'string' ? JSON.parse(t.subtasks) : t.subtasks; } catch(e) {} }
+                      const hasSubtasks = parsedSubtasks && parsedSubtasks.length > 0;
+                      const isExpanded = expandedTasks[t.task_id];
 
                       return (
-                        <div key={t.task_id} className="flex items-center text-sm hover:bg-slate-700/30 p-2 rounded-xl transition-colors group">
-                           <div className="w-1/3 shrink-0 pr-4 border-r border-slate-700/50">
-                              <p className="font-bold text-slate-200 truncate" title={t.task_name}>{t.task_name}</p>
-                              <p className="text-[10px] text-slate-500 mt-1 font-mono">{formatDate(t.start_date)} - {formatDate(t.end_date)}</p>
+                        <div key={t.task_id} className="flex flex-col bg-slate-900/40 rounded-xl border border-slate-700/50 hover:border-slate-500/50 transition-colors overflow-hidden">
+                           <div className={`flex items-center text-sm p-3 transition-colors ${hasSubtasks ? 'cursor-pointer hover:bg-slate-800/80' : ''}`} onClick={() => hasSubtasks && toggleTask(t.task_id)}>
+                               <div className="w-1/3 shrink-0 pr-4 flex items-start gap-3 border-r border-slate-700/50">
+                                  <div className="mt-0.5 text-slate-500 w-4">
+                                     {hasSubtasks ? (isExpanded ? <ChevronDown size={16} className="text-amber-500"/> : <ChevronRight size={16}/>) : <Circle size={8} className="m-1 fill-slate-700"/>}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-bold text-slate-200 truncate" title={t.task_name}>{t.task_name}</p>
+                                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                      <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded border border-slate-700 text-slate-400 font-mono flex items-center gap-1"><Clock size={10}/> {formatDate(t.start_date)} - {formatDate(t.end_date)}</span>
+                                      {hasSubtasks && <span className="text-[10px] bg-sky-950/40 text-sky-400 border border-sky-900 px-2 py-0.5 rounded flex items-center gap-1"><ListTodo size={10}/> {parsedSubtasks.filter(s=>s.done).length}/{parsedSubtasks.length} งานย่อย</span>}
+                                    </div>
+                                  </div>
+                               </div>
+                               <div className="w-2/3 relative h-10 ml-4 flex items-center">
+                                  {/* Container for bar to ensure it stays within bounds, adding slight padding */}
+                                  <div className="absolute inset-y-1 w-full bg-slate-900/50 rounded-lg overflow-hidden border border-slate-800 shadow-inner">
+                                    <div 
+                                      className={`absolute h-full shadow-md flex items-center px-2 transition-all ${barColor} opacity-90 group-hover:opacity-100 relative z-10`}
+                                      style={{left: `${leftPercent}%`, width: `${widthPercent}%`, minWidth: '12px'}}
+                                      title={`${t.task_name} (${t.progress_percent}%)`}
+                                    >
+                                      {widthPercent > 8 && <span className="text-[10px] font-bold text-white drop-shadow-md truncate font-mono">{t.progress_percent}%</span>}
+                                    </div>
+                                  </div>
+                               </div>
                            </div>
-                           <div className="w-2/3 relative h-8 bg-slate-900/50 rounded-lg ml-4 overflow-hidden border border-slate-700/50">
-                              <div 
-                                className={`absolute h-full rounded-md shadow-md flex items-center px-2 transition-all ${barColor} opacity-90 group-hover:opacity-100`}
-                                style={{left: `${leftPercent}%`, width: `${widthPercent}%`, minWidth: '8px'}}
-                                title={`${t.task_name} (${t.progress_percent}%)`}
-                              >
-                                {widthPercent > 10 && <span className="text-[10px] font-bold text-white drop-shadow-md truncate font-mono">{t.progress_percent}%</span>}
+                           
+                           {/* Expanded Subtasks */}
+                           {isExpanded && hasSubtasks && (
+                              <div className="bg-slate-800/80 border-t border-slate-700/50 p-4 animate-fade-in-up">
+                                 <div className="pl-9 space-y-2">
+                                    <h5 className="text-[11px] font-bold text-sky-400 uppercase tracking-widest flex items-center gap-2 mb-3"><GitMerge size={14}/> แผนงาน/ภารกิจย่อยในส่วนนี้</h5>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                      {parsedSubtasks.map((st, i) => (
+                                         <div key={i} className={`flex items-start gap-2.5 p-3 rounded-lg border shadow-sm ${st.done ? 'bg-emerald-950/20 border-emerald-900/30' : 'bg-slate-900 border-slate-700/50'}`}>
+                                            <div className="mt-0.5 shrink-0">{st.done ? <CheckCircle2 size={16} className="text-emerald-500 drop-shadow-md"/> : <Circle size={16} className="text-slate-500"/>}</div>
+                                            <span className={`text-xs leading-relaxed ${st.done ? 'text-slate-400 line-through' : 'text-slate-200'}`}>{st.text}</span>
+                                         </div>
+                                      ))}
+                                    </div>
+                                 </div>
                               </div>
-                           </div>
+                           )}
                         </div>
                       )
                    })}
@@ -1032,6 +1078,7 @@ function PolicyDashboard({ appDb, user }) {
     );
   }
 
+  // คำนวณจำนวนนโยบายหลักและข้อสั่งการเพิ่มเติมสำหรับสถิติการ์ดด้านบน
   const mainPoliciesCount = basePolicies.filter(p => p.category === 'นโยบายหลัก').length;
   const addonPoliciesCount = basePolicies.filter(p => p.category === 'สั่งการเพิ่มเติม').length;
 
@@ -1535,7 +1582,7 @@ function Policies({ appDb, user, showToast, callApi, refresh }) {
                      )}
                   </tr>
                 ))}
-                {filtered.length===0&&<tr><td colSpan="6" className="p-20 text-center text-slate-500 text-xl border-dashed border-2 border-slate-700/50 m-4 rounded-2xl bg-slate-900/30">ไม่พบข้อมูลที่ค้นหา</td></tr>}
+                {filtered.length===0&&<tr><td colSpan={6} className="p-20 text-center text-slate-500 text-xl border-dashed border-2 border-slate-700/50 m-4 rounded-2xl bg-slate-900/30">ไม่พบข้อมูลที่ค้นหา</td></tr>}
              </tbody>
           </table>
         </div>
@@ -1831,7 +1878,7 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
                     )}
                   </React.Fragment>
                 )})}
-                {filtered.length===0&&<tr><td colSpan={6} className="p-20 text-center text-slate-500 text-xl border-dashed border-2 border-slate-700/50 m-4 rounded-2xl bg-slate-900/30">ไม่มีข้อมูลภารกิจในขณะนี้</td></tr>}
+                {filtered.length===0&&<tr><td colSpan="6" className="p-20 text-center text-slate-500 text-xl border-dashed border-2 border-slate-700/50 m-4 rounded-2xl bg-slate-900/30">ไม่มีข้อมูลภารกิจในขณะนี้</td></tr>}
              </tbody>
            </table>
          </div>
