@@ -64,8 +64,8 @@ const FALLBACK_ACCOUNTS = [
 const MOCK_DB = {
   units: FALLBACK_ACCOUNTS,
   policies: [
-    { policy_id: "POL-1", policy_no: "1", category: "นโยบายหลัก", commander: "ผบ.ทสส.", order: "ทดสอบการเชื่อมต่อระบบและรายงานผลเบื้องต้น", timeframe: "ภายใน ก.ย. 68", primary_unit: "กกล.กบ.ทหาร", is_important: true },
-    { policy_id: "POL-2", policy_no: "2", category: "สั่งการเพิ่มเติม", commander: "รอง ผบ.ทสส.", order: "จัดเตรียมแผนงบประมาณปี 2568 สำหรับหน่วยงานที่เกี่ยวข้อง", timeframe: "ภายใน ต.ค. 67", primary_unit: "กช.กบ.ทหาร", is_important: false }
+    { policy_id: "POL-1", policy_no: "1", category: "นโยบายหลัก", commander: "ผบ.ทสส.", meeting_ref: "กพช. ครั้งที่ 1/67", order: "ทดสอบการเชื่อมต่อระบบและรายงานผลเบื้องต้น", timeframe: "ภายใน ก.ย. 68", primary_unit: "กกล.กบ.ทหาร", is_important: true },
+    { policy_id: "POL-2", policy_no: "2", category: "สั่งการเพิ่มเติม", commander: "รอง ผบ.ทสส.", meeting_ref: "-", order: "จัดเตรียมแผนงบประมาณปี 2568 สำหรับหน่วยงานที่เกี่ยวข้อง", timeframe: "ภายใน ต.ค. 67", primary_unit: "กช.กบ.ทหาร", is_important: false }
   ],
   reports: [
     { report_id: "REP-1", policy_id: "POL-1", policy_no: "1", policy_snippet: "ทดสอบการเชื่อมต่อระบบ...", unit_name: "กกล.กบ.ทหาร", report_date: "2024-05-10", past_result: "ทดสอบระบบเสร็จสิ้น สามารถแสดงผลได้ตามปกติ", next_plan: "ขยายผลการใช้งานไปยังหน่วยอื่น", problems: "-", progress_percent: 100, approval_status: "อนุมัติแล้ว", created_at: "2024-05-10T10:00:00Z" }
@@ -606,7 +606,7 @@ function PolicyDashboard({ appDb, user }) {
     let list = sectionPolicies.map(po => {
       const rs = baseReports.filter(r => r.policy_id === po.policy_id).sort((a,b) => new Date(b.report_date) - new Date(a.report_date));
       const prog = rs.length ? (rs[0].progress_percent || 0) : 0;
-      return { id: po.policy_id, short: `[${po.policy_no||'-'}] ${po.order.substring(0,80)}...`, order: po.order, prog: prog, bucket: getStatusBucket(prog), is_important: po.is_important, cmd: po.commander };
+      return { id: po.policy_id, short: `[${po.policy_no||'-'}] ${po.order.substring(0,80)}...`, order: po.order, meeting_ref: po.meeting_ref, prog: prog, bucket: getStatusBucket(prog), is_important: po.is_important, cmd: po.commander };
     });
     
     const cmds = [...new Set(sectionPolicies.map(p => p.commander))];
@@ -658,7 +658,17 @@ function PolicyDashboard({ appDb, user }) {
                        {filtered.map(p => (
                          <div key={p.id} className={`p-5 rounded-2xl border transition-all shadow-sm ${expandedPolicyId === p.id ? 'bg-slate-700/60 border-amber-500' : 'bg-slate-900 border-slate-700 hover:border-amber-500/50'}`}>
                            <div className="flex justify-between cursor-pointer group" onClick={() => setExpandedPolicyId(expandedPolicyId === p.id ? null : p.id)}>
-                             <div className="text-sm font-bold text-slate-200 pr-6 leading-relaxed flex items-start gap-2">{p.is_important && <Star size={16} className="shrink-0 text-amber-500 fill-amber-500 mt-0.5 drop-shadow-md"/>}<span className="group-hover:text-amber-400 transition-colors" title={p.order}>{p.short}</span></div>
+                             <div className="text-sm font-bold text-slate-200 pr-6 leading-relaxed flex flex-col items-start gap-2">
+                               <div className="flex items-start gap-2">
+                                 {p.is_important && <Star size={16} className="shrink-0 text-amber-500 fill-amber-500 mt-0.5 drop-shadow-md"/>}
+                                 <span className="group-hover:text-amber-400 transition-colors" title={p.order}>{p.short}</span>
+                               </div>
+                               {p.meeting_ref && p.meeting_ref !== '-' && (
+                                 <span className="text-[10px] text-indigo-300 bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-500/30 md:ml-6 mt-1 flex items-center gap-1">
+                                   <FileText size={10}/> อ้างอิง: {p.meeting_ref}
+                                 </span>
+                               )}
+                             </div>
                              <div className="flex flex-col items-end shrink-0"><span className="font-mono font-bold text-xl drop-shadow-md" style={{ color: getBarColor(p.prog) }}>{p.prog}%</span>{expandedPolicyId === p.id ? <ChevronUp size={18} className="text-amber-500 mt-1"/> : <ChevronDown size={18} className="text-slate-500 mt-1 group-hover:text-amber-500 transition-colors"/>}</div>
                            </div>
                            <div className="w-full bg-slate-800 h-2 mt-4 rounded-full overflow-hidden border border-slate-700 shadow-inner"><div className="h-full rounded-full transition-all duration-1000 relative" style={{ width: `${p.prog}%`, background: getBarColor(p.prog) }}><div className="absolute inset-0 bg-white/20"></div></div></div>
@@ -1162,7 +1172,14 @@ function Policies({ appDb, user, showToast, callApi, refresh }) {
                   <tr key={p.policy_id} className="hover:bg-slate-700/40 transition-colors align-top group">
                      <td className="p-6 font-bold text-amber-500 text-center text-xl font-mono">{p.policy_no||'-'}</td>
                      <td className="p-6 whitespace-nowrap font-bold text-slate-300"><span className="bg-slate-700/50 px-3 py-1.5 rounded-lg border border-slate-600 shadow-sm">{p.commander}</span></td>
-                     <td className="p-6 leading-relaxed text-slate-200 text-base">{p.order}</td>
+                     <td className="p-6 leading-relaxed text-slate-200 text-base">
+                       {p.order}
+                       {p.meeting_ref && p.meeting_ref !== '-' && (
+                         <div className="mt-2 text-[11px] text-indigo-300 bg-indigo-950/40 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-indigo-500/30">
+                           <FileText size={12}/> อ้างอิง: {p.meeting_ref}
+                         </div>
+                       )}
+                     </td>
                      <td className="p-6 text-emerald-400 font-bold whitespace-nowrap flex items-center gap-2 mt-1 bg-slate-900/30 px-3 py-1.5 rounded-lg border border-slate-700 w-max"><CalendarDays size={16}/> {p.timeframe||'-'}</td>
                      <td className="p-6 text-sky-400 font-bold whitespace-nowrap tracking-wide">{p.primary_unit}</td>
                      {isAdmin&& (
@@ -1195,10 +1212,25 @@ function Policies({ appDb, user, showToast, callApi, refresh }) {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                      <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-700"><label className="text-xs font-bold text-slate-400 mb-2.5 block uppercase tracking-widest">ประเภท</label><select name="category" defaultValue={editData?.category||'นโยบายหลัก'} className="w-full bg-slate-800 p-3.5 rounded-xl border border-slate-600 outline-none focus:border-amber-500 transition-colors font-bold text-sm shadow-inner"><option value="นโยบายหลัก">นโยบายหลัก</option><option value="สั่งการเพิ่มเติม">สั่งการเพิ่มเติม</option></select></div>
                      <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-700"><label className="text-xs font-bold text-slate-400 mb-2.5 block uppercase tracking-widest">ลำดับข้อ (เช่น 1, 2.1) <span className="text-red-500">*</span></label><input name="policy_no" defaultValue={editData?.policy_no} required className="w-full bg-slate-800 p-3.5 rounded-xl border border-slate-600 outline-none focus:border-amber-500 font-mono text-lg font-bold transition-colors shadow-inner" placeholder="00"/></div>
-                     <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-700"><label className="text-xs font-bold text-slate-400 mb-2.5 block uppercase tracking-widest">ผู้สั่งการ <span className="text-red-500">*</span></label><input name="commander" defaultValue={editData?.commander||'ผบ.ทสส.'} required className="w-full bg-slate-800 p-3.5 rounded-xl border border-slate-600 outline-none focus:border-amber-500 transition-colors font-bold text-sm shadow-inner" placeholder="ระบุตำแหน่ง..."/></div>
+                     <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-700">
+                       <label className="text-xs font-bold text-slate-400 mb-2.5 block uppercase tracking-widest">ผู้สั่งการ <span className="text-red-500">*</span></label>
+                       <input list="commanders" name="commander" defaultValue={editData?.commander||'ผบ.ทสส.'} required className="w-full bg-slate-800 p-3.5 rounded-xl border border-slate-600 outline-none focus:border-amber-500 transition-colors font-bold text-sm shadow-inner" placeholder="เลือกหรือพิมพ์ระบุตำแหน่ง..."/>
+                       <datalist id="commanders">
+                         <option value="รมว.กห." />
+                         <option value="ผบ.ทสส." />
+                         <option value="รอง ผบ.ทสส." />
+                         <option value="เสธ.ทหาร" />
+                         <option value="รอง เสธ.ทหาร" />
+                         <option value="ผอ.ศปม." />
+                       </datalist>
+                     </div>
                   </div>
                   <div className="bg-slate-900/50 p-5 rounded-2xl border border-slate-700"><label className="text-sm font-bold text-slate-300 mb-3 block flex items-center gap-2"><FileText size={18} className="text-amber-500"/> รายละเอียดข้อสั่งการ / นโยบาย <span className="text-red-500">*</span></label><textarea name="order" defaultValue={editData?.order} required rows="5" className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-amber-500 leading-relaxed transition-colors text-base shadow-inner" placeholder="พิมพ์รายละเอียดข้อสั่งการที่นี่..."></textarea></div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-900/50 p-6 rounded-2xl border border-slate-700">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-slate-900/50 p-6 rounded-2xl border border-slate-700">
+                     <div>
+                       <label className="text-sm font-bold text-slate-300 mb-3 block flex items-center gap-2"><Users size={18} className="text-indigo-500"/> อ้างอิงการประชุม / เอกสาร</label>
+                       <input name="meeting_ref" defaultValue={editData?.meeting_ref} placeholder="เช่น ครั้งที่ 1/67" className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-indigo-500 transition-colors font-medium shadow-inner"/>
+                     </div>
                      <div><label className="text-sm font-bold text-slate-300 mb-3 block flex items-center gap-2"><CalendarDays size={18} className="text-emerald-500"/> กรอบเวลา / กำหนดเสร็จ (ถ้ามี)</label><input name="timeframe" defaultValue={editData?.timeframe} placeholder="เช่น ภายใน ก.ย. 68" className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-emerald-500 transition-colors font-medium shadow-inner"/></div>
                      <div><label className="text-sm font-bold text-slate-300 mb-3 block flex items-center gap-2"><Target size={18} className="text-sky-500"/> หน่วยงานรับผิดชอบหลัก</label><select name="primary_unit" defaultValue={editData?.primary_unit||'ทุกหน่วย'} className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-sky-500 transition-colors font-bold text-sky-400 shadow-inner"><option value="ทุกหน่วย">- ทุกหน่วยงาน -</option>{(appDb.units||[]).filter(u=>u.role==='user'||!u.role).map(u=><option key={u.id} value={u.name}>{u.name}</option>)}</select></div>
                   </div>
