@@ -7,7 +7,7 @@ import {
   Lock, Clock, Trophy, Paperclip, Bell, Sun, Moon, ChevronLeft, ChevronRight, 
   Search, Kanban, Columns, List, Target, AlertOctagon, GitMerge, Users, Circle, 
   Star, MousePointerClick, RefreshCcw, FilterX, CalendarDays, Table, ChevronDown, ChevronUp, Bot,
-  Sparkles, BarChart3, Presentation
+  Sparkles, BarChart3, Presentation, Tv, AlignLeft, MessageSquare
 } from 'lucide-react';
 
 // ============================================================
@@ -149,6 +149,120 @@ function NavItem({ icon, label, isActive, onClick }) {
 }
 
 // ============================================================
+// 📺 โหมดห้องบัญชาการ (War Room Mode)
+// ============================================================
+function WarRoomDashboard({ appDb, onClose }) {
+  const [activeSlide, setActiveSlide] = useState(0);
+
+  // Auto-slide ทุกๆ 10 วินาที
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveSlide((prev) => (prev + 1) % 3);
+    }, 10000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const totalTasks = appDb.tasks?.length || 0;
+  const completedTasks = appDb.tasks?.filter(t => t.status === 'เสร็จสิ้น').length || 0;
+  const delayedTasks = appDb.tasks?.filter(t => t.status === 'ล่าช้า/ติดปัญหา') || [];
+  const importantPolicies = appDb.policies?.filter(p => p.is_important) || [];
+
+  return (
+    <div className="fixed inset-0 z-[99999] bg-[#020617] text-white flex flex-col p-8 overflow-hidden font-sans">
+       {/* Header */}
+       <div className="flex justify-between items-center mb-8 border-b border-slate-800 pb-6">
+          <div className="flex items-center gap-4">
+             <div className="w-16 h-16 bg-white p-2 rounded-2xl"><img src={LOGO_URL} alt="Logo" className="w-full h-full object-contain"/></div>
+             <div>
+               <h1 className="text-4xl font-bold text-slate-100 tracking-wide">J4 WAR ROOM <span className="text-amber-500 font-normal">| ศูนย์ปฏิบัติการ</span></h1>
+               <div className="flex items-center gap-2 mt-2 text-emerald-400 text-sm font-bold">
+                 <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-ping"></span> Live Updates
+               </div>
+             </div>
+          </div>
+          <button onClick={onClose} className="bg-slate-800 hover:bg-red-600 text-slate-300 hover:text-white px-6 py-3 rounded-xl font-bold transition-colors shadow-lg flex items-center gap-2">
+            <LogOut size={20}/> ออกจากโหมด War Room
+          </button>
+       </div>
+
+       {/* Carousel Indicators */}
+       <div className="flex justify-center gap-3 mb-8">
+          {[0, 1, 2].map(idx => (
+            <button key={idx} onClick={() => setActiveSlide(idx)} className={`h-2 rounded-full transition-all duration-500 ${activeSlide === idx ? 'w-16 bg-amber-500' : 'w-4 bg-slate-700'}`}></button>
+          ))}
+       </div>
+
+       {/* Main Content Area */}
+       <div className="flex-1 flex flex-col justify-center items-center w-full animate-fade-in-up">
+         
+         {/* Slide 0: Executive Overview */}
+         {activeSlide === 0 && (
+            <div className="w-full max-w-7xl animate-fade-in-up">
+               <h2 className="text-center text-4xl font-bold text-sky-400 mb-12 uppercase tracking-widest"><PieChart className="inline mr-3 mb-1" size={40}/> สถิติการปฏิบัติงานภาพรวม</h2>
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  <div className="bg-slate-800/50 p-10 rounded-[2rem] border border-slate-700/50 text-center shadow-2xl flex flex-col items-center justify-center">
+                     <p className="text-slate-400 text-xl font-bold uppercase tracking-widest mb-4">นโยบายทั้งหมด</p>
+                     <p className="text-8xl font-black text-white font-mono">{appDb.policies?.length || 0}</p>
+                  </div>
+                  <div className="bg-emerald-950/20 p-10 rounded-[2rem] border border-emerald-900/50 text-center shadow-2xl flex flex-col items-center justify-center transform scale-105 bg-gradient-to-b from-emerald-900/30 to-slate-900/50">
+                     <p className="text-emerald-400 text-xl font-bold uppercase tracking-widest mb-4">ภารกิจที่เสร็จสมบูรณ์</p>
+                     <p className="text-9xl font-black text-emerald-500 font-mono drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]">{completedTasks}</p>
+                     <p className="text-emerald-500/70 font-bold mt-4">จากทั้งหมด {totalTasks} ภารกิจ</p>
+                  </div>
+                  <div className="bg-red-950/20 p-10 rounded-[2rem] border border-red-900/50 text-center shadow-2xl flex flex-col items-center justify-center">
+                     <p className="text-red-400 text-xl font-bold uppercase tracking-widest mb-4">ล่าช้า / เฝ้าระวัง</p>
+                     <p className="text-8xl font-black text-red-500 font-mono">{delayedTasks.length}</p>
+                  </div>
+               </div>
+            </div>
+         )}
+
+         {/* Slide 1: Top Priorities */}
+         {activeSlide === 1 && (
+            <div className="w-full max-w-7xl animate-fade-in-up">
+               <h2 className="text-center text-4xl font-bold text-amber-500 mb-12 uppercase tracking-widest"><Star className="inline mr-3 mb-1" size={40}/> ไฮไลท์นโยบายเร่งด่วน (Priority)</h2>
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {importantPolicies.slice(0, 4).map((p, idx) => (
+                    <div key={idx} className="bg-slate-800/80 p-8 rounded-3xl border border-amber-500/30 shadow-xl relative overflow-hidden">
+                       <div className="absolute right-[-20px] top-[-20px] opacity-10"><Star size={200} className="fill-amber-500"/></div>
+                       <div className="relative z-10">
+                          <span className="bg-amber-500/20 text-amber-400 px-4 py-2 rounded-lg text-sm font-bold border border-amber-500/30">[{p.policy_no}] {p.commander}</span>
+                          <h3 className="text-2xl font-bold text-white mt-6 mb-4 line-clamp-2 leading-relaxed">{p.order}</h3>
+                          <p className="text-slate-400 text-lg flex items-center gap-2"><Users size={20}/> รับผิดชอบโดย: <strong className="text-amber-300">{p.primary_unit}</strong></p>
+                       </div>
+                    </div>
+                  ))}
+                  {importantPolicies.length === 0 && <div className="col-span-2 text-center py-20 text-slate-500 text-2xl">ไม่มีนโยบายเร่งด่วนในขณะนี้</div>}
+               </div>
+            </div>
+         )}
+
+         {/* Slide 2: Risk Board */}
+         {activeSlide === 2 && (
+            <div className="w-full max-w-7xl animate-fade-in-up">
+               <h2 className="text-center text-4xl font-bold text-red-500 mb-12 uppercase tracking-widest"><AlertTriangle className="inline mr-3 mb-1" size={40}/> กระดานเฝ้าระวังพิเศษ (Risk Board)</h2>
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {delayedTasks.slice(0, 6).map((t, idx) => (
+                    <div key={idx} className="bg-red-950/20 p-6 rounded-2xl border-l-4 border-red-500 border-y border-r border-y-red-900/30 border-r-red-900/30 shadow-lg">
+                       <div className="flex justify-between items-start mb-4">
+                          <span className="bg-red-500/20 text-red-400 px-3 py-1 rounded text-xs font-bold uppercase tracking-wider">{t.primary_unit}</span>
+                          <span className="text-red-500 font-mono font-bold text-xl">{t.progress_percent}%</span>
+                       </div>
+                       <h3 className="text-lg font-bold text-slate-100 mb-3 line-clamp-2">{t.task_name}</h3>
+                       <p className="text-sm text-red-400/80 bg-red-950/50 p-3 rounded-lg border border-red-900/50"><strong className="text-red-400">สาเหตุ:</strong> {t.root_cause || 'ไม่ระบุ'}</p>
+                    </div>
+                  ))}
+                  {delayedTasks.length === 0 && <div className="col-span-3 text-center py-20 text-emerald-500 text-2xl font-bold"><CheckCircle size={60} className="mx-auto mb-4 opacity-50"/>ไม่มีภารกิจที่ล่าช้าในระบบ</div>}
+               </div>
+            </div>
+         )}
+
+       </div>
+    </div>
+  );
+}
+
+// ============================================================
 // หน้าจอเข้าสู่ระบบ
 // ============================================================
 function LoginScreen({ onLogin, isLoading, appDb, loadData, deployError }) {
@@ -238,6 +352,7 @@ export default function App() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [isWarRoomMode, setIsWarRoomMode] = useState(false); // War Room State
 
   const showToast = (msg, type = 'ok') => { 
     setToastData({ msg, type }); 
@@ -337,7 +452,7 @@ export default function App() {
   const isAdminOrExec = user.role === 'admin' || user.role === 'executive';
 
   return (
-    <div className="min-h-screen flex bg-slate-900 text-slate-100 font-sans selection:bg-amber-500 selection:text-white">
+    <div className="min-h-screen flex bg-slate-900 text-slate-100 font-sans selection:bg-amber-500 selection:text-white relative">
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; } 
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
@@ -348,6 +463,9 @@ export default function App() {
         @media print { .print-hide { display: none !important; } .bg-slate-900, .bg-slate-800 { background: white !important; color: black !important; border: 1px solid #ccc !important; box-shadow: none !important; } .text-slate-100, .text-slate-200, .text-slate-300, .text-slate-400 { color: #333 !important; } body { background: white !important; } }
       `}</style>
       
+      {/* 📺 เรนเดอร์ War Room Mode ถ้าถูกเปิด */}
+      {isWarRoomMode && <WarRoomDashboard appDb={appDb} onClose={() => setIsWarRoomMode(false)} />}
+
       {/* Sidebar - Desktop */}
       <aside className="print-hide fixed left-0 top-0 h-screen z-40 bg-slate-800 border-r border-slate-700 flex flex-col w-72 hidden lg:flex shadow-2xl">
         <div className="h-24 flex items-center justify-between px-6 border-b border-slate-700 shrink-0 bg-slate-900/30">
@@ -366,6 +484,8 @@ export default function App() {
           <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">ระบบรายงานภาพรวม</p>
           <NavItem icon={<LayoutDashboard size={20}/>} label="ภาพรวมนโยบาย" isActive={view==='DASHBOARD_POLICY'} onClick={()=>navigateTo('DASHBOARD_POLICY')} />
           <NavItem icon={<PieChart size={20}/>} label="ภาพรวมภารกิจ" isActive={view==='DASHBOARD_TASK'} onClick={()=>navigateTo('DASHBOARD_TASK')} />
+          {/* เพิ่มเมนูแผนภูมิแกนต์ */}
+          <NavItem icon={<AlignLeft size={20}/>} label="แผนภูมิแกนต์ (Gantt)" isActive={view==='GANTT_CHART'} onClick={()=>navigateTo('GANTT_CHART')} />
           
           <div className="border-t border-slate-700/50 my-6"></div>
           
@@ -396,6 +516,7 @@ export default function App() {
            <div className="p-4 space-y-1.5 mt-4">
               <NavItem icon={<LayoutDashboard size={20}/>} label="ภาพรวมนโยบาย" isActive={view==='DASHBOARD_POLICY'} onClick={()=>navigateTo('DASHBOARD_POLICY')} />
               <NavItem icon={<PieChart size={20}/>} label="ภาพรวมภารกิจ" isActive={view==='DASHBOARD_TASK'} onClick={()=>navigateTo('DASHBOARD_TASK')} />
+              <NavItem icon={<AlignLeft size={20}/>} label="แผนภูมิแกนต์ (Gantt)" isActive={view==='GANTT_CHART'} onClick={()=>navigateTo('GANTT_CHART')} />
               <div className="border-t border-slate-800 my-4"></div>
               <NavItem icon={<ScrollText size={20}/>} label="ฐานข้อมูลนโยบาย" isActive={view==='POLICIES'} onClick={()=>navigateTo('POLICIES')} />
               <NavItem icon={<CheckSquare size={20}/>} label="ติดตามภารกิจ (Tasks)" isActive={view==='TASKS'} onClick={()=>navigateTo('TASKS')} />
@@ -414,7 +535,7 @@ export default function App() {
       )}
 
       {/* Main Content Area */}
-      <main className="flex-1 lg:ml-72 pt-20 lg:pt-0 p-4 md:p-8 min-h-screen overflow-y-auto custom-scrollbar relative">
+      <main className={`flex-1 lg:ml-72 pt-20 lg:pt-0 p-4 md:p-8 min-h-screen overflow-y-auto custom-scrollbar relative ${isWarRoomMode ? 'hidden' : 'block'}`}>
         <div className="max-w-7xl mx-auto pb-24">
           
           {appDb.isDemoMode && (
@@ -431,8 +552,15 @@ export default function App() {
             </h2>
             <div className="flex items-center gap-3 md:gap-4 relative">
               {isSyncing && <span className="hidden md:flex text-amber-500 text-xs font-bold items-center gap-1.5 bg-amber-500/10 px-3 py-1.5 rounded-full border border-amber-500/20"><RefreshCcw size={12} className="animate-spin"/> ซิงค์</span>}
-              <button onClick={loadData} className="p-2.5 bg-slate-900 rounded-xl hover:bg-slate-700 text-slate-400 transition-colors border border-slate-700 shadow-sm hover:text-white"><RefreshCcw size={18}/></button>
+              <button onClick={loadData} className="p-2.5 bg-slate-900 rounded-xl hover:bg-slate-700 text-slate-400 transition-colors border border-slate-700 shadow-sm hover:text-white" title="รีเฟรชข้อมูล"><RefreshCcw size={18}/></button>
               
+              {/* ปุ่มเข้าโหมด War Room */}
+              {isAdminOrExec && (
+                <button onClick={() => setIsWarRoomMode(true)} className="hidden md:flex p-2.5 bg-indigo-900/50 rounded-xl hover:bg-indigo-600 text-indigo-300 transition-colors border border-indigo-700 shadow-sm hover:text-white items-center gap-2" title="เปิดโหมดห้องบัญชาการ">
+                  <Tv size={18}/> <span className="text-xs font-bold uppercase tracking-wider">War Room</span>
+                </button>
+              )}
+
               {/* 🔔 Notification Bell */}
               <div className="relative">
                 <button onClick={() => setIsNotificationOpen(!isNotificationOpen)} className="p-2.5 bg-slate-900 rounded-xl hover:bg-slate-700 text-slate-400 transition-colors border border-slate-700 shadow-sm hover:text-white relative">
@@ -477,6 +605,7 @@ export default function App() {
           {/* Router Views Management */}
           {view === 'DASHBOARD_POLICY' && <PolicyDashboard appDb={appDb} user={user} />}
           {view === 'DASHBOARD_TASK' && <TaskDashboard appDb={appDb} user={user} />}
+          {view === 'GANTT_CHART' && <GanttChartDashboard appDb={appDb} user={user} />}
           {view === 'POLICIES' && <Policies appDb={appDb} user={user} showToast={showToast} callApi={callApi} refresh={loadData} />}
           {view === 'TASKS' && <TaskTracker appDb={appDb} user={user} showToast={showToast} callApi={callApi} refresh={loadData} />}
           {view === 'REPORT_FORM' && <ReportForm appDb={appDb} user={user} showToast={showToast} setView={setView} callApi={callApi} refresh={loadData} />}
@@ -494,7 +623,106 @@ export default function App() {
         </div>
       )}
 
-      <Chatbot appDb={appDb} />
+      {!isWarRoomMode && <Chatbot appDb={appDb} />}
+    </div>
+  );
+}
+
+// ============================================================
+// 📊 แผนภูมิแกนต์ (Gantt Chart Dashboard)
+// ============================================================
+function GanttChartDashboard({ appDb, user }) {
+  const isAdminOrExec = user.role === 'admin' || user.role === 'executive';
+  const [filterUnit, setFilterUnit] = useState(isAdminOrExec ? 'ALL' : user.unitName);
+
+  const baseTasks = useMemo(() => {
+    let tasks = appDb.tasks || [];
+    if (filterUnit !== 'ALL') tasks = tasks.filter(t => t.primary_unit === filterUnit || t.secondary_units?.includes(filterUnit));
+    return tasks.filter(t => t.start_date && t.end_date).sort((a,b) => new Date(a.start_date) - new Date(b.start_date));
+  }, [appDb.tasks, filterUnit]);
+
+  // หา Min/Max Date สำหรับวาดสเกลเวลา
+  const { minTime, maxTime, totalDays } = useMemo(() => {
+    if (baseTasks.length === 0) return { minTime: 0, maxTime: 0, totalDays: 0 };
+    const min = Math.min(...baseTasks.map(t => new Date(t.start_date).getTime()));
+    const max = Math.max(...baseTasks.map(t => new Date(t.end_date).getTime()));
+    const days = (max - min) / 86400000;
+    return { minTime: min, maxTime: max, totalDays: days || 1 };
+  }, [baseTasks]);
+
+  // สร้าง Header เดือนแบบคร่าวๆ
+  const monthHeaders = useMemo(() => {
+     if(totalDays === 0) return [];
+     const headers = [];
+     const startD = new Date(minTime);
+     const endD = new Date(maxTime);
+     let curr = new Date(startD.getFullYear(), startD.getMonth(), 1);
+     while(curr <= endD) {
+        headers.push(curr.toLocaleDateString('th-TH', { month: 'short', year: '2-digit' }));
+        curr.setMonth(curr.getMonth() + 1);
+     }
+     return headers;
+  }, [minTime, maxTime, totalDays]);
+
+  return (
+    <div className="space-y-6 animate-fade-in-up text-slate-100">
+      <div className="bg-slate-800 p-6 md:p-8 rounded-2xl border border-slate-700 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div>
+          <h2 className="text-2xl md:text-3xl font-bold flex gap-3 text-sky-400 mb-1.5"><AlignLeft size={32}/> แผนภูมิแกนต์ภาพรวมตลอดปี</h2>
+          <p className="text-sm text-slate-400 font-medium">มุมมองแผนงาน (Timeline) และความคาบเกี่ยวของภารกิจ</p>
+        </div>
+        <select value={filterUnit} onChange={e => setFilterUnit(e.target.value)} disabled={!isAdminOrExec} className="w-full md:w-auto bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-sm font-bold disabled:opacity-50 outline-none focus:border-sky-500 shadow-inner transition-colors"><option value="ALL">- ทุกหน่วยงาน -</option>{(appDb.units||[]).map(u => <option key={u.id} value={u.name}>{u.name}</option>)}</select>
+      </div>
+
+      <div className="bg-slate-800 rounded-3xl border border-slate-700 overflow-hidden shadow-2xl p-6">
+        {baseTasks.length === 0 ? (
+           <div className="text-center py-20 text-slate-500 border-2 border-dashed border-slate-700 rounded-2xl bg-slate-900/30">
+             <AlignLeft size={48} className="mx-auto mb-4 opacity-20"/>
+             <p className="text-xl font-bold">ไม่มีข้อมูลภารกิจสำหรับแสดงแผนภูมิแกนต์</p>
+           </div>
+        ) : (
+          <div className="overflow-x-auto custom-scrollbar pb-4">
+             <div className="min-w-[800px]">
+                {/* Timeline Header */}
+                <div className="flex border-b border-slate-700 pb-3 mb-4 sticky top-0 bg-slate-800 z-10">
+                   <div className="w-1/3 shrink-0 font-bold text-slate-400 text-sm pl-2">รายชื่อภารกิจ</div>
+                   <div className="w-2/3 flex justify-between text-xs text-slate-500 font-bold px-2 relative">
+                      {monthHeaders.map((m, i) => (
+                         <div key={i} className="flex-1 text-center border-l border-slate-700/50 border-dashed">{m}</div>
+                      ))}
+                   </div>
+                </div>
+                
+                {/* Tasks Bars */}
+                <div className="space-y-4">
+                   {baseTasks.map(t => {
+                      const leftPercent = Math.max(0, ((new Date(t.start_date).getTime() - minTime) / (totalDays * 86400000)) * 100);
+                      const widthPercent = Math.max(1, ((new Date(t.end_date).getTime() - new Date(t.start_date).getTime()) / (totalDays * 86400000)) * 100);
+                      const barColor = t.status === 'เสร็จสิ้น' ? 'bg-emerald-500' : t.status === 'ล่าช้า/ติดปัญหา' ? 'bg-red-500' : 'bg-sky-500';
+
+                      return (
+                        <div key={t.task_id} className="flex items-center text-sm hover:bg-slate-700/30 p-2 rounded-xl transition-colors group">
+                           <div className="w-1/3 shrink-0 pr-4 border-r border-slate-700/50">
+                              <p className="font-bold text-slate-200 truncate" title={t.task_name}>{t.task_name}</p>
+                              <p className="text-[10px] text-slate-500 mt-1 font-mono">{formatDate(t.start_date)} - {formatDate(t.end_date)}</p>
+                           </div>
+                           <div className="w-2/3 relative h-8 bg-slate-900/50 rounded-lg ml-4 overflow-hidden border border-slate-700/50">
+                              <div 
+                                className={`absolute h-full rounded-md shadow-md flex items-center px-2 transition-all ${barColor} opacity-90 group-hover:opacity-100`}
+                                style={{left: `${leftPercent}%`, width: `${widthPercent}%`, minWidth: '8px'}}
+                                title={`${t.task_name} (${t.progress_percent}%)`}
+                              >
+                                {widthPercent > 10 && <span className="text-[10px] font-bold text-white drop-shadow-md truncate font-mono">{t.progress_percent}%</span>}
+                              </div>
+                           </div>
+                        </div>
+                      )
+                   })}
+                </div>
+             </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -761,7 +989,7 @@ function PolicyDashboard({ appDb, user }) {
                  </div>
                </div>
 
-               {/* แสดงตารางแบบเต็มความกว้าง (Full Width) */}
+               {/* แสดงตารางแบบเต็มความกว้าง (Full Width) ไม่โดนบีบ และเอา Scroll ออก */}
                <div className="w-full bg-slate-800 p-6 md:p-8 rounded-2xl border border-slate-700 shadow-lg">
                   <h4 className="font-bold mb-6 text-slate-300 flex justify-between items-center text-sm uppercase tracking-widest border-b border-slate-700 pb-4">
                     รายการข้อสั่งการ {selectedStatus && <span className="text-[10px] bg-amber-500/20 text-amber-500 px-3 py-1.5 rounded-full border border-amber-500/30 font-bold tracking-normal normal-case">ตัวกรอง: {selectedStatus}</span>}
@@ -804,7 +1032,6 @@ function PolicyDashboard({ appDb, user }) {
     );
   }
 
-  // คำนวณจำนวนนโยบายหลักและข้อสั่งการเพิ่มเติมสำหรับสถิติการ์ดด้านบน
   const mainPoliciesCount = basePolicies.filter(p => p.category === 'นโยบายหลัก').length;
   const addonPoliciesCount = basePolicies.filter(p => p.category === 'สั่งการเพิ่มเติม').length;
 
@@ -849,7 +1076,7 @@ function PolicyDashboard({ appDb, user }) {
         ))}
       </div>
 
-      <div className="space-y-16">
+      <div className="space-y-16 relative z-10">
         {renderSection('นโยบายหลัก', <ShieldCheck size={36}/>, basePolicies.filter(p => p.category === 'นโยบายหลัก'))}
         {renderSection('สั่งการเพิ่มเติม', <FileText size={36}/>, basePolicies.filter(p => p.category === 'สั่งการเพิ่มเติม'))}
       </div>
@@ -1123,6 +1350,12 @@ function TaskDashboard({ appDb, user }) {
                   const hasSubtasks = parsedSubtasks && parsedSubtasks.length > 0;
                   const isExpanded = expandedTaskId === t.task_id;
                   const deadline = getDeadlineStatus(t.end_date, t.status);
+                  
+                  // สำหรับดึงจำนวนข้อความสนทนา
+                  let parsedLogs = [];
+                  if (t.note) {
+                    try { const maybeLogs = JSON.parse(t.note); if(Array.isArray(maybeLogs)) parsedLogs = maybeLogs; } catch(e) {}
+                  }
 
                   return (
                     <React.Fragment key={t.task_id}>
@@ -1133,14 +1366,8 @@ function TaskDashboard({ appDb, user }) {
                               <p className="font-bold text-base leading-relaxed mb-1" title={t.task_name}>{t.task_name}</p>
                               <div className="flex items-center gap-3 mb-2">
                                 <span className={`text-[10px] px-2 py-0.5 rounded border font-mono ${deadline.color}`}><Clock size={10} className="inline mr-1 mb-0.5"/>{deadline.label}</span>
+                                {parsedLogs.length > 0 && <span className="text-[10px] bg-slate-800 border border-slate-600 text-slate-400 px-2 py-0.5 rounded-full flex items-center gap-1"><MessageSquare size={10}/> {parsedLogs.length} ข้อความ</span>}
                               </div>
-                              {/* แจ้งเตือนข้อสั่งการแอดมิน */}
-                              {t.admin_feedback && (
-                                <div className="mt-2 bg-amber-950/40 border border-amber-500/50 p-2.5 rounded-lg">
-                                  <p className="text-[11px] text-amber-400 font-bold flex items-center gap-1.5 mb-1"><MessageCircle size={12}/> ข้อสั่งการ/ข้อเสนอแนะจากส่วนกลาง:</p>
-                                  <p className="text-xs text-amber-100/80 italic">"{t.admin_feedback}"</p>
-                                </div>
-                              )}
                             </div>
                             {hasSubtasks && <div className="mt-1 text-slate-500 shrink-0 bg-slate-900/50 p-1.5 rounded-lg border border-slate-700">{isExpanded ? <ChevronUp size={18} className="text-amber-500"/> : <ChevronDown size={18}/>}</div>}
                           </div>
@@ -1202,7 +1429,6 @@ function TaskDashboard({ appDb, user }) {
                                <div className="flex justify-between items-center">
                                   <span className={`text-[9px] px-1.5 py-0.5 rounded border font-mono ${deadline.color}`}><Clock size={10} className="inline mr-1"/>{deadline.label}</span>
                                </div>
-                               {t.admin_feedback && <div className="mt-3 pt-3 border-t border-slate-700"><p className="text-[10px] text-amber-500 italic"><MessageCircle size={10} className="inline mr-1"/>{t.admin_feedback}</p></div>}
                             </div>
                           )
                        })}
@@ -1365,7 +1591,7 @@ function Policies({ appDb, user, showToast, callApi, refresh }) {
 }
 
 // ============================================================
-// 5. ติดตามภารกิจ (Tasks Tracker)
+// 5. ติดตามภารกิจ (Tasks Tracker) พร้อมระบบสนทนาโต้ตอบ (Two-way Log)
 // ============================================================
 function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
   const [search, setSearch] = useState(''); 
@@ -1377,6 +1603,11 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
   const [newSubtask, setNewSubtask] = useState('');
   const [formProgress, setFormProgress] = useState(0);
   const [formStatus, setFormStatus] = useState('รอดำเนินการ');
+  
+  // State สำหรับกระดานสนทนา (Task Logs)
+  const [taskLogs, setTaskLogs] = useState([]);
+  const [newLogMsg, setNewLogMsg] = useState('');
+  const logsEndRef = useRef(null);
   
   const tasks = appDb.tasks || []; 
   const isAdminOrExec = user.role === 'admin' || user.role === 'executive';
@@ -1406,7 +1637,41 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
     if (data && data.subtasks) { try { parsedSubtasks = typeof data.subtasks === 'string' ? JSON.parse(data.subtasks) : data.subtasks; } catch(e) { parsedSubtasks = []; } }
     setSubtasks(parsedSubtasks);
     setNewSubtask('');
+
+    // แปลงข้อความในฟิลด์ note ให้กลายเป็นกล่องสนทนา
+    let parsedLogs = [];
+    if (data && data.note) { 
+      try { 
+        const maybeLogs = JSON.parse(data.note); 
+        if(Array.isArray(maybeLogs)) parsedLogs = maybeLogs; 
+        else parsedLogs = [{ id: 'old', sender: 'System/User', role: 'user', text: data.note, timestamp: new Date().toISOString() }];
+      } catch(e) { 
+        parsedLogs = [{ id: 'old', sender: data.primary_unit, role: 'user', text: data.note, timestamp: new Date().toISOString() }]; 
+      } 
+    }
+    setTaskLogs(parsedLogs);
+    setNewLogMsg('');
+
     setModalOpen(true);
+  };
+
+  useEffect(() => {
+    if (logsEndRef.current) {
+      logsEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [taskLogs]);
+
+  const handleAddLog = () => {
+    if (!newLogMsg.trim()) return;
+    const newLog = {
+       id: Date.now(),
+       sender: user.unitName,
+       role: user.role,
+       text: newLogMsg.trim(),
+       timestamp: new Date().toISOString()
+    };
+    setTaskLogs([...taskLogs, newLog]);
+    setNewLogMsg('');
   };
 
   const handleAddSubtask = () => {
@@ -1439,7 +1704,12 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
     if (subtasks.length > 0) payload.subtasks = JSON.stringify(subtasks); else payload.subtasks = "";
     if(payload.status !== 'ล่าช้า/ติดปัญหา') payload.root_cause = '';
     
-    if(isAdmin && data.admin_feedback) payload.admin_feedback = data.admin_feedback;
+    // บันทึกระบบสนทนาลงใน note
+    if (taskLogs.length > 0) {
+      payload.note = JSON.stringify(taskLogs);
+    } else {
+      payload.note = '';
+    }
     
     showToast('กำลังอัปเดตภารกิจ...'); 
     const success = await callApi(isUpdating ? "update" : "insert", "tasks", payload, "task_id", taskId);
@@ -1455,7 +1725,7 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
        <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-slate-800 p-6 md:p-8 rounded-3xl border border-slate-700 shadow-xl gap-6">
          <div className="flex items-center gap-4">
             <div className="bg-sky-500/20 p-4 rounded-2xl border border-sky-500/30 text-sky-400 shadow-inner"><CheckSquare size={32} /></div>
-            <div><h2 className="text-2xl md:text-3xl font-bold whitespace-nowrap text-white">ติดตามการปฏิบัติงาน (Tasks)</h2><p className="text-sm text-slate-400 mt-1 font-medium tracking-wide">อัปเดตความคืบหน้าภารกิจย่อยในหน่วยของท่าน</p></div>
+            <div><h2 className="text-2xl md:text-3xl font-bold whitespace-nowrap text-white">ติดตามการปฏิบัติงาน (Tasks)</h2><p className="text-sm text-slate-400 mt-1 font-medium tracking-wide">อัปเดตความคืบหน้าและหารือปัญหาในภารกิจ</p></div>
          </div>
          <div className="flex flex-wrap gap-4 w-full md:w-auto">
             <div className="relative flex-1 min-w-[300px] shadow-md">
@@ -1481,6 +1751,12 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
                   const completedSt = tSubtasks.filter(s=>s.done).length;
                   const hasSubtasks = tSubtasks && tSubtasks.length > 0;
                   const isExpanded = expandedTaskId === t.task_id;
+                  
+                  // สำหรับดึงจำนวนข้อความสนทนา
+                  let parsedLogs = [];
+                  if (t.note) {
+                    try { const maybeLogs = JSON.parse(t.note); if(Array.isArray(maybeLogs)) parsedLogs = maybeLogs; } catch(e) {}
+                  }
 
                   return (
                   <React.Fragment key={t.task_id}>
@@ -1494,21 +1770,17 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
                               <div className="flex-1">
                                 <p className="font-bold text-slate-100 text-base leading-relaxed mb-2" title={t.task_name}>{t.task_name}</p>
                                 
-                                {t.policy_id && (
-                                  <div className="inline-block mb-3 px-2 py-1 bg-amber-900/30 border border-amber-500/30 text-[10px] text-amber-400 font-bold rounded"><ShieldCheck size={12} className="inline mr-1"/>สนับสนุนนโยบาย</div>
-                                )}
+                                <div className="flex flex-wrap items-center gap-2 mb-3">
+                                  {t.policy_id && (
+                                    <span className="px-2 py-1 bg-amber-900/30 border border-amber-500/30 text-[10px] text-amber-400 font-bold rounded"><ShieldCheck size={12} className="inline mr-1"/>สนับสนุนนโยบาย</span>
+                                  )}
+                                  {parsedLogs.length > 0 && (
+                                    <span className="bg-indigo-900/40 border border-indigo-500/30 text-[10px] text-indigo-300 font-bold px-2 py-1 rounded flex items-center gap-1"><MessageSquare size={12}/> โต้ตอบ {parsedLogs.length} ข้อความ</span>
+                                  )}
+                                </div>
                                 
                                 {hasSubtasks && <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium mb-3 bg-slate-900/50 px-2 py-1.5 rounded-lg border border-slate-700/50 w-max"><CheckSquare size={14} className="text-emerald-500"/> งานย่อย: <span className="text-white ml-1">{completedSt}/{tSubtasks.length}</span></div>}
                                 {t.status === 'ล่าช้า/ติดปัญหา' && t.root_cause && <div className="block mt-2 mb-3"><div className="text-[11px] text-red-400 bg-red-950/40 border border-red-900/50 px-3 py-2 rounded-lg inline-flex items-center gap-1.5"><AlertOctagon size={14}/> <span className="font-bold">สาเหตุหลัก:</span> {t.root_cause}</div></div>}
-                                {t.note && <p className="text-xs text-slate-400 bg-slate-900/60 p-3 rounded-lg border border-slate-700/50 line-clamp-2 mt-2 leading-relaxed shadow-inner font-medium"><span className="text-sky-500 font-bold mb-1 block">หมายเหตุล่าสุด:</span>{t.note}</p>}
-                                
-                                {/* 💬 แจ้งเตือนข้อสั่งการแอดมิน */}
-                                {t.admin_feedback && (
-                                  <div className="mt-3 bg-amber-950/50 border-l-2 border-amber-500 p-2.5 rounded-r-lg">
-                                    <p className="text-[11px] text-amber-400 font-bold flex items-center gap-1.5 mb-1"><MessageCircle size={12}/> ข้อสั่งการ/ข้อเสนอแนะจากส่วนกลาง:</p>
-                                    <p className="text-xs text-amber-100/80 italic">"{t.admin_feedback}"</p>
-                                  </div>
-                                )}
                               </div>
                            </div>
                            {hasSubtasks && <div className="mt-1 text-slate-500 shrink-0 bg-slate-900/50 p-1.5 rounded-lg border border-slate-700">{isExpanded ? <ChevronUp size={18} className="text-amber-500"/> : <ChevronDown size={18}/>}</div>}
@@ -1559,7 +1831,7 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
                     )}
                   </React.Fragment>
                 )})}
-                {filtered.length===0&&<tr><td colSpan="6" className="p-20 text-center text-slate-500 text-xl border-dashed border-2 border-slate-700/50 m-4 rounded-2xl bg-slate-900/30">ไม่มีข้อมูลภารกิจในขณะนี้</td></tr>}
+                {filtered.length===0&&<tr><td colSpan={6} className="p-20 text-center text-slate-500 text-xl border-dashed border-2 border-slate-700/50 m-4 rounded-2xl bg-slate-900/30">ไม่มีข้อมูลภารกิจในขณะนี้</td></tr>}
              </tbody>
            </table>
          </div>
@@ -1568,96 +1840,118 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
        {isModalOpen && (
           <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md overflow-y-auto">
              <div className="flex min-h-screen items-start justify-center p-4 md:p-8">
-               <div className="my-auto relative transform overflow-hidden bg-slate-800 p-8 md:p-10 rounded-3xl w-full max-w-4xl text-left text-white shadow-2xl border border-slate-600 animate-fade-in-up">
+               <div className="my-auto relative transform overflow-hidden bg-slate-800 p-6 md:p-10 rounded-3xl w-full max-w-5xl text-left text-white shadow-2xl border border-slate-600 animate-fade-in-up">
                   <div className="flex justify-between items-center mb-8 border-b border-slate-700 pb-5">
-                     <h3 className="text-3xl font-bold text-sky-400 flex items-center gap-4 tracking-wide"><div className="bg-sky-500/20 p-3 rounded-2xl shadow-inner border border-sky-500/30">{editData?<Activity size={28}/>:<Plus size={28}/>}</div> {editData?'รายงานความคืบหน้าภารกิจ':'เพิ่มภารกิจใหม่'}</h3>
+                     <h3 className="text-2xl md:text-3xl font-bold text-sky-400 flex items-center gap-4 tracking-wide"><div className="bg-sky-500/20 p-3 rounded-2xl shadow-inner border border-sky-500/30">{editData?<Activity size={28}/>:<Plus size={28}/>}</div> {editData?'รายงานความคืบหน้า & สนทนาโต้ตอบ':'เพิ่มภารกิจใหม่'}</h3>
                      <button onClick={()=>setModalOpen(false)} className="text-slate-400 hover:text-white bg-slate-900 p-3 rounded-full transition-colors border border-slate-700 hover:bg-red-600 hover:border-red-500"><X size={24}/></button>
                   </div>
                   
-                  <form onSubmit={handleSave} className="space-y-8">
+                  <form onSubmit={handleSave} className="grid grid-cols-1 xl:grid-cols-2 gap-8">
                      
-                     <div className="bg-slate-900/50 p-8 rounded-3xl border border-slate-700 space-y-6 shadow-inner">
-                       <h4 className="font-bold text-slate-300 border-b border-slate-700/50 pb-3 flex items-center gap-2 text-lg uppercase tracking-widest"><LayoutDashboard size={20} className="text-amber-500"/> ข้อมูลพื้นฐานภารกิจ</h4>
-                       <div><label className="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-widest">ชื่องาน/ภารกิจ <span className="text-red-500">*</span></label><input name="task_name" defaultValue={editData?.task_name} required className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 text-slate-100 transition-colors text-lg" placeholder="พิมพ์ชื่องานที่นี่..."/></div>
-                       
-                       {/* Dropdown เชื่อมโยงนโยบาย */}
-                       <div>
-                         <label className="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-widest">สนับสนุนนโยบายข้อใด (ถ้ามี)</label>
-                         <select name="policy_id" defaultValue={editData?.policy_id || ''} className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-sky-500 transition-colors text-slate-200 shadow-inner">
-                           <option value="">-- ไม่ระบุ (งานทั่วไป) --</option>
-                           {(appDb.policies||[]).map(p => <option key={p.policy_id} value={p.policy_id}>[{p.policy_no}] {p.order.substring(0,80)}...</option>)}
-                         </select>
-                       </div>
-
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div><label className="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-widest">วันที่เริ่ม <span className="text-red-500">*</span></label><input type="date" name="start_date" defaultValue={editData?.start_date?editData.start_date.substring(0,10):new Date().toISOString().substring(0,10)} required className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-sky-500 transition-colors font-mono" style={{colorScheme:'dark'}}/></div>
-                          <div><label className="text-xs font-bold text-emerald-400 mb-2 block flex items-center gap-1.5 uppercase tracking-widest"><Clock size={14}/> วันกำหนดเสร็จ (Deadline)</label><input type="date" name="end_date" defaultValue={editData?.end_date?editData.end_date.substring(0,10):''} required className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-emerald-500 transition-colors text-emerald-400 font-mono font-bold shadow-inner" style={{colorScheme:'dark'}}/></div>
-                       </div>
-                       
-                       <div><label className="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-widest">หน่วยรับผิดชอบหลัก <span className="text-red-500">*</span></label>
-                         <select name="primary_unit" defaultValue={editData?.primary_unit || user.unitName} disabled={user.role !== 'admin'} className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-sky-500 text-sky-400 font-bold transition-colors shadow-inner cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed">
-                           {(appDb.units||[]).filter(u=>u.role==='user'||!u.role).map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
-                         </select>
-                       </div>
-                     </div>
-
-                     <div className="bg-slate-900/50 p-8 rounded-3xl border border-slate-700 space-y-5 shadow-inner">
-                        <h4 className="font-bold text-emerald-400 border-b border-slate-700/50 pb-3 flex items-center justify-between text-lg uppercase tracking-widest">
-                           <span className="flex items-center gap-2"><CheckSquare size={20}/> งานย่อย (Checklist)</span><span className="text-xs bg-slate-800 px-3 py-1.5 rounded-full text-slate-400 border border-slate-600 shadow-sm">{subtasks.filter(s=>s.done).length} / {subtasks.length} สำเร็จ</span>
-                        </h4>
-                        <div className="space-y-2.5 max-h-48 overflow-y-auto custom-scrollbar pr-2">
-                           {subtasks.map(st => (
-                             <div key={st.id} className={`flex items-center gap-4 p-3.5 rounded-xl border transition-colors ${st.done ? 'bg-emerald-950/20 border-emerald-900/50' : 'bg-slate-800 border-slate-700'}`}>
-                               <button type="button" onClick={() => toggleSubtask(st.id)} className={`shrink-0 transition-transform hover:scale-110 ${st.done ? 'text-emerald-500' : 'text-slate-500'}`}>{st.done ? <CheckCircle2 size={24}/> : <Circle size={24}/>}</button>
-                               <span className={`flex-1 text-base font-medium transition-all ${st.done ? 'text-slate-500 line-through' : 'text-slate-100'}`}>{st.text}</span>
-                               <button type="button" onClick={() => removeSubtask(st.id)} className="text-slate-500 hover:text-red-400 p-2 rounded-lg hover:bg-slate-700 transition-colors"><Trash2 size={18}/></button>
-                             </div>
-                           ))}
-                           {subtasks.length === 0 && <div className="text-center py-6 text-slate-500 border-2 border-dashed border-slate-700 rounded-xl bg-slate-800/50"><p className="text-sm">ยังไม่มีการเพิ่มงานย่อย</p><p className="text-xs mt-1">สามารถเพิ่มงานย่อยเพื่อคำนวณความคืบหน้าแบบอัตโนมัติได้</p></div>}
-                        </div>
-                        <div className="flex gap-3 pt-2">
-                           <input value={newSubtask} onChange={e=>setNewSubtask(e.target.value)} onKeyDown={(e) => { if(e.key==='Enter'){ e.preventDefault(); handleAddSubtask(); } }} placeholder="พิมพ์รายละเอียดงานย่อยแล้วกด Enter หรือปุ่มเพิ่ม..." className="flex-1 bg-slate-800 border border-slate-600 rounded-xl px-5 py-3.5 text-sm text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-colors shadow-inner"/>
-                           <button type="button" onClick={handleAddSubtask} className="bg-slate-700 hover:bg-emerald-600 text-white px-6 py-3.5 rounded-xl text-sm font-bold transition-colors shadow-md">เพิ่ม</button>
-                        </div>
-                     </div>
-
-                     <div className="bg-sky-950/20 p-8 rounded-3xl border border-sky-900/50 space-y-6 shadow-inner relative overflow-hidden">
-                       <div className="absolute right-0 bottom-0 opacity-5"><Activity size={200} className="text-sky-500"/></div>
-                       <h4 className="font-bold text-sky-400 border-b border-sky-900/50 pb-3 flex items-center gap-2 text-lg uppercase tracking-widest relative z-10"><Activity size={20}/> การรายงานสถานะ</h4>
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
-                          <div>
-                            <label className="text-xs font-bold text-sky-300 mb-2 block uppercase tracking-widest">สถานะปัจจุบัน <span className="text-red-500">*</span></label>
-                            <select name="status" value={formStatus} onChange={(e) => setFormStatus(e.target.value)} className="w-full bg-slate-900 p-4 rounded-xl border border-sky-700/50 outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-500 transition-colors font-bold text-base shadow-inner">
-                              <option value="รอดำเนินการ">รอดำเนินการ</option><option value="กำลังดำเนินการ">กำลังดำเนินการ</option><option value="เสร็จสิ้น">เสร็จสิ้น</option><option value="ล่าช้า/ติดปัญหา">ล่าช้า/ติดปัญหา</option>
-                            </select>
-                          </div>
-                          <div className="relative">
-                            <label className="text-xs font-bold text-sky-300 mb-2 block uppercase tracking-widest flex items-center gap-2">ความคืบหน้า (%) <span className="text-red-500">*</span>{subtasks.length > 0 && <span className="text-[10px] bg-emerald-900/50 text-emerald-400 px-2 py-1 rounded-md border border-emerald-500/30">คำนวณอัตโนมัติจากงานย่อย</span>}</label>
-                            <input type="number" name="progress_percent" value={formProgress} onChange={(e) => setFormProgress(e.target.value)} min="0" max="100" required readOnly={subtasks.length > 0} className={`w-full bg-slate-900 p-4 rounded-xl border border-sky-700/50 outline-none text-4xl font-mono text-center transition-colors font-bold shadow-inner ${subtasks.length > 0 ? 'text-emerald-400 opacity-80 cursor-not-allowed border-emerald-500/30 bg-emerald-950/20' : 'text-sky-400 focus:border-sky-400 focus:ring-1 focus:ring-sky-500'}`}/>
-                            <div className="absolute right-6 top-[60%] mt-1 text-slate-500 font-bold text-xl">%</div>
-                          </div>
-                       </div>
-                       
-                       {formStatus === 'ล่าช้า/ติดปัญหา' && (
-                         <div className="bg-red-950/40 p-5 rounded-2xl border border-red-900/50 relative z-10 animate-fade-in-up">
-                            <label className="text-xs font-bold text-red-400 mb-2 block uppercase tracking-widest flex items-center gap-2"><AlertOctagon size={16}/> กรุณาระบุสาเหตุหลัก (Root Cause) <span className="text-red-500">*</span></label>
-                            <select name="root_cause" defaultValue={editData?.root_cause || ''} required className="w-full bg-slate-900 p-4 rounded-xl border border-red-500/50 outline-none focus:border-red-500 transition-colors font-bold text-base shadow-inner text-slate-200"><option value="">-- เลือกระบุสาเหตุที่ทำให้งานล่าช้า --</option>{ROOT_CAUSES.map(rc => <option key={rc} value={rc}>{rc}</option>)}</select>
+                     <div className="space-y-6">
+                       <div className="bg-slate-900/50 p-6 md:p-8 rounded-3xl border border-slate-700 space-y-6 shadow-inner">
+                         <h4 className="font-bold text-slate-300 border-b border-slate-700/50 pb-3 flex items-center gap-2 text-base md:text-lg uppercase tracking-widest"><LayoutDashboard size={20} className="text-amber-500"/> ข้อมูลพื้นฐานภารกิจ</h4>
+                         <div><label className="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-widest">ชื่องาน/ภารกิจ <span className="text-red-500">*</span></label><input name="task_name" defaultValue={editData?.task_name} required className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 text-slate-100 transition-colors text-base md:text-lg" placeholder="พิมพ์ชื่องานที่นี่..."/></div>
+                         
+                         <div>
+                           <label className="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-widest">สนับสนุนนโยบายข้อใด (ถ้ามี)</label>
+                           <select name="policy_id" defaultValue={editData?.policy_id || ''} className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-sky-500 transition-colors text-slate-200 shadow-inner">
+                             <option value="">-- ไม่ระบุ (งานทั่วไป) --</option>
+                             {(appDb.policies||[]).map(p => <option key={p.policy_id} value={p.policy_id}>[{p.policy_no}] {p.order.substring(0,80)}...</option>)}
+                           </select>
                          </div>
-                       )}
 
-                       <div className="relative z-10"><label className="text-xs font-bold text-sky-300 mb-2 block uppercase tracking-widest">หมายเหตุ / อัปเดตล่าสุด</label><textarea name="note" defaultValue={editData?.note} rows="4" className="w-full bg-slate-900 p-4 rounded-xl border border-sky-700/50 outline-none focus:border-sky-400 transition-colors leading-relaxed shadow-inner text-base" placeholder="ระบุความคืบหน้าล่าสุดที่ได้ทำไป..."></textarea></div>
-                       
-                       {/* 💬 Admin Feedback (เฉพาะ Admin ที่พิมพ์ได้) */}
-                       {isAdmin && (
-                         <div className="relative z-10 mt-6 pt-6 border-t border-sky-900/50">
-                           <label className="text-xs font-bold text-amber-500 mb-2 block uppercase tracking-widest flex items-center gap-1.5"><MessageCircle size={14}/> ข้อสั่งการ/ข้อเสนอแนะจากส่วนกลาง (เฉพาะ Admin)</label>
-                           <textarea name="admin_feedback" defaultValue={editData?.admin_feedback} rows="2" className="w-full bg-amber-950/30 p-4 rounded-xl border border-amber-600/50 outline-none focus:border-amber-400 transition-colors leading-relaxed shadow-inner text-sm text-amber-100" placeholder="พิมพ์ข้อสั่งการถึงหน่วยงาน..."></textarea>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div><label className="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-widest">วันที่เริ่ม <span className="text-red-500">*</span></label><input type="date" name="start_date" defaultValue={editData?.start_date?editData.start_date.substring(0,10):new Date().toISOString().substring(0,10)} required className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-sky-500 transition-colors font-mono" style={{colorScheme:'dark'}}/></div>
+                            <div><label className="text-xs font-bold text-emerald-400 mb-2 block flex items-center gap-1.5 uppercase tracking-widest"><Clock size={14}/> วันกำหนดเสร็จ (Deadline)</label><input type="date" name="end_date" defaultValue={editData?.end_date?editData.end_date.substring(0,10):''} required className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-emerald-500 transition-colors text-emerald-400 font-mono font-bold shadow-inner" style={{colorScheme:'dark'}}/></div>
                          </div>
-                       )}
+                         
+                         <div><label className="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-widest">หน่วยรับผิดชอบหลัก <span className="text-red-500">*</span></label>
+                           <select name="primary_unit" defaultValue={editData?.primary_unit || user.unitName} disabled={user.role !== 'admin'} className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-sky-500 text-sky-400 font-bold transition-colors shadow-inner cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed">
+                             {(appDb.units||[]).filter(u=>u.role==='user'||!u.role).map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
+                           </select>
+                         </div>
+                       </div>
+
+                       <div className="bg-sky-950/20 p-6 md:p-8 rounded-3xl border border-sky-900/50 space-y-6 shadow-inner relative overflow-hidden">
+                         <div className="absolute right-0 bottom-0 opacity-5"><Activity size={200} className="text-sky-500"/></div>
+                         <h4 className="font-bold text-sky-400 border-b border-sky-900/50 pb-3 flex items-center gap-2 text-base md:text-lg uppercase tracking-widest relative z-10"><Activity size={20}/> การรายงานสถานะ</h4>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
+                            <div>
+                              <label className="text-xs font-bold text-sky-300 mb-2 block uppercase tracking-widest">สถานะปัจจุบัน <span className="text-red-500">*</span></label>
+                              <select name="status" value={formStatus} onChange={(e) => setFormStatus(e.target.value)} className="w-full bg-slate-900 p-4 rounded-xl border border-sky-700/50 outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-500 transition-colors font-bold text-base shadow-inner">
+                                <option value="รอดำเนินการ">รอดำเนินการ</option><option value="กำลังดำเนินการ">กำลังดำเนินการ</option><option value="เสร็จสิ้น">เสร็จสิ้น</option><option value="ล่าช้า/ติดปัญหา">ล่าช้า/ติดปัญหา</option>
+                              </select>
+                            </div>
+                            <div className="relative">
+                              <label className="text-xs font-bold text-sky-300 mb-2 block uppercase tracking-widest flex items-center gap-2">ความคืบหน้า (%) <span className="text-red-500">*</span>{subtasks.length > 0 && <span className="text-[10px] bg-emerald-900/50 text-emerald-400 px-2 py-1 rounded-md border border-emerald-500/30">คำนวณอัตโนมัติจากงานย่อย</span>}</label>
+                              <input type="number" name="progress_percent" value={formProgress} onChange={(e) => setFormProgress(e.target.value)} min="0" max="100" required readOnly={subtasks.length > 0} className={`w-full bg-slate-900 p-4 rounded-xl border border-sky-700/50 outline-none text-4xl font-mono text-center transition-colors font-bold shadow-inner ${subtasks.length > 0 ? 'text-emerald-400 opacity-80 cursor-not-allowed border-emerald-500/30 bg-emerald-950/20' : 'text-sky-400 focus:border-sky-400 focus:ring-1 focus:ring-sky-500'}`}/>
+                              <div className="absolute right-6 top-[60%] mt-1 text-slate-500 font-bold text-xl">%</div>
+                            </div>
+                         </div>
+                         
+                         {formStatus === 'ล่าช้า/ติดปัญหา' && (
+                           <div className="bg-red-950/40 p-5 rounded-2xl border border-red-900/50 relative z-10 animate-fade-in-up">
+                              <label className="text-xs font-bold text-red-400 mb-2 block uppercase tracking-widest flex items-center gap-2"><AlertOctagon size={16}/> กรุณาระบุสาเหตุหลัก (Root Cause) <span className="text-red-500">*</span></label>
+                              <select name="root_cause" defaultValue={editData?.root_cause || ''} required className="w-full bg-slate-900 p-4 rounded-xl border border-red-500/50 outline-none focus:border-red-500 transition-colors font-bold text-base shadow-inner text-slate-200"><option value="">-- เลือกระบุสาเหตุที่ทำให้งานล่าช้า --</option>{ROOT_CAUSES.map(rc => <option key={rc} value={rc}>{rc}</option>)}</select>
+                           </div>
+                         )}
+                       </div>
                      </div>
 
-                     <div className="flex justify-end gap-5 pt-8 mt-10 border-t border-slate-700">
-                       <button type="button" onClick={()=>setModalOpen(false)} className="px-8 py-4 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold transition-colors text-lg">ยกเลิก</button>
+                     <div className="space-y-6 flex flex-col h-full">
+                       {/* 🎯 ส่วนงานย่อย */}
+                       <div className="bg-slate-900/50 p-6 md:p-8 rounded-3xl border border-slate-700 shadow-inner">
+                          <h4 className="font-bold text-emerald-400 border-b border-slate-700/50 pb-3 flex items-center justify-between text-base md:text-lg uppercase tracking-widest">
+                             <span className="flex items-center gap-2"><CheckSquare size={20}/> งานย่อย (Checklist)</span><span className="text-xs bg-slate-800 px-3 py-1.5 rounded-full text-slate-400 border border-slate-600 shadow-sm">{subtasks.filter(s=>s.done).length} / {subtasks.length} สำเร็จ</span>
+                          </h4>
+                          <div className="space-y-2.5 max-h-48 overflow-y-auto custom-scrollbar pr-2 mt-4">
+                             {subtasks.map(st => (
+                               <div key={st.id} className={`flex items-center gap-4 p-3 rounded-xl border transition-colors ${st.done ? 'bg-emerald-950/20 border-emerald-900/50' : 'bg-slate-800 border-slate-700'}`}>
+                                 <button type="button" onClick={() => toggleSubtask(st.id)} className={`shrink-0 transition-transform hover:scale-110 ${st.done ? 'text-emerald-500' : 'text-slate-500'}`}>{st.done ? <CheckCircle2 size={24}/> : <Circle size={24}/>}</button>
+                                 <span className={`flex-1 text-sm font-medium transition-all ${st.done ? 'text-slate-500 line-through' : 'text-slate-100'}`}>{st.text}</span>
+                                 <button type="button" onClick={() => removeSubtask(st.id)} className="text-slate-500 hover:text-red-400 p-2 rounded-lg hover:bg-slate-700 transition-colors"><Trash2 size={18}/></button>
+                               </div>
+                             ))}
+                             {subtasks.length === 0 && <div className="text-center py-6 text-slate-500 border-2 border-dashed border-slate-700 rounded-xl bg-slate-800/50"><p className="text-sm">ยังไม่มีการเพิ่มงานย่อย</p><p className="text-xs mt-1">สามารถเพิ่มงานย่อยเพื่อคำนวณความคืบหน้าแบบอัตโนมัติได้</p></div>}
+                          </div>
+                          <div className="flex gap-3 pt-4 border-t border-slate-700/50 mt-4">
+                             <input value={newSubtask} onChange={e=>setNewSubtask(e.target.value)} onKeyDown={(e) => { if(e.key==='Enter'){ e.preventDefault(); handleAddSubtask(); } }} placeholder="พิมพ์รายละเอียดงานย่อยแล้วกด Enter..." className="flex-1 bg-slate-800 border border-slate-600 rounded-xl px-4 py-3 text-sm text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-colors shadow-inner"/>
+                             <button type="button" onClick={handleAddSubtask} className="bg-slate-700 hover:bg-emerald-600 text-white px-5 py-3 rounded-xl text-sm font-bold transition-colors shadow-md">เพิ่ม</button>
+                          </div>
+                       </div>
+
+                       {/* 💬 ส่วนกระดานสนทนา (Task Logs) */}
+                       <div className="bg-indigo-950/20 p-6 md:p-8 rounded-3xl border border-indigo-900/50 shadow-inner flex-1 flex flex-col h-full min-h-[350px]">
+                          <h4 className="font-bold text-indigo-400 border-b border-indigo-900/50 pb-3 flex items-center justify-between text-base md:text-lg uppercase tracking-widest mb-4">
+                             <span className="flex items-center gap-2"><MessageSquare size={20}/> กระดานสนทนา & บันทึกการสั่งการ</span>
+                          </h4>
+                          
+                          <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-4 max-h-[250px] mb-4">
+                             {taskLogs.map((log, index) => {
+                               const isAdminLog = log.role === 'admin' || log.role === 'executive';
+                               return (
+                                 <div key={log.id || index} className={`flex flex-col ${isAdminLog ? 'items-end' : 'items-start'}`}>
+                                    <span className="text-[10px] text-slate-500 font-bold mb-1 flex items-center gap-1.5">{isAdminLog && <ShieldCheck size={10} className="text-amber-500"/>} {log.sender} <span className="font-normal font-mono opacity-50 ml-1">{new Date(log.timestamp).toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'})}</span></span>
+                                    <div className={`p-3 rounded-2xl max-w-[85%] text-sm leading-relaxed shadow-sm ${isAdminLog ? 'bg-indigo-600 text-white rounded-tr-sm' : 'bg-slate-700 text-slate-100 rounded-tl-sm border border-slate-600'}`}>
+                                       {log.text}
+                                    </div>
+                                 </div>
+                               );
+                             })}
+                             {taskLogs.length === 0 && <div className="text-center py-10 text-indigo-500/40 font-bold text-sm">ยังไม่มีข้อความสนทนา เริ่มพิมพ์เพื่อบันทึกประวัติการสั่งการได้เลย</div>}
+                             <div ref={logsEndRef} />
+                          </div>
+
+                          <div className="flex gap-3 pt-4 border-t border-indigo-900/50 mt-auto">
+                             <input value={newLogMsg} onChange={e=>setNewLogMsg(e.target.value)} onKeyDown={(e) => { if(e.key==='Enter'){ e.preventDefault(); handleAddLog(); } }} placeholder="พิมพ์ข้อสั่งการ หรือ ชี้แจงปัญหา..." className="flex-1 bg-slate-900/80 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors shadow-inner"/>
+                             <button type="button" onClick={handleAddLog} className="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-3 rounded-xl text-sm font-bold transition-colors shadow-md flex items-center gap-2"><Send size={16}/> ส่ง</button>
+                          </div>
+                       </div>
+                     </div>
+
+                     <div className="xl:col-span-2 flex justify-end gap-5 pt-8 mt-4 border-t border-slate-700">
+                       <button type="button" onClick={()=>setModalOpen(false)} className="px-8 py-4 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold transition-colors text-lg">ปิดหน้าต่าง</button>
                        <button type="submit" className="px-8 py-4 bg-sky-600 hover:bg-sky-500 font-bold rounded-xl shadow-[0_4px_20px_rgba(2,132,199,0.4)] transition-transform hover:-translate-y-1 flex items-center gap-3 text-white text-lg"><Send size={22}/> บันทึกอัปเดตลงระบบ</button>
                      </div>
                   </form>
