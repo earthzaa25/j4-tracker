@@ -307,7 +307,7 @@ export default function App() {
     setIsMobileMenuOpen(false);
   };
 
-  // 🔔 วิเคราะห์การแจ้งเตือน (Notifications Logic)
+  // 🔔 วิเคราะห์การแจ้งเตือน
   const notificationsList = useMemo(() => {
     if (!appDb.tasks) return [];
     const today = new Date();
@@ -726,57 +726,76 @@ function PolicyDashboard({ appDb, user }) {
            
            return (
              <div key={cmd} className="mb-10 bg-slate-800/30 p-6 md:p-8 rounded-3xl border border-slate-700/50 shadow-sm">
-               <h3 className="text-xl font-bold text-sky-400 mb-6 flex items-center gap-2"><ShieldCheck size={24}/> ผู้สั่งการ: <span className="text-white ml-1">{cmd}</span></h3>
-               <div className="grid lg:grid-cols-12 gap-8">
-                 <div className="lg:col-span-4 bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg flex flex-col items-center">
-                    <h4 className="font-bold mb-6 text-slate-300 w-full text-center text-sm uppercase tracking-widest">สัดส่วนความคืบหน้า</h4>
-                    <div className="w-52 h-52 rounded-full mb-8 cursor-pointer transform hover:scale-105 transition-all shadow-2xl relative" onClick={() => setSelectedStatus(null)} style={{ background: cList.length > 0 ? `conic-gradient(${bgDonut})` : '#334155' }}>
-                       <div className="absolute inset-0 m-auto w-36 h-36 bg-slate-800 rounded-full flex flex-col items-center justify-center border-4 border-slate-800 shadow-inner">
-                         <span className="font-bold text-4xl text-white">{cList.length}</span><span className="text-[10px] text-slate-400 mt-1 uppercase tracking-widest font-bold">ข้อสั่งการ</span>
-                       </div>
-                    </div>
-                    <div className="w-full text-xs space-y-2 mt-auto">
-                       {statsCount.map(s => (
-                         <div key={s.n} onClick={() => setSelectedStatus(s.n === selectedStatus ? null : s.n)} className={`flex justify-between items-center p-3 rounded-xl cursor-pointer transition-all border shadow-sm ${selectedStatus === s.n ? 'bg-slate-700 border-amber-500 scale-105' : 'border-slate-700/50 bg-slate-900/30 hover:bg-slate-700/50 hover:border-slate-600'}`}>
-                           <div className="flex items-center gap-2.5"><span className="w-3.5 h-3.5 rounded-full shadow-inner" style={{ background: STATUS_COLORS[s.n] }}></span><span className={selectedStatus === s.n ? 'text-amber-400 font-bold' : 'text-slate-300 font-medium'}>{s.n}</span></div><span className="font-bold text-xl text-slate-100">{s.value}</span>
-                         </div>
-                       ))}
-                    </div>
+               <div className="flex flex-col xl:flex-row justify-between xl:items-center gap-6 mb-8 border-b border-slate-700/50 pb-6">
+                 <h3 className="text-xl font-bold text-sky-400 flex items-center gap-3">
+                   <ShieldCheck size={28}/> ผู้สั่งการ: <span className="text-white ml-1">{cmd}</span>
+                 </h3>
+                 
+                 {/* Horizontal Filter Bar แบบใหม่พร้อม Donut ขนาดเล็กย้ายมาไว้ข้างบน */}
+                 <div className="flex flex-col md:flex-row items-center gap-6 w-full xl:w-auto bg-slate-900/40 p-4 rounded-2xl border border-slate-700/50 shadow-inner">
+                   <div className="relative w-20 h-20 shrink-0 cursor-pointer hover:scale-105 transition-transform" onClick={() => setSelectedStatus(null)} title="ล้างตัวกรอง">
+                     <div className="w-full h-full rounded-full" style={{ background: cList.length > 0 ? `conic-gradient(${bgDonut})` : '#334155' }}></div>
+                     <div className="absolute inset-0 m-auto w-14 h-14 bg-slate-900 flex flex-col items-center justify-center rounded-full border-[3px] border-slate-900 shadow-inner">
+                        <span className="font-bold text-lg text-white">{cList.length}</span>
+                     </div>
+                   </div>
+                   
+                   <div className="flex flex-wrap justify-center md:justify-start items-center gap-2">
+                     <button 
+                       onClick={() => setSelectedStatus(null)} 
+                       className={`px-4 py-2 rounded-full text-xs font-bold transition-all border shadow-sm ${!selectedStatus ? 'bg-slate-700 text-white border-slate-500' : 'bg-slate-800/50 text-slate-400 border-slate-700 hover:bg-slate-800'}`}
+                     >
+                       ทั้งหมด ({cList.length})
+                     </button>
+                     {statsCount.map(s => (
+                       <button 
+                         key={s.n}
+                         onClick={() => setSelectedStatus(selectedStatus === s.n ? null : s.n)}
+                         className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all border ${selectedStatus === s.n ? 'bg-slate-700 border-amber-500 shadow-md scale-105' : 'bg-slate-800/50 border-slate-700 hover:bg-slate-800'}`}
+                       >
+                         <span className="w-2.5 h-2.5 rounded-full shadow-inner" style={{ background: STATUS_COLORS[s.n] }}></span>
+                         <span className={selectedStatus === s.n ? 'text-amber-400' : 'text-slate-300'}>{s.n} ({s.v})</span>
+                       </button>
+                     ))}
+                   </div>
                  </div>
-                 <div className="lg:col-span-8 bg-slate-800 p-6 md:p-8 rounded-2xl border border-slate-700 shadow-lg flex flex-col">
-                    <h4 className="font-bold mb-6 text-slate-300 flex justify-between items-center text-sm uppercase tracking-widest border-b border-slate-700 pb-4">รายการข้อสั่งการ {selectedStatus && <span className="text-[10px] bg-amber-500/20 text-amber-500 px-3 py-1.5 rounded-full border border-amber-500/30 font-bold tracking-normal normal-case">ตัวกรอง: {selectedStatus}</span>}</h4>
-                    {/* ปรับให้รายการแสดงทั้งหมด ไม่จำกัดความสูงแล้ว */}
-                    <div className="flex-1 space-y-4">
-                       {filtered.map(p => (
-                         <div key={p.id} className={`p-5 rounded-2xl border transition-all shadow-sm ${expandedPolicyId === p.id ? 'bg-slate-700/60 border-amber-500' : 'bg-slate-900 border-slate-700 hover:border-amber-500/50'}`}>
-                           <div className="flex justify-between cursor-pointer group" onClick={() => setExpandedPolicyId(expandedPolicyId === p.id ? null : p.id)}>
-                             <div className="text-sm font-bold text-slate-200 pr-6 leading-relaxed flex flex-col items-start gap-2">
-                               <div className="flex items-start gap-2">
-                                 {p.is_important && <Star size={16} className="shrink-0 text-amber-500 fill-amber-500 mt-0.5 drop-shadow-md"/>}
-                                 <span className="group-hover:text-amber-400 transition-colors" title={p.order}>{p.short}</span>
-                               </div>
-                               {p.meeting_ref && p.meeting_ref !== '-' && (
-                                 <span className="text-[10px] text-indigo-300 bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-500/30 md:ml-6 mt-1 flex items-center gap-1">
-                                   <FileText size={10}/> อ้างอิง: {p.meeting_ref}
-                                 </span>
-                               )}
+               </div>
+
+               {/* แสดงตารางแบบเต็มความกว้าง (Full Width) */}
+               <div className="w-full bg-slate-800 p-6 md:p-8 rounded-2xl border border-slate-700 shadow-lg">
+                  <h4 className="font-bold mb-6 text-slate-300 flex justify-between items-center text-sm uppercase tracking-widest border-b border-slate-700 pb-4">
+                    รายการข้อสั่งการ {selectedStatus && <span className="text-[10px] bg-amber-500/20 text-amber-500 px-3 py-1.5 rounded-full border border-amber-500/30 font-bold tracking-normal normal-case">ตัวกรอง: {selectedStatus}</span>}
+                  </h4>
+                  <div className="space-y-4">
+                     {filtered.map(p => (
+                       <div key={p.id} className={`p-5 rounded-2xl border transition-all shadow-sm ${expandedPolicyId === p.id ? 'bg-slate-700/60 border-amber-500' : 'bg-slate-900 border-slate-700 hover:border-amber-500/50'}`}>
+                         <div className="flex justify-between cursor-pointer group" onClick={() => setExpandedPolicyId(expandedPolicyId === p.id ? null : p.id)}>
+                           <div className="text-sm font-bold text-slate-200 pr-6 leading-relaxed flex flex-col items-start gap-2">
+                             <div className="flex items-start gap-2">
+                               {p.is_important && <Star size={16} className="shrink-0 text-amber-500 fill-amber-500 mt-0.5 drop-shadow-md"/>}
+                               <span className="group-hover:text-amber-400 transition-colors" title={p.order}>{p.short}</span>
                              </div>
-                             <div className="flex flex-col items-end shrink-0"><span className="font-mono font-bold text-xl drop-shadow-md" style={{ color: getBarColor(p.prog) }}>{p.prog}%</span>{expandedPolicyId === p.id ? <ChevronUp size={18} className="text-amber-500 mt-1"/> : <ChevronDown size={18} className="text-slate-500 mt-1 group-hover:text-amber-500 transition-colors"/>}</div>
+                             {p.meeting_ref && p.meeting_ref !== '-' && (
+                               <span className="text-[10px] text-indigo-300 bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-500/30 md:ml-6 mt-1 flex items-center gap-1">
+                                 <FileText size={10}/> อ้างอิง: {p.meeting_ref}
+                               </span>
+                             )}
                            </div>
-                           <div className="w-full bg-slate-800 h-2 mt-4 rounded-full overflow-hidden border border-slate-700 shadow-inner"><div className="h-full rounded-full transition-all duration-1000 relative" style={{ width: `${p.prog}%`, background: getBarColor(p.prog) }}><div className="absolute inset-0 bg-white/20"></div></div></div>
-                           
-                           {/* Render Timeline & Subtasks เมื่อกดขยาย */}
-                           {expandedPolicyId === p.id && renderTimeline(p.id)}
+                           <div className="flex flex-col items-end shrink-0"><span className="font-mono font-bold text-xl drop-shadow-md" style={{ color: getBarColor(p.prog) }}>{p.prog}%</span>{expandedPolicyId === p.id ? <ChevronUp size={18} className="text-amber-500 mt-1"/> : <ChevronDown size={18} className="text-slate-500 mt-1 group-hover:text-amber-500 transition-colors"/>}</div>
                          </div>
-                       ))}
-                       {filtered.length === 0 && (
-                         <div className="text-center py-16 text-slate-500 border-2 border-dashed border-slate-700 rounded-xl">
-                            <FilterX size={40} className="mx-auto mb-3 opacity-20"/>
-                            <p className="text-base font-bold">ไม่พบข้อสั่งการตามเงื่อนไขที่เลือก</p>
-                         </div>
-                       )}
-                    </div>
-                 </div>
+                         <div className="w-full bg-slate-800 h-2 mt-4 rounded-full overflow-hidden border border-slate-700 shadow-inner"><div className="h-full rounded-full transition-all duration-1000 relative" style={{ width: `${p.prog}%`, background: getBarColor(p.prog) }}><div className="absolute inset-0 bg-white/20"></div></div></div>
+                         
+                         {/* Render Timeline & Subtasks เมื่อกดขยาย */}
+                         {expandedPolicyId === p.id && renderTimeline(p.id)}
+                       </div>
+                     ))}
+                     {filtered.length === 0 && (
+                       <div className="text-center py-16 text-slate-500 border-2 border-dashed border-slate-700 rounded-xl">
+                          <FilterX size={40} className="mx-auto mb-3 opacity-20"/>
+                          <p className="text-base font-bold">ไม่พบข้อสั่งการตามเงื่อนไขที่เลือก</p>
+                       </div>
+                     )}
+                  </div>
                </div>
              </div>
            )
@@ -784,6 +803,10 @@ function PolicyDashboard({ appDb, user }) {
       </div>
     );
   }
+
+  // คำนวณจำนวนนโยบายหลักและข้อสั่งการเพิ่มเติมสำหรับสถิติการ์ดด้านบน
+  const mainPoliciesCount = basePolicies.filter(p => p.category === 'นโยบายหลัก').length;
+  const addonPoliciesCount = basePolicies.filter(p => p.category === 'สั่งการเพิ่มเติม').length;
 
   return (
     <div className="space-y-6 animate-fade-in-up text-slate-100">
@@ -802,17 +825,26 @@ function PolicyDashboard({ appDb, user }) {
 
       {renderDSInsight()}
 
-      {/* KPI Overview Cards */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-5 print-hide">
+      {/* KPI Overview Cards (เพิ่มการแยกนโยบายหลักและข้อสั่งการเพิ่มเติม) */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-6 print-hide mb-8">
         {[
-          { l: 'ข้อสั่งการรวม', v: overallStats.total, s: null, c: 'text-white', bg: 'bg-slate-800 border-slate-600', ic: <ScrollText size={24} className="text-slate-500"/> },
-          { l: 'เสร็จสมบูรณ์', v: overallStats.completed, s: 'เสร็จแล้ว (100%)', c: 'text-emerald-400', bg: 'bg-emerald-950/30 border-emerald-500/50', ic: <CheckCircle2 size={24} className="text-emerald-500/50"/> },
-          { l: 'กำลังดำเนินการ', v: overallStats.inProgress, s: 'ดำเนินการต่อเนื่อง (51-90%)', c: 'text-sky-400', bg: 'bg-sky-950/30 border-sky-500/50', ic: <Activity size={24} className="text-sky-500/50"/> },
-          { l: 'ยังไม่คืบหน้า (0%)', v: overallStats.notStarted, s: 'ต่ำกว่าเกณฑ์ (0-20%)', c: 'text-red-400', bg: 'bg-red-950/30 border-red-500/50', ic: <AlertOctagon size={24} className="text-red-500/50"/> }
+          { l: 'นโยบายหลัก', v: mainPoliciesCount, s: null, c: 'text-amber-400', b: 'border-amber-500', bg: 'bg-amber-950/20', ic: <ShieldCheck size={28} className="text-amber-500"/>, ibg: 'bg-amber-900/30' },
+          { l: 'สั่งการเพิ่มเติม', v: addonPoliciesCount, s: null, c: 'text-indigo-400', b: 'border-indigo-500', bg: 'bg-indigo-950/20', ic: <FileText size={28} className="text-indigo-500"/>, ibg: 'bg-indigo-900/30' },
+          { l: 'เสร็จสมบูรณ์', v: overallStats.completed, s: 'เสร็จแล้ว (100%)', c: 'text-emerald-400', b: 'border-emerald-500', bg: 'bg-emerald-950/20', ic: <CheckCircle2 size={28} className="text-emerald-500"/>, ibg: 'bg-emerald-900/30' },
+          { l: 'กำลังดำเนินการ', v: overallStats.inProgress, s: 'ดำเนินการต่อเนื่อง (51-90%)', c: 'text-sky-400', b: 'border-sky-500', bg: 'bg-sky-950/20', ic: <Activity size={28} className="text-sky-500"/>, ibg: 'bg-sky-900/30' },
+          { l: 'ยังไม่คืบหน้า', v: overallStats.notStarted, s: 'ต่ำกว่าเกณฑ์ (0-20%)', c: 'text-red-400', b: 'border-red-500', bg: 'bg-red-950/20', ic: <AlertOctagon size={28} className="text-red-500"/>, ibg: 'bg-red-900/30' }
         ].map(k => (
-          <div key={k.l} onClick={() => setSelectedStatus(k.s)} className={`p-6 md:p-8 rounded-2xl border-2 cursor-pointer transition-all duration-300 transform hover:-translate-y-1.5 shadow-xl relative group overflow-hidden ${selectedStatus === k.s ? 'ring-2 ring-offset-4 ring-offset-slate-900 border-transparent ' + k.bg : k.bg}`}>
-            <div className="absolute -right-4 -bottom-4 opacity-20 transform group-hover:scale-125 transition-transform duration-500">{k.ic}</div>
-            <p className="text-slate-300 text-sm font-bold tracking-wider uppercase mb-1">{k.l}</p><h3 className={`text-5xl font-bold mt-2 font-mono ${k.c}`}>{k.v}</h3>
+          <div key={k.l} onClick={() => setSelectedStatus(k.s)} className={`p-6 rounded-3xl border-y border-r border-l-4 cursor-pointer transition-all duration-300 transform hover:-translate-y-1 shadow-lg relative group overflow-hidden ${selectedStatus === k.s ? `ring-2 ring-offset-4 ring-offset-slate-900 border-transparent ${k.bg} ${k.b}` : `border-slate-700/50 ${k.bg} ${k.b.replace('border-', 'border-l-')}`}`}>
+             <div className="flex justify-between items-start mb-4 relative z-10">
+                <p className="text-slate-300 text-xs md:text-sm font-bold uppercase tracking-wider">{k.l}</p>
+                <div className={`p-2 rounded-xl hidden sm:block ${k.ibg}`}>{k.ic}</div>
+             </div>
+             <h3 className={`text-4xl md:text-5xl font-bold font-mono relative z-10 ${k.c}`}>{k.v}</h3>
+             
+             {/* Watermark Icon */}
+             <div className="absolute -right-6 -bottom-6 opacity-10 transform group-hover:scale-125 transition-transform duration-500 pointer-events-none">
+                {React.cloneElement(k.ic, {size: 120})}
+             </div>
           </div>
         ))}
       </div>
@@ -973,7 +1005,7 @@ function TaskDashboard({ appDb, user }) {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
         {[
           { label: 'ภารกิจรวม', val: stats.totalTasks, status: null, color: 'text-white', border: 'border-slate-600', bg: 'bg-slate-800' },
-          { label: 'เสร็จสมบูรณ์', val: stats.completedTasks, status: 'เสร็จสิ้น', color: 'textemerald-400', border: 'border-emerald-500/50', bg: 'bg-emerald-950/30' },
+          { label: 'เสร็จสมบูรณ์', val: stats.completedTasks, status: 'เสร็จสิ้น', color: 'text-emerald-400', border: 'border-emerald-500/50', bg: 'bg-emerald-950/30' },
           { label: 'กำลังดำเนินการ', val: baseTasks.filter(t=>t.status==='กำลังดำเนินการ').length, status: 'กำลังดำเนินการ', color: 'text-sky-400', border: 'border-sky-500/50', bg: 'bg-sky-950/30' },
           { label: 'ล่าช้า/ติดปัญหา', val: stats.delayedTasks, status: 'ล่าช้า/ติดปัญหา', color: 'text-red-400', border: 'border-red-500/50', bg: 'bg-red-950/30' }
         ].map(kpi => (
@@ -1277,7 +1309,7 @@ function Policies({ appDb, user, showToast, callApi, refresh }) {
                      )}
                   </tr>
                 ))}
-                {filtered.length===0&&<tr><td colSpan={6} className="p-20 text-center text-slate-500 text-xl border-dashed border-2 border-slate-700/50 m-4 rounded-2xl bg-slate-900/30">ไม่พบข้อมูลที่ค้นหา</td></tr>}
+                {filtered.length===0&&<tr><td colSpan="6" className="p-20 text-center text-slate-500 text-xl border-dashed border-2 border-slate-700/50 m-4 rounded-2xl bg-slate-900/30">ไม่พบข้อมูลที่ค้นหา</td></tr>}
              </tbody>
           </table>
         </div>
@@ -1470,6 +1502,7 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
                                 {t.status === 'ล่าช้า/ติดปัญหา' && t.root_cause && <div className="block mt-2 mb-3"><div className="text-[11px] text-red-400 bg-red-950/40 border border-red-900/50 px-3 py-2 rounded-lg inline-flex items-center gap-1.5"><AlertOctagon size={14}/> <span className="font-bold">สาเหตุหลัก:</span> {t.root_cause}</div></div>}
                                 {t.note && <p className="text-xs text-slate-400 bg-slate-900/60 p-3 rounded-lg border border-slate-700/50 line-clamp-2 mt-2 leading-relaxed shadow-inner font-medium"><span className="text-sky-500 font-bold mb-1 block">หมายเหตุล่าสุด:</span>{t.note}</p>}
                                 
+                                {/* 💬 แจ้งเตือนข้อสั่งการแอดมิน */}
                                 {t.admin_feedback && (
                                   <div className="mt-3 bg-amber-950/50 border-l-2 border-amber-500 p-2.5 rounded-r-lg">
                                     <p className="text-[11px] text-amber-400 font-bold flex items-center gap-1.5 mb-1"><MessageCircle size={12}/> ข้อสั่งการ/ข้อเสนอแนะจากส่วนกลาง:</p>
