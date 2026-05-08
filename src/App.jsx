@@ -817,27 +817,6 @@ function PolicyDashboard({ appDb, user }) {
         ))}
       </div>
 
-      {/* Bar Chart: เปรียบเทียบหน่วยงาน */}
-      {filterUnit === 'ALL' && overallStats.unitScores.length > 0 && (
-        <div className="bg-slate-800 p-6 md:p-8 rounded-2xl border border-slate-700 shadow-lg mt-6">
-          <h3 className="font-bold text-slate-300 mb-6 flex items-center gap-2"><BarChart3 className="text-sky-400"/> เปรียบเทียบความสำเร็จจำแนกตามหน่วยงาน</h3>
-          <div className="space-y-4">
-            {overallStats.unitScores.map(u => {
-               const percent = (u.done / u.total) * 100;
-               return (
-                 <div key={u.name} className="flex items-center gap-4 text-sm">
-                   <div className="w-24 shrink-0 font-bold text-slate-400 truncate text-right">{u.name}</div>
-                   <div className="flex-1 bg-slate-900 rounded-full h-4 border border-slate-700 overflow-hidden flex">
-                      <div className="bg-emerald-500 h-full transition-all" style={{width: `${percent}%`}} title={`เสร็จ ${u.done} จาก ${u.total}`}></div>
-                   </div>
-                   <div className="w-12 shrink-0 font-mono text-emerald-400 font-bold">{Math.round(percent)}%</div>
-                 </div>
-               )
-            })}
-          </div>
-        </div>
-      )}
-
       <div className="space-y-16">
         {renderSection('นโยบายหลัก', <ShieldCheck size={36}/>, basePolicies.filter(p => p.category === 'นโยบายหลัก'))}
         {renderSection('สั่งการเพิ่มเติม', <FileText size={36}/>, basePolicies.filter(p => p.category === 'สั่งการเพิ่มเติม'))}
@@ -994,7 +973,7 @@ function TaskDashboard({ appDb, user }) {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
         {[
           { label: 'ภารกิจรวม', val: stats.totalTasks, status: null, color: 'text-white', border: 'border-slate-600', bg: 'bg-slate-800' },
-          { label: 'เสร็จสมบูรณ์', val: stats.completedTasks, status: 'เสร็จสิ้น', color: 'text-emerald-400', border: 'border-emerald-500/50', bg: 'bg-emerald-950/30' },
+          { label: 'เสร็จสมบูรณ์', val: stats.completedTasks, status: 'เสร็จสิ้น', color: 'textemerald-400', border: 'border-emerald-500/50', bg: 'bg-emerald-950/30' },
           { label: 'กำลังดำเนินการ', val: baseTasks.filter(t=>t.status==='กำลังดำเนินการ').length, status: 'กำลังดำเนินการ', color: 'text-sky-400', border: 'border-sky-500/50', bg: 'bg-sky-950/30' },
           { label: 'ล่าช้า/ติดปัญหา', val: stats.delayedTasks, status: 'ล่าช้า/ติดปัญหา', color: 'text-red-400', border: 'border-red-500/50', bg: 'bg-red-950/30' }
         ].map(kpi => (
@@ -1045,6 +1024,7 @@ function TaskDashboard({ appDb, user }) {
             </div>
          </div>
 
+         {/* 🎯 แผงแยกงานย่อยที่ยังไม่เสร็จ (Pending Subtasks Tracker) */}
          <div className="lg:col-span-4 bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl flex flex-col relative overflow-hidden">
             <div className="absolute right-0 bottom-0 opacity-5"><ListTodo size={150} className="text-sky-500"/></div>
             <h3 className="font-bold mb-6 flex gap-3 text-sky-400 items-center border-b border-slate-700 pb-4 text-base lg:text-lg relative z-10">
@@ -1122,6 +1102,7 @@ function TaskDashboard({ appDb, user }) {
                               <div className="flex items-center gap-3 mb-2">
                                 <span className={`text-[10px] px-2 py-0.5 rounded border font-mono ${deadline.color}`}><Clock size={10} className="inline mr-1 mb-0.5"/>{deadline.label}</span>
                               </div>
+                              {/* แจ้งเตือนข้อสั่งการแอดมิน */}
                               {t.admin_feedback && (
                                 <div className="mt-2 bg-amber-950/40 border border-amber-500/50 p-2.5 rounded-lg">
                                   <p className="text-[11px] text-amber-400 font-bold flex items-center gap-1.5 mb-1"><MessageCircle size={12}/> ข้อสั่งการ/ข้อเสนอแนะจากส่วนกลาง:</p>
@@ -1545,7 +1526,7 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
                     )}
                   </React.Fragment>
                 )})}
-                {filtered.length===0&&<tr><td colSpan={6} className="p-20 text-center text-slate-500 text-xl border-dashed border-2 border-slate-700/50 m-4 rounded-2xl bg-slate-900/30">ไม่มีข้อมูลภารกิจในขณะนี้</td></tr>}
+                {filtered.length===0&&<tr><td colSpan="6" className="p-20 text-center text-slate-500 text-xl border-dashed border-2 border-slate-700/50 m-4 rounded-2xl bg-slate-900/30">ไม่มีข้อมูลภารกิจในขณะนี้</td></tr>}
              </tbody>
            </table>
          </div>
@@ -1633,6 +1614,7 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
 
                        <div className="relative z-10"><label className="text-xs font-bold text-sky-300 mb-2 block uppercase tracking-widest">หมายเหตุ / อัปเดตล่าสุด</label><textarea name="note" defaultValue={editData?.note} rows="4" className="w-full bg-slate-900 p-4 rounded-xl border border-sky-700/50 outline-none focus:border-sky-400 transition-colors leading-relaxed shadow-inner text-base" placeholder="ระบุความคืบหน้าล่าสุดที่ได้ทำไป..."></textarea></div>
                        
+                       {/* 💬 Admin Feedback (เฉพาะ Admin ที่พิมพ์ได้) */}
                        {isAdmin && (
                          <div className="relative z-10 mt-6 pt-6 border-t border-sky-900/50">
                            <label className="text-xs font-bold text-amber-500 mb-2 block uppercase tracking-widest flex items-center gap-1.5"><MessageCircle size={14}/> ข้อสั่งการ/ข้อเสนอแนะจากส่วนกลาง (เฉพาะ Admin)</label>
