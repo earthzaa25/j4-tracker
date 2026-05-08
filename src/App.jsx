@@ -7,7 +7,7 @@ import {
   Lock, Clock, Trophy, Paperclip, Bell, Sun, Moon, ChevronLeft, ChevronRight, 
   Search, Kanban, Columns, List, Target, AlertOctagon, GitMerge, Users, Circle, 
   Star, MousePointerClick, RefreshCcw, FilterX, CalendarDays, Table, ChevronDown, ChevronUp, Bot,
-  Sparkles, BarChart3, Presentation, Tv, AlignLeft, MessageSquare
+  Sparkles, BarChart3, Presentation, Tv, AlignLeft, MessageSquare, Medal
 } from 'lucide-react';
 
 // ============================================================
@@ -486,6 +486,7 @@ export default function App() {
           <NavItem icon={<PieChart size={20}/>} label="ภาพรวมภารกิจ" isActive={view==='DASHBOARD_TASK'} onClick={()=>navigateTo('DASHBOARD_TASK')} />
           {/* เพิ่มเมนูแผนภูมิแกนต์ */}
           <NavItem icon={<AlignLeft size={20}/>} label="แผนภูมิแกนต์ (Gantt)" isActive={view==='GANTT_CHART'} onClick={()=>navigateTo('GANTT_CHART')} />
+          <NavItem icon={<BarChart size={20}/>} label="วิเคราะห์ประสิทธิภาพ (KPI)" isActive={view==='ANALYTICS'} onClick={()=>navigateTo('ANALYTICS')} />
           
           <div className="border-t border-slate-700/50 my-6"></div>
           
@@ -517,6 +518,7 @@ export default function App() {
               <NavItem icon={<LayoutDashboard size={20}/>} label="ภาพรวมนโยบาย" isActive={view==='DASHBOARD_POLICY'} onClick={()=>navigateTo('DASHBOARD_POLICY')} />
               <NavItem icon={<PieChart size={20}/>} label="ภาพรวมภารกิจ" isActive={view==='DASHBOARD_TASK'} onClick={()=>navigateTo('DASHBOARD_TASK')} />
               <NavItem icon={<AlignLeft size={20}/>} label="แผนภูมิแกนต์ (Gantt)" isActive={view==='GANTT_CHART'} onClick={()=>navigateTo('GANTT_CHART')} />
+              <NavItem icon={<BarChart size={20}/>} label="วิเคราะห์ประสิทธิภาพ (KPI)" isActive={view==='ANALYTICS'} onClick={()=>navigateTo('ANALYTICS')} />
               <div className="border-t border-slate-800 my-4"></div>
               <NavItem icon={<ScrollText size={20}/>} label="ฐานข้อมูลนโยบาย" isActive={view==='POLICIES'} onClick={()=>navigateTo('POLICIES')} />
               <NavItem icon={<CheckSquare size={20}/>} label="ติดตามภารกิจ (Tasks)" isActive={view==='TASKS'} onClick={()=>navigateTo('TASKS')} />
@@ -606,6 +608,7 @@ export default function App() {
           {view === 'DASHBOARD_POLICY' && <PolicyDashboard appDb={appDb} user={user} />}
           {view === 'DASHBOARD_TASK' && <TaskDashboard appDb={appDb} user={user} />}
           {view === 'GANTT_CHART' && <GanttChartDashboard appDb={appDb} user={user} />}
+          {view === 'ANALYTICS' && <KpiAnalyticsDashboard appDb={appDb} user={user} />}
           {view === 'POLICIES' && <Policies appDb={appDb} user={user} showToast={showToast} callApi={callApi} refresh={loadData} />}
           {view === 'TASKS' && <TaskTracker appDb={appDb} user={user} showToast={showToast} callApi={callApi} refresh={loadData} />}
           {view === 'REPORT_FORM' && <ReportForm appDb={appDb} user={user} showToast={showToast} setView={setView} callApi={callApi} refresh={loadData} />}
@@ -627,6 +630,147 @@ export default function App() {
     </div>
   );
 }
+
+// ============================================================
+// 📈 วิเคราะห์ประสิทธิภาพและคอขวด (KPI Analytics Dashboard)
+// ============================================================
+function KpiAnalyticsDashboard({ appDb, user }) {
+  const isAdminOrExec = user.role === 'admin' || user.role === 'executive';
+
+  // Calculate Unit Stats
+  const unitStats = useMemo(() => {
+    let stats = {};
+    (appDb.units || []).filter(u => u.role === 'user' || !u.role).forEach(u => {
+      stats[u.name] = { name: u.name, totalAssigned: 0, completed: 0, delayed: 0, score: 0 };
+    });
+
+    (appDb.tasks || []).forEach(t => {
+      if (stats[t.primary_unit]) {
+        stats[t.primary_unit].totalAssigned += 1;
+        if (t.status === 'เสร็จสิ้น') stats[t.primary_unit].completed += 1;
+        if (t.status === 'ล่าช้า/ติดปัญหา') stats[t.primary_unit].delayed += 1;
+      }
+    });
+
+    return Object.values(stats).map(s => {
+      s.score = s.totalAssigned > 0 ? (s.completed / s.totalAssigned) * 100 : 0;
+      return s;
+    }).sort((a, b) => b.score - a.score); // Sort by highest score
+  }, [appDb]);
+
+  // Calculate Root Causes (Bottlenecks)
+  const rootCausesData = useMemo(() => {
+    const causes = {};
+    let totalDelayed = 0;
+    (appDb.tasks || []).forEach(t => {
+      if (t.status === 'ล่าช้า/ติดปัญหา') {
+        const rc = t.root_cause || 'ไม่ระบุสาเหตุ';
+        causes[rc] = (causes[rc] || 0) + 1;
+        totalDelayed++;
+      }
+    });
+    return Object.entries(causes)
+      .map(([cause, count]) => ({ cause, count, percent: totalDelayed > 0 ? (count/totalDelayed)*100 : 0 }))
+      .sort((a,b) => b.count - a.count);
+  }, [appDb]);
+
+  return (
+    <div className="space-y-6 animate-fade-in-up text-slate-100">
+      <div className="bg-slate-800 p-6 md:p-8 rounded-2xl border border-slate-700 shadow-xl flex items-center gap-4">
+        <div className="bg-indigo-500/20 p-3 rounded-xl border border-indigo-500/30 text-indigo-400 shadow-inner">
+          <BarChart size={32} />
+        </div>
+        <div>
+          <h2 className="text-2xl md:text-3xl font-bold text-white mb-1.5">วิเคราะห์ประสิทธิภาพ & คอขวด</h2>
+          <p className="text-sm text-slate-400 font-medium">KPI & Bottleneck Analytics</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        
+        {/* Leaderboard Section */}
+        <div className="bg-slate-800 p-6 md:p-8 rounded-3xl border border-slate-700 shadow-2xl flex flex-col relative overflow-hidden">
+           <div className="absolute right-0 top-0 opacity-5"><Trophy size={200} className="text-amber-500"/></div>
+           <h3 className="text-xl font-bold text-amber-500 mb-6 flex items-center gap-3 relative z-10 border-b border-slate-700/50 pb-4">
+             <Trophy size={24}/> จัดอันดับประสิทธิภาพหน่วยงาน (Leaderboard)
+           </h3>
+           
+           <div className="space-y-4 relative z-10 overflow-y-auto custom-scrollbar pr-2 max-h-[500px]">
+              {unitStats.map((u, index) => {
+                const isTop3 = index < 3 && u.score > 0;
+                return (
+                  <div key={u.name} className={`p-5 rounded-2xl border flex items-center gap-4 transition-all shadow-sm ${isTop3 ? 'bg-gradient-to-r from-amber-950/40 to-slate-900/40 border-amber-500/30' : 'bg-slate-900/50 border-slate-700/50'}`}>
+                     <div className={`w-12 h-12 shrink-0 rounded-full flex items-center justify-center text-xl font-black shadow-inner border ${index===0 ? 'bg-yellow-500/20 text-yellow-500 border-yellow-500' : index===1 ? 'bg-slate-400/20 text-slate-300 border-slate-400' : index===2 ? 'bg-orange-600/20 text-orange-500 border-orange-600' : 'bg-slate-800 text-slate-500 border-slate-700'}`}>
+                        #{index + 1}
+                     </div>
+                     <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-end mb-2">
+                           <span className="font-bold text-slate-200 text-lg truncate pr-4" title={u.name}>{u.name}</span>
+                           <span className="font-mono text-2xl font-bold" style={{color: getBarColor(u.score)}}>{Math.round(u.score)}%</span>
+                        </div>
+                        <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden shadow-inner mb-2 border border-slate-700">
+                           <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${u.score}%`, background: getBarColor(u.score) }}></div>
+                        </div>
+                        <div className="flex gap-4 text-xs font-medium text-slate-400">
+                           <span className="flex items-center gap-1.5"><Briefcase size={12}/> งานทั้งหมด: {u.totalAssigned}</span>
+                           <span className="flex items-center gap-1.5 text-emerald-400"><CheckCircle2 size={12}/> เสร็จ: {u.completed}</span>
+                           {u.delayed > 0 && <span className="flex items-center gap-1.5 text-red-400"><AlertOctagon size={12}/> ล่าช้า: {u.delayed}</span>}
+                        </div>
+                     </div>
+                     {index === 0 && u.score > 0 && <Medal size={40} className="text-yellow-500 drop-shadow-[0_0_10px_rgba(234,179,8,0.5)] shrink-0 ml-2" />}
+                  </div>
+                )
+              })}
+              {unitStats.length === 0 && <div className="text-center py-10 text-slate-500">ไม่มีข้อมูลหน่วยงาน</div>}
+           </div>
+        </div>
+
+        {/* Bottleneck Analysis Section */}
+        <div className="bg-slate-800 p-6 md:p-8 rounded-3xl border border-slate-700 shadow-2xl flex flex-col">
+           <h3 className="text-xl font-bold text-red-400 mb-6 flex items-center gap-3 border-b border-slate-700/50 pb-4">
+             <AlertOctagon size={24}/> วิเคราะห์คอขวดระบบ (Bottleneck Analysis)
+           </h3>
+
+           <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 max-h-[500px]">
+              {rootCausesData.length > 0 ? (
+                <div className="space-y-6">
+                  {rootCausesData.map((rc, idx) => (
+                    <div key={idx} className="group">
+                       <div className="flex justify-between items-end mb-2">
+                          <span className="text-slate-200 font-bold flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-red-500"></div> {rc.cause}</span>
+                          <span className="text-red-400 font-mono font-bold text-lg">{rc.count} งาน <span className="text-slate-500 text-xs ml-1">({Math.round(rc.percent)}%)</span></span>
+                       </div>
+                       <div className="w-full h-4 bg-slate-900 rounded-md overflow-hidden border border-slate-700 shadow-inner flex">
+                          <div className="h-full bg-red-500 transition-all duration-1000 shadow-[0_0_10px_rgba(239,68,68,0.6)] group-hover:bg-red-400" style={{ width: `${rc.percent}%` }}></div>
+                       </div>
+                    </div>
+                  ))}
+                  
+                  <div className="mt-8 p-5 bg-indigo-950/30 border border-indigo-500/30 rounded-2xl flex items-start gap-4">
+                     <div className="p-2 bg-indigo-500/20 rounded-lg shrink-0"><Bot size={20} className="text-indigo-400"/></div>
+                     <div>
+                       <h4 className="text-sm font-bold text-indigo-300 uppercase tracking-widest mb-1">AI Recommendation</h4>
+                       <p className="text-sm text-slate-300 leading-relaxed">
+                         สาเหตุหลักที่ทำให้งานขับเคลื่อนล่าช้าที่สุดคือ <strong className="text-red-400">"{rootCausesData[0].cause}"</strong> คิดเป็น {Math.round(rootCausesData[0].percent)}% ของงานที่ติดปัญหาทั้งหมด ผู้บริหารควรให้ความสำคัญกับการปรับแก้กระบวนการในส่วนนี้เป็นอันดับแรก
+                       </p>
+                     </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-20 text-slate-500 border-2 border-dashed border-slate-700 rounded-2xl bg-slate-900/30">
+                  <CheckCircle size={48} className="mx-auto mb-4 opacity-30 text-emerald-500"/>
+                  <p className="text-xl font-bold">ระบบทำงานได้อย่างราบรื่น</p>
+                  <p className="text-sm mt-1">ไม่พบข้อมูลคอขวดหรืองานที่ติดปัญหา</p>
+                </div>
+              )}
+           </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 
 // ============================================================
 // 📊 แผนภูมิแกนต์ (Gantt Chart Dashboard)
@@ -782,6 +926,7 @@ function PolicyDashboard({ appDb, user }) {
   const [fiscalYear, setFiscalYear] = useState('ALL');
   const [selectedStatus, setSelectedStatus] = useState(null);
   const [expandedPolicyId, setExpandedPolicyId] = useState(null);
+  const [showBrief, setShowBrief] = useState(false);
 
   const currentUnits = useMemo(() => (appDb.units || []).filter(u => u.role === 'user' || !u.role), [appDb.units]);
 
@@ -856,6 +1001,86 @@ function PolicyDashboard({ appDb, user }) {
     if (progress >= 21) return 'อยู่ระหว่างดำเนินการ (21-50%)';
     return 'ต่ำกว่าเกณฑ์ (0-20%)';
   };
+
+  const getPolicyProgress = (policyId) => {
+    const rs = baseReports.filter(r => r.policy_id === policyId).sort((a,b) => new Date(b.report_date || b.created_at) - new Date(a.report_date || a.created_at));
+    return rs.length ? (rs[0].progress_percent || 0) : 0;
+  };
+
+  // ดึงงานที่ล่าช้าและน้อยกว่า 20% เพื่อไปโชว์ใน Risk Board
+  const riskTasks = useMemo(() => (appDb.tasks||[]).filter(t => t.status === 'ล่าช้า/ติดปัญหา' || t.progress_percent < 20), [appDb.tasks]);
+  
+  // นโยบายติดดาว
+  const priorityPolicies = useMemo(() => basePolicies.filter(p => p.is_important), [basePolicies]);
+
+  // ฟังก์ชันพิมพ์หน้าเดียวเข้าประชุม
+  if (showBrief) {
+    return (
+       <div className="fixed inset-0 z-[99999] bg-slate-900 overflow-y-auto p-4 md:p-8">
+          <div className="max-w-[210mm] min-h-[297mm] bg-white mx-auto p-10 md:p-16 text-slate-900 shadow-2xl relative rounded-sm">
+            <button onClick={() => setShowBrief(false)} className="absolute top-6 right-6 p-2 bg-slate-200 rounded-full text-slate-600 print-hide hover:bg-slate-300 transition-colors"><X size={20}/></button>
+            <button onClick={()=>window.print()} className="absolute top-6 right-20 p-2 bg-indigo-600 text-white rounded-full print-hide hover:bg-indigo-700 transition-colors shadow-lg flex items-center gap-2 px-4"><Printer size={18}/> <span>พิมพ์รายงาน</span></button>
+            
+            <div className="text-center mb-10 border-b-4 border-slate-900 pb-6">
+               <h1 className="text-4xl font-bold uppercase tracking-widest text-slate-900 mb-2">J4 Command Center</h1>
+               <h2 className="text-2xl font-medium text-slate-600">สรุปภาพรวมสำหรับผู้บริหาร (One-Page Brief)</h2>
+               <p className="text-sm text-slate-500 mt-3">ข้อมูล ณ วันที่ {new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            </div>
+            
+            <div className="grid grid-cols-3 gap-6 mb-10">
+              <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 text-center"><h3 className="text-5xl font-bold text-slate-800">{basePolicies.length}</h3><p className="text-sm font-bold text-slate-500 mt-2 uppercase tracking-wider">นโยบาย/ข้อสั่งการ</p></div>
+              <div className="bg-emerald-50 p-6 rounded-xl border border-emerald-200 text-center"><h3 className="text-5xl font-bold text-emerald-600">{overallStats.completed}</h3><p className="text-sm font-bold text-emerald-600/80 mt-2 uppercase tracking-wider">นโยบายที่สำเร็จ</p></div>
+              <div className="bg-red-50 p-6 rounded-xl border border-red-200 text-center"><h3 className="text-5xl font-bold text-red-600">{riskTasks.length}</h3><p className="text-sm font-bold text-red-500 mt-2 uppercase tracking-wider">งานที่ต้องเร่งรัด</p></div>
+            </div>
+            
+            <div className="mb-10">
+              <h3 className="font-bold text-xl border-b-2 border-amber-500 pb-2 mb-4 text-slate-800 flex items-center gap-2"><Star className="text-amber-500 fill-amber-500"/> นโยบายเร่งด่วน (Top Priority)</h3>
+              {priorityPolicies.length > 0 ? (
+                <ul className="list-disc pl-6 space-y-3 text-base text-slate-700">
+                   {priorityPolicies.map(p=><li key={p.policy_id}><b className="text-slate-900">[{p.policy_no}] {p.commander}:</b> {p.order} <span className="text-emerald-600 font-bold ml-2">({getPolicyProgress(p.policy_id)}%)</span></li>)}
+                </ul>
+              ) : <p className="text-slate-500 text-sm italic">ไม่มีนโยบายที่ถูกตั้งเป็น Priority ในขณะนี้</p>}
+            </div>
+            
+            <div className="mb-10">
+              <h3 className="font-bold text-xl border-b-2 border-red-500 pb-2 mb-4 text-slate-800 flex items-center gap-2"><AlertTriangle className="text-red-500"/> ประเด็นข้อขัดข้องที่ต้องพิจารณา</h3>
+              {riskTasks.length > 0 ? (
+                <div className="space-y-4">
+                   {riskTasks.map(t=>(
+                     <div key={t.task_id} className="bg-red-50/50 p-4 rounded-lg border border-red-100">
+                        <div className="flex justify-between items-start mb-1">
+                          <b className="text-slate-900">{t.task_name}</b>
+                          <span className="text-xs font-bold text-red-600 bg-red-100 px-2 py-1 rounded">{t.primary_unit}</span>
+                        </div>
+                        <p className="text-sm text-red-700 mt-2"><b className="font-semibold">สาเหตุหลัก:</b> {t.root_cause || 'ไม่ระบุ'}</p>
+                     </div>
+                   ))}
+                </div>
+              ) : <p className="text-emerald-600 text-sm italic font-bold"><CheckCircle2 className="inline mr-1" size={16}/> ไม่พบภารกิจที่ล่าช้าหรือติดปัญหาในระบบ</p>}
+            </div>
+
+            <div>
+              <h3 className="font-bold text-xl border-b-2 border-sky-500 pb-2 mb-4 text-slate-800 flex items-center gap-2"><BarChart3 className="text-sky-500"/> ความก้าวหน้าจำแนกตามหน่วยงาน (Performance)</h3>
+              <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+                {overallStats.unitScores.map(u => {
+                   const percent = (u.done / u.total) * 100;
+                   return (
+                     <div key={u.name} className="flex items-center gap-3 text-sm">
+                       <div className="w-24 shrink-0 font-bold text-slate-700 truncate text-right">{u.name}</div>
+                       <div className="flex-1 bg-slate-200 rounded-full h-3 overflow-hidden">
+                          <div className="bg-sky-500 h-full" style={{width: `${percent}%`}}></div>
+                       </div>
+                       <div className="w-10 shrink-0 font-mono text-slate-700 font-bold text-right">{Math.round(percent)}%</div>
+                     </div>
+                   )
+                })}
+              </div>
+            </div>
+
+          </div>
+       </div>
+    );
+  }
 
   const renderDSInsight = () => {
     if (overallStats.total === 0) return null;
@@ -1085,19 +1310,73 @@ function PolicyDashboard({ appDb, user }) {
   return (
     <div className="space-y-6 animate-fade-in-up text-slate-100">
       
-      {/* Filters */}
+      {/* Filters และปุ่มสรุปผู้บริหาร */}
       <div className="bg-slate-800 p-6 md:p-8 rounded-2xl border border-slate-700 shadow-lg print-hide flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative overflow-hidden z-10">
         <div className="relative z-10">
           <h2 className="text-2xl md:text-3xl font-bold flex items-center gap-3 text-white mb-1.5"><LayoutDashboard size={32} className="text-amber-500"/> ภาพรวมนโยบายและข้อสั่งการ</h2>
         </div>
         <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto relative z-10">
           {selectedStatus && <button onClick={() => setSelectedStatus(null)} className="text-sm font-bold bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white px-5 py-3 rounded-xl transition-colors flex items-center gap-2 shadow-sm"><FilterX size={18}/> ล้างตัวกรอง</button>}
+          
+          <button onClick={() => setShowBrief(true)} className="text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-500 px-5 py-3 rounded-xl transition-colors flex items-center gap-2 shadow-lg hover:-translate-y-0.5">
+            <FileText size={18}/> สร้างสรุปผู้บริหาร (One-Page Brief)
+          </button>
+          
           <select value={filterUnit} onChange={e => setFilterUnit(e.target.value)} disabled={!isAdminOrExec} className="flex-1 md:w-auto bg-slate-900 px-4 py-3 rounded-xl border border-slate-600 text-sm font-bold text-white outline-none focus:border-amber-500 shadow-inner"><option value="ALL">- ทุกหน่วยงาน -</option>{(appDb.units||[]).filter(u => u.role === 'user' || !u.role).map(u => <option key={u.id} value={u.name}>{u.name}</option>)}</select>
           <select value={fiscalYear} onChange={e => setFiscalYear(e.target.value)} className="flex-1 md:w-auto bg-slate-900 px-4 py-3 rounded-xl border border-slate-600 text-sm font-bold text-white outline-none focus:border-amber-500 shadow-inner"><option value="ALL">- ทุกปีงบประมาณ -</option><option value="2567">ปีงบประมาณ 2567</option><option value="2568">ปีงบประมาณ 2568</option></select>
         </div>
       </div>
 
       {renderDSInsight()}
+
+      {/* 1. กระดานเฝ้าระวังพิเศษ (Risk & Attention Board) 🚨 */}
+      {riskTasks.length > 0 && (
+        <div className="bg-red-950/20 border-l-4 border-red-500 p-6 md:p-8 rounded-2xl mb-8 shadow-lg relative overflow-hidden group">
+          <div className="absolute right-0 bottom-0 opacity-5 transform group-hover:scale-110 transition-transform duration-500"><AlertTriangle size={150} className="text-red-500"/></div>
+          <h3 className="text-red-400 font-bold flex items-center gap-2 mb-6 text-xl relative z-10"><AlertTriangle/> กระดานเฝ้าระวังพิเศษ (Risk & Attention Board)</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 relative z-10">
+            {riskTasks.slice(0,6).map(t => (
+               <div key={t.task_id} className="bg-slate-900/60 p-5 rounded-xl border border-red-500/20 hover:border-red-500/50 transition-colors shadow-sm">
+                  <span className="text-[10px] font-bold bg-red-500/20 text-red-400 px-2.5 py-1 rounded mb-3 inline-block border border-red-500/20 uppercase tracking-wider">{t.primary_unit}</span>
+                  <p className="text-sm text-slate-200 line-clamp-2 leading-relaxed font-medium">{t.task_name}</p>
+                  <div className="flex justify-between items-center mt-4 pt-3 border-t border-slate-700/50">
+                    <span className="text-[11px] text-red-400 font-bold flex items-center gap-1"><AlertOctagon size={12}/> {t.status}</span>
+                    <span className="text-sm font-mono text-red-400 font-bold bg-slate-800 px-2 py-0.5 rounded shadow-inner">{t.progress_percent}%</span>
+                  </div>
+               </div>
+            ))}
+          </div>
+          {riskTasks.length > 6 && <p className="text-xs text-red-400/80 mt-4 text-center">และอีก {riskTasks.length - 6} รายการที่ต้องเฝ้าระวัง...</p>}
+        </div>
+      )}
+
+      {/* 2. ไฮไลท์นโยบายเร่งด่วน (Top Priority Showcase) ⭐ */}
+      {priorityPolicies.length > 0 && (
+        <div className="mb-8 relative z-10">
+          <h3 className="text-amber-500 font-bold flex items-center gap-2 mb-4 text-xl"><Star className="fill-amber-500"/> ไฮไลท์นโยบายเร่งด่วน (Top Priority)</h3>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {priorityPolicies.slice(0,4).map(p => {
+              const prog = getPolicyProgress(p.policy_id);
+              return (
+                <div key={p.policy_id} className="bg-gradient-to-br from-slate-800 to-slate-900 p-6 md:p-8 rounded-3xl border border-amber-500/40 shadow-xl relative overflow-hidden hover:border-amber-400 transition-colors cursor-pointer group">
+                  <div className="absolute right-[-20px] top-[-20px] opacity-5 text-amber-500 group-hover:scale-110 transition-transform duration-500"><Star size={180} className="fill-amber-500"/></div>
+                  <div className="flex justify-between items-start mb-6 relative z-10">
+                    <span className="bg-amber-500/20 text-amber-400 text-xs font-bold px-3 py-1.5 rounded-full border border-amber-500/30 shadow-sm flex items-center gap-1.5">
+                      <ShieldCheck size={14}/> [{p.policy_no}] {p.commander}
+                    </span>
+                    <span className="text-3xl font-mono font-bold text-amber-400 drop-shadow-md">{prog}%</span>
+                  </div>
+                  <p className="text-base md:text-lg text-slate-100 font-medium leading-relaxed relative z-10 line-clamp-3">{p.order}</p>
+                  
+                  <div className="w-full bg-slate-800/80 h-1.5 mt-6 rounded-full overflow-hidden shadow-inner relative z-10">
+                    <div className="h-full rounded-full transition-all duration-1000 bg-amber-500" style={{ width: `${prog}%` }}></div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* KPI Overview Cards (เพิ่มการแยกนโยบายหลักและข้อสั่งการเพิ่มเติม) */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-6 print-hide mb-8">
