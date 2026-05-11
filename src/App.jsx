@@ -164,7 +164,8 @@ function WarRoomDashboard({ appDb, onClose }) {
 
   const totalTasks = appDb.tasks?.length || 0;
   const completedTasks = appDb.tasks?.filter(t => t.status === 'เสร็จสิ้น').length || 0;
-  const delayedTasks = appDb.tasks?.filter(t => t.status === 'ล่าช้า/ติดปัญหา') || [];
+  // แก้ไข: กรองเอาเฉพาะงานที่ล่าช้า และ "ติดดาว" เท่านั้นมาโชว์ใน War Room
+  const delayedTasks = appDb.tasks?.filter(t => (t.status === 'ล่าช้า/ติดปัญหา' || t.progress_percent < 20) && t.is_important) || [];
   const importantPolicies = appDb.policies?.filter(p => p.is_important) || [];
 
   return (
@@ -484,7 +485,6 @@ export default function App() {
           <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">ระบบรายงานภาพรวม</p>
           <NavItem icon={<LayoutDashboard size={20}/>} label="ภาพรวมนโยบาย" isActive={view==='DASHBOARD_POLICY'} onClick={()=>navigateTo('DASHBOARD_POLICY')} />
           <NavItem icon={<PieChart size={20}/>} label="ภาพรวมภารกิจ" isActive={view==='DASHBOARD_TASK'} onClick={()=>navigateTo('DASHBOARD_TASK')} />
-          {/* เพิ่มเมนูแผนภูมิแกนต์ */}
           <NavItem icon={<AlignLeft size={20}/>} label="แผนภูมิแกนต์ (Gantt)" isActive={view==='GANTT_CHART'} onClick={()=>navigateTo('GANTT_CHART')} />
           <NavItem icon={<BarChart size={20}/>} label="วิเคราะห์ประสิทธิภาพ (KPI)" isActive={view==='ANALYTICS'} onClick={()=>navigateTo('ANALYTICS')} />
           
@@ -547,7 +547,7 @@ export default function App() {
             </div>
           )}
 
-          {/* Top Bar (ปรับ Z-index ไม่ให้ Dropdown แจ้งเตือนโดนบัง) */}
+          {/* Top Bar */}
           <div className="flex justify-between items-center mb-8 bg-slate-800/90 p-4 rounded-xl border border-slate-700 backdrop-blur-md print-hide shadow-md relative z-[100]">
             <h2 className="text-slate-200 font-bold flex items-center gap-2 md:gap-3 text-sm md:text-base tracking-wide">
               <ShieldCheck size={22} className="text-amber-500"/> J4 Command Center
@@ -571,10 +571,9 @@ export default function App() {
                 </button>
               </div>
 
-              {/* 🔔 Notification Dropdown (Fixed position ลอยทับทุกอย่าง ไม่ให้โดนบัง) */}
+              {/* 🔔 Notification Dropdown */}
               {isNotificationOpen && (
                 <>
-                  {/* ฉากหลังใสสำหรับกดปิด */}
                   <div className="fixed inset-0 z-[9998]" onClick={() => setIsNotificationOpen(false)}></div>
                   <div className="fixed top-24 right-4 md:right-8 w-80 md:w-96 bg-slate-800 rounded-2xl border border-slate-600 shadow-[0_10px_50px_rgba(0,0,0,0.5)] z-[9999] overflow-hidden flex flex-col max-h-[500px] animate-fade-in-up">
                      <div className="p-4 bg-slate-900/80 border-b border-slate-700 flex justify-between items-center">
@@ -771,7 +770,6 @@ function KpiAnalyticsDashboard({ appDb, user }) {
   );
 }
 
-
 // ============================================================
 // 📊 แผนภูมิแกนต์ (Gantt Chart Dashboard)
 // ============================================================
@@ -876,7 +874,6 @@ function GanttChartDashboard({ appDb, user }) {
                                   </div>
                                </div>
                                <div className="w-2/3 relative h-10 ml-4 flex items-center">
-                                  {/* Container for bar to ensure it stays within bounds, adding slight padding */}
                                   <div className="absolute inset-y-1 w-full bg-slate-900/50 rounded-lg overflow-hidden border border-slate-800 shadow-inner">
                                     <div 
                                       className={`absolute h-full shadow-md flex items-center px-2 transition-all ${barColor} opacity-90 group-hover:opacity-100 relative z-10`}
@@ -983,10 +980,11 @@ function PolicyDashboard({ appDb, user }) {
     };
   }, [basePolicies, baseReports, currentUnits]);
 
+  // แก้ไข: กรองเอาเฉพาะภารกิจที่ "ติดดาว (is_important)" มาแสดงใน Timeline ของหน้านโยบายเท่านั้น
   const tasksByPolicy = useMemo(() => {
     const map = {};
     (appDb.tasks || []).forEach(t => {
-       if (t.policy_id) { 
+       if (t.is_important && t.policy_id) { 
          if (!map[t.policy_id]) map[t.policy_id] = []; 
          map[t.policy_id].push(t); 
        }
@@ -1007,8 +1005,12 @@ function PolicyDashboard({ appDb, user }) {
     return rs.length ? (rs[0].progress_percent || 0) : 0;
   };
 
-  // ดึงงานที่ล่าช้าและน้อยกว่า 20% เพื่อไปโชว์ใน Risk Board
-  const riskTasks = useMemo(() => (appDb.tasks||[]).filter(t => t.status === 'ล่าช้า/ติดปัญหา' || t.progress_percent < 20), [appDb.tasks]);
+  // ดึงงานที่ล่าช้าและน้อยกว่า 20% ที่ "ติดดาว (is_important)" เท่านั้น เพื่อไปโชว์ใน Risk Board หน้าผู้บริหาร
+  const riskTasks = useMemo(() => {
+    let tks = appDb.tasks || [];
+    if (filterUnit !== 'ALL') tks = tks.filter(t => t.primary_unit === filterUnit);
+    return tks.filter(t => (t.status === 'ล่าช้า/ติดปัญหา' || t.progress_percent < 20) && t.is_important);
+  }, [appDb.tasks, filterUnit]);
   
   // นโยบายติดดาว
   const priorityPolicies = useMemo(() => basePolicies.filter(p => p.is_important), [basePolicies]);
@@ -1030,7 +1032,7 @@ function PolicyDashboard({ appDb, user }) {
             <div className="grid grid-cols-3 gap-6 mb-10">
               <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 text-center"><h3 className="text-5xl font-bold text-slate-800">{basePolicies.length}</h3><p className="text-sm font-bold text-slate-500 mt-2 uppercase tracking-wider">นโยบาย/ข้อสั่งการ</p></div>
               <div className="bg-emerald-50 p-6 rounded-xl border border-emerald-200 text-center"><h3 className="text-5xl font-bold text-emerald-600">{overallStats.completed}</h3><p className="text-sm font-bold text-emerald-600/80 mt-2 uppercase tracking-wider">นโยบายที่สำเร็จ</p></div>
-              <div className="bg-red-50 p-6 rounded-xl border border-red-200 text-center"><h3 className="text-5xl font-bold text-red-600">{riskTasks.length}</h3><p className="text-sm font-bold text-red-500 mt-2 uppercase tracking-wider">งานที่ต้องเร่งรัด</p></div>
+              <div className="bg-red-50 p-6 rounded-xl border border-red-200 text-center"><h3 className="text-5xl font-bold text-red-600">{riskTasks.length}</h3><p className="text-sm font-bold text-red-500 mt-2 uppercase tracking-wider">งานสำคัญที่ต้องเร่งรัด</p></div>
             </div>
             
             <div className="mb-10">
@@ -1056,7 +1058,7 @@ function PolicyDashboard({ appDb, user }) {
                      </div>
                    ))}
                 </div>
-              ) : <p className="text-emerald-600 text-sm italic font-bold"><CheckCircle2 className="inline mr-1" size={16}/> ไม่พบภารกิจที่ล่าช้าหรือติดปัญหาในระบบ</p>}
+              ) : <p className="text-emerald-600 text-sm italic font-bold"><CheckCircle2 className="inline mr-1" size={16}/> ไม่พบภารกิจสำคัญที่ล่าช้าหรือติดปัญหาในระบบ</p>}
             </div>
 
             <div>
@@ -1120,7 +1122,7 @@ function PolicyDashboard({ appDb, user }) {
       return (
         <div className="bg-slate-900/80 p-5 rounded-xl text-center border border-slate-700/50 mt-3 shadow-inner">
            <CalendarDays size={24} className="mx-auto text-slate-500 mb-3 opacity-30"/>
-           <p className="text-slate-400 text-xs font-medium">ยังไม่มีการระบุไทม์ไลน์ภารกิจหรือรายการย่อยในข้อสั่งการนี้</p>
+           <p className="text-slate-400 text-xs font-medium">ยังไม่มีการปักหมุดภารกิจที่เกี่ยวข้อง (กดติดดาวที่งานเพื่อนำมาแสดงที่นี่)</p>
         </div>
       );
     }
@@ -1329,11 +1331,11 @@ function PolicyDashboard({ appDb, user }) {
 
       {renderDSInsight()}
 
-      {/* 1. กระดานเฝ้าระวังพิเศษ (Risk & Attention Board) 🚨 */}
+      {/* 1. กระดานเฝ้าระวังพิเศษ (Risk & Attention Board) 🚨 โชว์เฉพาะงานที่ติดดาว */}
       {riskTasks.length > 0 && (
         <div className="bg-red-950/20 border-l-4 border-red-500 p-6 md:p-8 rounded-2xl mb-8 shadow-lg relative overflow-hidden group">
           <div className="absolute right-0 bottom-0 opacity-5 transform group-hover:scale-110 transition-transform duration-500"><AlertTriangle size={150} className="text-red-500"/></div>
-          <h3 className="text-red-400 font-bold flex items-center gap-2 mb-6 text-xl relative z-10"><AlertTriangle/> กระดานเฝ้าระวังพิเศษ (Risk & Attention Board)</h3>
+          <h3 className="text-red-400 font-bold flex items-center gap-2 mb-6 text-xl relative z-10"><AlertTriangle/> กระดานเฝ้าระวังนโยบายเร่งด่วน (Priority Risk Board)</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 relative z-10">
             {riskTasks.slice(0,6).map(t => (
                <div key={t.task_id} className="bg-slate-900/60 p-5 rounded-xl border border-red-500/20 hover:border-red-500/50 transition-colors shadow-sm">
@@ -1486,6 +1488,11 @@ function TaskDashboard({ appDb, user }) {
     return { total, done, pending: total - done, pendingList };
   }, [filteredTasksList]);
 
+  // ดึงงานที่ล่าช้าและน้อยกว่า 20% ทั้งหมด ไปโชว์ใน Risk Board หน้าภาพรวมภารกิจ
+  const riskTasksAll = useMemo(() => {
+     return baseTasks.filter(t => t.status === 'ล่าช้า/ติดปัญหา' || t.progress_percent < 20);
+  }, [baseTasks]);
+
   const renderTaskDSInsight = () => {
     if (stats.totalTasks === 0) return null;
     let insightClass = 'from-sky-600/20 to-sky-900/20 border-sky-500/30 text-sky-100';
@@ -1568,6 +1575,27 @@ function TaskDashboard({ appDb, user }) {
           </div>
         ))}
       </div>
+
+      {/* 1. กระดานเฝ้าระวังพิเศษ (Risk Board) ในหน้าภาพรวมภารกิจ จะโชว์ทุกงานที่ช้า */}
+      {riskTasksAll.length > 0 && (
+        <div className="bg-red-950/20 border-l-4 border-red-500 p-6 md:p-8 rounded-2xl mb-8 shadow-lg relative overflow-hidden group">
+          <div className="absolute right-0 bottom-0 opacity-5 transform group-hover:scale-110 transition-transform duration-500"><AlertTriangle size={150} className="text-red-500"/></div>
+          <h3 className="text-red-400 font-bold flex items-center gap-2 mb-6 text-xl relative z-10"><AlertTriangle/> กระดานเฝ้าระวังพิเศษ (All Risk Board)</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 relative z-10">
+            {riskTasksAll.slice(0,6).map(t => (
+               <div key={t.task_id} className="bg-slate-900/60 p-5 rounded-xl border border-red-500/20 hover:border-red-500/50 transition-colors shadow-sm">
+                  <span className="text-[10px] font-bold bg-red-500/20 text-red-400 px-2.5 py-1 rounded mb-3 inline-block border border-red-500/20 uppercase tracking-wider">{t.primary_unit}</span>
+                  <p className="text-sm text-slate-200 line-clamp-2 leading-relaxed font-medium">{t.task_name}</p>
+                  <div className="flex justify-between items-center mt-4 pt-3 border-t border-slate-700/50">
+                    <span className="text-[11px] text-red-400 font-bold flex items-center gap-1"><AlertOctagon size={12}/> {t.status}</span>
+                    <span className="text-sm font-mono text-red-400 font-bold bg-slate-800 px-2 py-0.5 rounded shadow-inner">{t.progress_percent}%</span>
+                  </div>
+               </div>
+            ))}
+          </div>
+          {riskTasksAll.length > 6 && <p className="text-xs text-red-400/80 mt-4 text-center">และอีก {riskTasksAll.length - 6} รายการที่ต้องเฝ้าระวัง...</p>}
+        </div>
+      )}
       
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
          <div className="lg:col-span-4 bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl flex flex-col items-center">
@@ -1861,7 +1889,7 @@ function Policies({ appDb, user, showToast, callApi, refresh }) {
                      )}
                   </tr>
                 ))}
-                {filtered.length===0&&<tr><td colSpan={6} className="p-20 text-center text-slate-500 text-xl border-dashed border-2 border-slate-700/50 m-4 rounded-2xl bg-slate-900/30">ไม่พบข้อมูลที่ค้นหา</td></tr>}
+                {filtered.length===0&&<tr><td colSpan="6" className="p-20 text-center text-slate-500 text-xl border-dashed border-2 border-slate-700/50 m-4 rounded-2xl bg-slate-900/30">ไม่พบข้อมูลที่ค้นหา</td></tr>}
              </tbody>
           </table>
         </div>
