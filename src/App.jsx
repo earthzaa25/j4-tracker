@@ -7,7 +7,7 @@ import {
   Lock, Clock, Trophy, Paperclip, Bell, Sun, Moon, ChevronLeft, ChevronRight, 
   Search, Kanban, Columns, List, Target, AlertOctagon, GitMerge, Users, Circle, 
   Star, MousePointerClick, RefreshCcw, FilterX, CalendarDays, Table, ChevronDown, ChevronUp, Bot,
-  Sparkles, BarChart3, Presentation, Tv, AlignLeft, MessageSquare, Medal
+  Sparkles, BarChart3, Presentation, Tv, AlignLeft, MessageSquare, Medal, Zap, Gauge
 } from 'lucide-react';
 
 // ============================================================
@@ -470,6 +470,9 @@ export default function App() {
         
         <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1.5 custom-scrollbar">
           <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">ระบบรายงานภาพรวม</p>
+          {isAdminOrExec && (
+             <NavItem icon={<Zap size={20}/>} label="แผงควบคุมผู้บริหาร (Cockpit)" isActive={view==='EXECUTIVE_COCKPIT'} onClick={()=>navigateTo('EXECUTIVE_COCKPIT')} />
+          )}
           <NavItem icon={<LayoutDashboard size={20}/>} label="ภาพรวมนโยบาย" isActive={view==='DASHBOARD_POLICY'} onClick={()=>navigateTo('DASHBOARD_POLICY')} />
           <NavItem icon={<PieChart size={20}/>} label="ภาพรวมภารกิจ" isActive={view==='DASHBOARD_TASK'} onClick={()=>navigateTo('DASHBOARD_TASK')} />
           <NavItem icon={<AlignLeft size={20}/>} label="แผนภูมิแกนต์ (Gantt)" isActive={view==='GANTT_CHART'} onClick={()=>navigateTo('GANTT_CHART')} />
@@ -502,6 +505,9 @@ export default function App() {
         <div className="lg:hidden print-hide fixed inset-0 top-16 bg-slate-900 z-40 overflow-y-auto pb-20 animate-fade-in-up">
            <div className="p-4 space-y-1.5 mt-4">
               <NavItem icon={<LayoutDashboard size={20}/>} label="ภาพรวมนโยบาย" isActive={view==='DASHBOARD_POLICY'} onClick={()=>navigateTo('DASHBOARD_POLICY')} />
+              {isAdminOrExec && (
+                 <NavItem icon={<Zap size={20}/>} label="แผงควบคุมผู้บริหาร (Cockpit)" isActive={view==='EXECUTIVE_COCKPIT'} onClick={()=>navigateTo('EXECUTIVE_COCKPIT')} />
+              )}
               <NavItem icon={<PieChart size={20}/>} label="ภาพรวมภารกิจ" isActive={view==='DASHBOARD_TASK'} onClick={()=>navigateTo('DASHBOARD_TASK')} />
               <NavItem icon={<AlignLeft size={20}/>} label="แผนภูมิแกนต์ (Gantt)" isActive={view==='GANTT_CHART'} onClick={()=>navigateTo('GANTT_CHART')} />
               <NavItem icon={<BarChart size={20}/>} label="วิเคราะห์ประสิทธิภาพ (KPI)" isActive={view==='ANALYTICS'} onClick={()=>navigateTo('ANALYTICS')} />
@@ -583,8 +589,8 @@ export default function App() {
               )}
             </div>
           </div>
-
-          {view === 'DASHBOARD_POLICY' && <PolicyDashboard appDb={appDb} user={user} />}
+          {view === 'DASHBOARD_POLICY' && <PolicyDashboard appDb={appDb} user={user} setView={setView} />}
+          {view === 'EXECUTIVE_COCKPIT' && <ExecutiveCockpit appDb={appDb} user={user} setView={setView} />}
           {view === 'DASHBOARD_TASK' && <TaskDashboard appDb={appDb} user={user} />}
           {view === 'GANTT_CHART' && <GanttChartDashboard appDb={appDb} user={user} />}
           {view === 'ANALYTICS' && <KpiAnalyticsDashboard appDb={appDb} user={user} />}
@@ -890,7 +896,7 @@ function GanttChartDashboard({ appDb, user }) {
 // ============================================================
 // 1. นโยบายและข้อสั่งการ (Policy Dashboard)
 // ============================================================
-function PolicyDashboard({ appDb, user }) {
+function PolicyDashboard({ appDb, user, setView }) {
   const isAdminOrExec = user.role === 'admin' || user.role === 'executive';
   const [filterUnit, setFilterUnit] = useState(isAdminOrExec ? 'ALL' : user.unitName);
   const [fiscalYear, setFiscalYear] = useState('ALL');
@@ -1312,6 +1318,26 @@ function PolicyDashboard({ appDb, user }) {
   return (
     <div className="space-y-6 animate-fade-in-up text-slate-100">
       
+      {isAdminOrExec && (
+         <div 
+           onClick={() => setView('EXECUTIVE_COCKPIT')}
+           className="relative group cursor-pointer mb-8 animate-pulse hover:animate-none transition-all print-hide"
+         >
+            {/* Glowing Neon Outline Box based on user reference */}
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-2xl blur opacity-60 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+            <div className="relative bg-slate-900 rounded-xl px-8 py-5 flex items-center justify-between border border-purple-500/50 shadow-[0_0_20px_rgba(168,85,247,0.4)] group-hover:shadow-[0_0_30px_rgba(168,85,247,0.6)]">
+               <div className="flex items-center gap-4">
+                  <div className="bg-purple-500/20 p-3 rounded-full"><Zap size={28} className="text-purple-400 drop-shadow-[0_0_8px_rgba(168,85,247,0.8)]"/></div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white tracking-wider uppercase">Executive Cockpit <span className="text-purple-400 ml-2 text-sm normal-case font-normal">(คลิกเพื่อเปิดแผงควบคุม)</span></h3>
+                    <p className="text-sm text-slate-400 mt-1">มุมมองสรุปภาพรวมสำหรับผู้บริหาร (AI Briefing, Traffic Light, Bottlenecks)</p>
+                  </div>
+               </div>
+               <ChevronRight size={24} className="text-purple-400 transform group-hover:translate-x-2 transition-transform"/>
+            </div>
+         </div>
+      )}
+
       <div className="bg-slate-800 p-6 md:p-8 rounded-2xl border border-slate-700 shadow-lg print-hide flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative overflow-hidden z-10">
         <div className="relative z-10">
           <h2 className="text-2xl md:text-3xl font-bold flex items-center gap-3 text-white mb-1.5"><LayoutDashboard size={32} className="text-amber-500"/> ภาพรวมนโยบายและข้อสั่งการ</h2>
@@ -1441,6 +1467,273 @@ function PolicyDashboard({ appDb, user }) {
 }
 
 // ============================================================
+// 📈 วิเคราะห์ประสิทธิภาพและคอขวด (KPI Analytics Dashboard)
+// ============================================================
+function ExecutiveCockpit({ appDb, user, setView }) {
+  const tasks = appDb.tasks || [];
+  const policies = appDb.policies || [];
+  
+  // 1. Calculate Big Numbers & Overall Health
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter(t => t.status === 'เสร็จสิ้น');
+  const delayedTasks = tasks.filter(t => t.status === 'ล่าช้า/ติดปัญหา');
+  
+  // Overall progress is average of all task progress
+  const overallProgress = totalTasks > 0 ? (tasks.reduce((sum, t) => sum + (Number(t.progress_percent) || 0), 0) / totalTasks) : 0;
+
+  // 2. Traffic Light System Logic
+  // RED (Critical): Delayed status or progress < 20% but time has passed significantly
+  const redTasks = delayedTasks;
+  
+  // YELLOW (At Risk): Not delayed yet, but progress is less than expected by 25% OR deadline is < 14 days and progress < 60%
+  const yellowTasks = tasks.filter(t => {
+      if (t.status === 'เสร็จสิ้น' || t.status === 'ล่าช้า/ติดปัญหา') return false;
+      if (!t.start_date || !t.end_date) return false;
+      const start = new Date(t.start_date).getTime();
+      const end = new Date(t.end_date).getTime();
+      const today = new Date().setHours(0,0,0,0);
+      const totalDays = (end - start) / 86400000;
+      const daysPassed = (today - start) / 86400000;
+      if (daysPassed <= 0 || totalDays <= 0) return false;
+      const expectedProgress = (daysPassed / totalDays) * 100;
+      const actualProgress = t.progress_percent || 0;
+      const daysRemaining = (end - today) / 86400000;
+      if (actualProgress < expectedProgress - 25) return true;
+      if (daysRemaining <= 14 && actualProgress < 60) return true;
+      return false;
+  });
+
+  // GREEN (On Track): Doing fine
+  const greenTasks = tasks.filter(t => t.status !== 'ล่าช้า/ติดปัญหา' && t.status !== 'เสร็จสิ้น' && !yellowTasks.includes(t));
+
+  // 3. Bottleneck Analysis (Focus on Red/Delayed tasks)
+  const bottlenecks = useMemo(() => {
+    const counts = {};
+    redTasks.forEach(t => {
+      const rc = t.root_cause || 'ไม่ได้ระบุสาเหตุ';
+      counts[rc] = (counts[rc] || 0) + 1;
+    });
+    return Object.entries(counts).map(([cause, count]) => ({ cause, count })).sort((a,b) => b.count - a.count);
+  }, [redTasks]);
+
+  const topBottleneck = bottlenecks.length > 0 ? bottlenecks[0] : null;
+
+  // 4. Unit Performance Matrix
+  const unitPerformance = useMemo(() => {
+    const scores = {};
+    (appDb.units || []).filter(u => u.role === 'user' || !u.role).forEach(u => {
+      scores[u.name] = { total: 0, done: 0, delayed: 0, atRisk: 0, score: 0 };
+    });
+
+    tasks.forEach(t => {
+      if (scores[t.primary_unit]) {
+        scores[t.primary_unit].total += 1;
+        if (t.status === 'เสร็จสิ้น') scores[t.primary_unit].done += 1;
+        if (t.status === 'ล่าช้า/ติดปัญหา') scores[t.primary_unit].delayed += 1;
+        if (yellowTasks.find(yt => yt.task_id === t.task_id)) scores[t.primary_unit].atRisk += 1;
+      }
+    });
+
+    return Object.entries(scores).map(([name, data]) => {
+      const successRate = data.total > 0 ? Math.round((data.done / data.total) * 100) : 0;
+      // Penalty for delayed tasks
+      let finalScore = successRate - (data.delayed * 5) - (data.atRisk * 2);
+      finalScore = Math.max(0, Math.min(100, finalScore)); // clamp 0-100
+      
+      let status = 'GREEN';
+      if (finalScore < 50 || data.delayed > 0) status = 'RED';
+      else if (finalScore < 80 || data.atRisk > 0) status = 'YELLOW';
+
+      return { name, ...data, finalScore, status };
+    }).sort((a,b) => b.finalScore - a.finalScore);
+  }, [tasks, yellowTasks, appDb.units]);
+
+  // 5. AI Executive Briefing Generation
+  const aiBriefing = useMemo(() => {
+    if (totalTasks === 0) return "ระบบยังไม่มีข้อมูลภารกิจให้ประมวลผลครับท่าน";
+    
+    let brief = `📊 ภาพรวมระบบขับเคลื่อนไปแล้ว ${overallProgress.toFixed(1)}% จากทั้งหมด ${totalTasks} ภารกิจ `;
+    
+    if (redTasks.length > 0) {
+      brief += `\n🔴 ข้อควรระวัง: พบงานวิกฤต/ล่าช้า จำนวน ${redTasks.length} รายการ `;
+      if (topBottleneck) {
+        if (topBottleneck.cause.includes('อนุมัติ') || topBottleneck.cause.includes('งบประมาณ')) {
+          brief += `ซึ่งส่วนใหญ่ติดปัญหา "${topBottleneck.cause}" ขอให้ท่านพิจารณาสั่งการปลดล็อกในประเด็นนี้เป็นอันดับแรก `;
+        } else {
+          brief += `สาเหตุหลักเกิดจาก "${topBottleneck.cause}" `;
+        }
+      }
+    } else {
+      brief += `\n🟢 ยอดเยี่ยม: ไม่พบงานวิกฤตหรือล่าช้าในระบบขณะนี้ ทุกอย่างเป็นไปตามแผน `;
+    }
+
+    if (yellowTasks.length > 0) {
+      brief += `\n🟡 เฝ้าระวัง: มีงานที่เสี่ยงล่าช้า ${yellowTasks.length} รายการ ที่ต้องกำชับหน่วยงานให้เร่งดำเนินการ `;
+    }
+
+    const topUnit = unitPerformance.find(u => u.total > 0);
+    const bottomUnit = [...unitPerformance].reverse().find(u => u.delayed > 0 || u.finalScore < 50);
+    
+    if (topUnit || bottomUnit) brief += `\n🎯 ประสิทธิภาพหน่วยงาน: `;
+    if (topUnit) brief += `หน่วยงานที่ทำผลงานได้ดีเยี่ยมคือ "${topUnit.name}" (${topUnit.finalScore} คะแนน) `;
+    if (bottomUnit) brief += `หน่วยงานที่ต้องเร่งรัดติดตามผลงานด่วนคือ "${bottomUnit.name}" (มีงานล่าช้า ${bottomUnit.delayed} รายการ)`;
+
+    return brief;
+  }, [totalTasks, overallProgress, redTasks, yellowTasks, topBottleneck, unitPerformance]);
+
+  return (
+    <div className="space-y-6 animate-fade-in-up text-slate-100">
+       {/* Header */}
+       <div className="flex items-center justify-between mb-2">
+         <div>
+           <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-300 uppercase tracking-widest flex items-center gap-3">
+             <Gauge size={32} className="text-purple-400"/> Executive Cockpit
+           </h2>
+           <p className="text-sm text-purple-300/70 mt-1 font-bold tracking-wider">แผงควบคุมและสรุปสถานการณ์สำหรับผู้บริหารระดับสูง</p>
+         </div>
+         <button onClick={() => setView('DASHBOARD_POLICY')} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm text-slate-300 transition-colors border border-slate-600 flex items-center gap-2">
+           <ChevronLeft size={16}/> กลับหน้าปกติ
+         </button>
+       </div>
+
+       {/* Section 1: AI Executive Briefing */}
+       <div className="bg-gradient-to-br from-indigo-950/80 to-purple-950/80 p-8 rounded-3xl border border-purple-500/30 shadow-[0_10px_30px_rgba(168,85,247,0.15)] relative overflow-hidden">
+          <div className="absolute right-0 top-0 opacity-10"><Bot size={250} className="text-purple-300"/></div>
+          <h3 className="text-purple-300 font-black text-lg mb-4 flex items-center gap-2 uppercase tracking-widest relative z-10">
+            <Sparkles size={20}/> AI Executive Briefing
+          </h3>
+          <div className="relative z-10 text-slate-200 text-lg leading-loose font-medium">
+             {aiBriefing.split('\n').map((line, i) => (
+                <p key={i} className={`mb-2 ${line.includes('🔴') ? 'text-red-400 font-bold' : line.includes('🟡') ? 'text-amber-400' : line.includes('🟢') ? 'text-emerald-400' : ''}`}>{line}</p>
+             ))}
+          </div>
+       </div>
+
+       {/* Section 2: Big Numbers & Health */}
+       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="md:col-span-1 bg-slate-800 p-6 rounded-3xl border border-slate-700 flex flex-col justify-center items-center relative overflow-hidden shadow-lg">
+             <div className="absolute -bottom-10 -right-10 opacity-5"><Target size={150}/></div>
+             <p className="text-slate-400 font-bold text-sm uppercase tracking-wider mb-2 z-10">ความสำเร็จภาพรวม</p>
+             <h4 className="text-6xl font-black font-mono text-white z-10">{overallProgress.toFixed(0)}<span className="text-3xl text-slate-500">%</span></h4>
+             <div className="w-full bg-slate-900 h-2 mt-4 rounded-full overflow-hidden z-10">
+                <div className="h-full bg-indigo-500" style={{width: `${overallProgress}%`}}></div>
+             </div>
+          </div>
+          
+          <div className="md:col-span-3 grid grid-cols-3 gap-6">
+             {/* Traffic Lights */}
+             <div className="bg-emerald-950/30 p-6 rounded-3xl border-t-4 border-t-emerald-500 border border-slate-700/50 shadow-lg flex flex-col">
+                <div className="flex justify-between items-start mb-2">
+                   <p className="text-emerald-400/80 font-bold text-sm uppercase tracking-wider">On Track (ปกติ)</p>
+                   <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]"></span>
+                </div>
+                <h4 className="text-5xl font-black text-emerald-400 font-mono mt-auto">{greenTasks.length + completedTasks.length}</h4>
+             </div>
+             
+             <div className="bg-amber-950/30 p-6 rounded-3xl border-t-4 border-t-amber-500 border border-slate-700/50 shadow-lg flex flex-col">
+                <div className="flex justify-between items-start mb-2">
+                   <p className="text-amber-400/80 font-bold text-sm uppercase tracking-wider">At Risk (เฝ้าระวัง)</p>
+                   <span className="w-3 h-3 rounded-full bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.8)] animate-pulse"></span>
+                </div>
+                <h4 className="text-5xl font-black text-amber-400 font-mono mt-auto">{yellowTasks.length}</h4>
+             </div>
+
+             <div className="bg-red-950/30 p-6 rounded-3xl border-t-4 border-t-red-500 border border-slate-700/50 shadow-lg flex flex-col">
+                <div className="flex justify-between items-start mb-2">
+                   <p className="text-red-400/80 font-bold text-sm uppercase tracking-wider">Critical (วิกฤต/ล่าช้า)</p>
+                   <span className="w-3 h-3 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)] animate-ping"></span>
+                </div>
+                <h4 className="text-5xl font-black text-red-500 font-mono mt-auto">{redTasks.length}</h4>
+             </div>
+          </div>
+       </div>
+
+       {/* Section 3 & 4: Bottlenecks & Unit Performance */}
+       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          
+          {/* Actionable Bottlenecks */}
+          <div className="bg-slate-800 rounded-3xl border border-slate-700 shadow-lg p-6 md:p-8 flex flex-col">
+             <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3 border-b border-slate-700/50 pb-4">
+               <AlertOctagon className="text-red-500"/> ประเด็นคอขวดที่รอการตัดสินใจ
+             </h3>
+             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 max-h-[400px]">
+                {bottlenecks.length > 0 ? (
+                  <div className="space-y-4">
+                     {bottlenecks.map((b, i) => (
+                       <div key={i} className="bg-slate-900/50 p-5 rounded-2xl border border-red-500/20 flex items-center justify-between gap-4">
+                          <div>
+                            <p className="font-bold text-red-400 text-lg">{b.cause}</p>
+                            <p className="text-sm text-slate-400 mt-1">ทำให้งานล่าช้าทั้งหมด {b.count} ภารกิจ</p>
+                          </div>
+                          <div className="text-right">
+                             <button onClick={() => setView('DASHBOARD_TASK')} className="text-xs bg-red-500/20 text-red-400 px-3 py-2 rounded-lg font-bold hover:bg-red-500 hover:text-white transition-colors border border-red-500/30">
+                               ดูรายละเอียด
+                             </button>
+                          </div>
+                       </div>
+                     ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-20 text-emerald-500">
+                    <CheckCircle size={60} className="mx-auto mb-4 opacity-30"/>
+                    <p className="text-lg font-bold">ไม่พบประเด็นคอขวดในระบบ</p>
+                  </div>
+                )}
+             </div>
+          </div>
+
+          {/* Unit Performance Matrix */}
+          <div className="bg-slate-800 rounded-3xl border border-slate-700 shadow-lg p-6 md:p-8 flex flex-col">
+             <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3 border-b border-slate-700/50 pb-4">
+               <Users className="text-indigo-400"/> ประสิทธิภาพรายหน่วย (Unit Matrix)
+             </h3>
+             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 max-h-[400px]">
+                {unitPerformance.length > 0 ? (
+                  <table className="w-full text-left text-sm">
+                    <thead className="text-slate-400 border-b border-slate-700">
+                      <tr>
+                        <th className="pb-3 font-bold">หน่วยงาน</th>
+                        <th className="pb-3 font-bold text-center">งานรวม</th>
+                        <th className="pb-3 font-bold text-center">ล่าช้า/เสี่ยง</th>
+                        <th className="pb-3 font-bold text-right">Health Score</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-700/50">
+                       {unitPerformance.map((u, i) => (
+                         <tr key={i} className="hover:bg-slate-700/30 transition-colors">
+                           <td className="py-4 font-bold text-slate-200 flex items-center gap-2">
+                             <span className={`w-2 h-2 rounded-full ${u.status === 'RED' ? 'bg-red-500' : u.status === 'YELLOW' ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
+                             {u.name}
+                           </td>
+                           <td className="py-4 text-center font-mono text-slate-300">{u.total}</td>
+                           <td className="py-4 text-center font-mono">
+                              {u.delayed > 0 ? <span className="text-red-400 font-bold">{u.delayed}</span> : <span className="text-slate-500">0</span>}
+                              <span className="text-slate-500 mx-1">/</span>
+                              {u.atRisk > 0 ? <span className="text-amber-400 font-bold">{u.atRisk}</span> : <span className="text-slate-500">0</span>}
+                           </td>
+                           <td className="py-4 text-right">
+                              <span className={`font-bold font-mono text-lg ${u.status === 'RED' ? 'text-red-400' : u.status === 'YELLOW' ? 'text-amber-400' : 'text-emerald-400'}`}>
+                                {u.finalScore}
+                              </span>
+                           </td>
+                         </tr>
+                       ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="text-center py-20 text-slate-500">
+                    <p className="text-lg font-bold">ไม่มีข้อมูลหน่วยงาน</p>
+                  </div>
+                )}
+             </div>
+          </div>
+
+       </div>
+    </div>
+  );
+}
+
+// ============================================================
 // 2. ภาพรวมภารกิจ (Task Dashboard) + Data Storytelling + Kanban
 // ============================================================
 function TaskDashboard({ appDb, user }) {
@@ -1463,31 +1756,6 @@ function TaskDashboard({ appDb, user }) {
     }
     return tasks;
   }, [appDb.tasks, filterUnit, fiscalYear]);
-
-  const predictedRiskTasksAll = useMemo(() => {
-    return baseTasks.filter(t => {
-      if (t.status === 'เสร็จสิ้น' || t.status === 'ล่าช้า/ติดปัญหา') return false;
-      if (!t.start_date || !t.end_date) return false;
-
-      const start = new Date(t.start_date).getTime();
-      const end = new Date(t.end_date).getTime();
-      const today = new Date().setHours(0,0,0,0);
-      
-      const totalDays = (end - start) / 86400000;
-      const daysPassed = (today - start) / 86400000;
-      
-      if (daysPassed <= 0 || totalDays <= 0) return false;
-
-      const expectedProgress = (daysPassed / totalDays) * 100;
-      const actualProgress = t.progress_percent || 0;
-      const daysRemaining = (end - today) / 86400000;
-
-      if (actualProgress < expectedProgress - 25) return true;
-      if (daysRemaining <= 14 && actualProgress < 60) return true;
-      
-      return false;
-    });
-  }, [baseTasks]);
 
   const stats = useMemo(() => {
     const totalTasks = baseTasks.length;
@@ -1636,7 +1904,7 @@ function TaskDashboard({ appDb, user }) {
             {riskTasksAll.slice(0,6).map(t => (
                <div key={t.task_id} className="bg-slate-900/60 p-5 rounded-xl border border-red-500/20 hover:border-red-500/50 transition-colors shadow-sm">
                   <span className="text-[10px] font-bold bg-red-500/20 text-red-400 px-2.5 py-1 rounded mb-3 inline-block border border-red-500/20 uppercase tracking-wider">{t.primary_unit}</span>
-                  <p className="text-sm text-slate-200 leading-relaxed font-medium whitespace-normal">{t.task_name}</p>
+                  <p className="text-sm text-slate-200 line-clamp-2 leading-relaxed font-medium">{t.task_name}</p>
                   <div className="flex justify-between items-center mt-4 pt-3 border-t border-slate-700/50">
                     <span className="text-[11px] text-red-400 font-bold flex items-center gap-1"><AlertOctagon size={12}/> {t.status}</span>
                     <span className="text-sm font-mono text-red-400 font-bold bg-slate-800 px-2 py-0.5 rounded shadow-inner">{t.progress_percent}%</span>
@@ -1645,39 +1913,6 @@ function TaskDashboard({ appDb, user }) {
             ))}
           </div>
           {riskTasksAll.length > 6 && <p className="text-xs text-red-400/80 mt-4 text-center">และอีก {riskTasksAll.length - 6} รายการที่ต้องเฝ้าระวัง...</p>}
-        </div>
-      )}
-
-      {predictedRiskTasksAll.length > 0 && (
-        <div className="bg-fuchsia-950/20 border-l-4 border-fuchsia-500 p-6 md:p-8 rounded-2xl mb-8 shadow-lg relative overflow-hidden group">
-          <div className="absolute right-0 bottom-0 opacity-5 transform group-hover:scale-110 transition-transform duration-500"><TrendingUp size={150} className="text-fuchsia-500"/></div>
-          <h3 className="text-fuchsia-400 font-bold flex items-center gap-2 mb-6 text-xl relative z-10"><Sparkles className="text-fuchsia-500"/> AI คาดการณ์แนวโน้มความเสี่ยง/ล่าช้า (ภาพรวมทุกภารกิจ)</h3>
-          <p className="text-xs text-fuchsia-300/80 mb-6 -mt-4 relative z-10 block">วิเคราะห์จากความคืบหน้าของงานจริง ที่ช้ากว่าระยะเวลาที่ใช้ไปเกิน 25% หรือใกล้ครบกำหนด</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 relative z-10">
-            {predictedRiskTasksAll.slice(0,6).map(t => {
-              const start = new Date(t.start_date).getTime();
-              const end = new Date(t.end_date).getTime();
-              const today = new Date().setHours(0,0,0,0);
-              const totalDays = (end - start) / 86400000;
-              const daysPassed = (today - start) / 86400000;
-              const expected = Math.min(100, Math.max(0, Math.round((daysPassed / totalDays) * 100)));
-              
-              return (
-                <div key={t.task_id} className="bg-slate-900/60 p-5 rounded-xl border border-fuchsia-500/20 hover:border-fuchsia-500/50 transition-colors shadow-sm">
-                   <div className="flex justify-between items-start mb-2">
-                     <span className="text-[10px] font-bold bg-fuchsia-500/20 text-fuchsia-400 px-2.5 py-1 rounded inline-block border border-fuchsia-500/20 uppercase tracking-wider">{t.primary_unit}</span>
-                     <span className="text-[10px] bg-slate-800 border border-slate-700 text-slate-400 px-2 py-1 rounded shadow-inner" title="ความคืบหน้าที่ควรได้เมื่อเทียบกับเวลา">ควรได้: {expected}%</span>
-                   </div>
-                   <p className="text-sm text-slate-200 leading-relaxed font-medium whitespace-normal">{t.task_name}</p>
-                   <div className="flex justify-between items-center mt-4 pt-3 border-t border-slate-700/50">
-                     <span className="text-[11px] text-fuchsia-400 font-bold flex items-center gap-1"><Clock size={12}/> สถานะ: {t.status}</span>
-                     <span className="text-sm font-mono text-fuchsia-400 font-bold bg-slate-800 px-2 py-0.5 rounded shadow-inner">จริง: {t.progress_percent}%</span>
-                   </div>
-                </div>
-              )
-            })}
-          </div>
-          {predictedRiskTasksAll.length > 6 && <p className="text-xs text-fuchsia-400/80 mt-4 text-center">และอีก {predictedRiskTasksAll.length - 6} รายการที่อาจมีความเสี่ยง...</p>}
         </div>
       )}
       
