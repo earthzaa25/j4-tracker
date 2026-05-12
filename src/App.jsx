@@ -14,8 +14,8 @@ import {
 // 1. ตั้งค่า URL ของ Google Apps Script
 // ============================================================
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwPShuEyd348SncMpf9x2472fSeHyzHBvEqbOh_mz11X1eD_2p8Pkr5g9eiPFnHO8U_0A/exec";
-
-const LOGO_URL = "/S__22413315.jpg";
+// เปลี่ยน LOGO_URL เป็น placeholder ชั่วคราวเพื่อให้แสดงผลได้โดยไม่ error
+const LOGO_URL = "https://placehold.co/100x100/1e293b/f59e0b?text=J4";
 
 // ============================================================
 // ค่าคงที่และตัวแปรระบบ
@@ -64,8 +64,8 @@ const FALLBACK_ACCOUNTS = [
 const MOCK_DB = {
   units: FALLBACK_ACCOUNTS,
   policies: [
-    { policy_id: "POL-1", policy_no: "1", category: "นโยบายหลัก", commander: "ผบ.ทสส.", meeting_ref: "กพช. ครั้งที่ 1/67", order: "ทดสอบการเชื่อมต่อระบบและรายงานผลเบื้องต้น", timeframe: "ภายใน ก.ย. 68", primary_unit: "กกล.กบ.ทหาร", is_important: true },
-    { policy_id: "POL-2", policy_no: "2", category: "สั่งการเพิ่มเติม", commander: "รอง ผบ.ทสส.", meeting_ref: "-", order: "จัดเตรียมแผนงบประมาณปี 2568 สำหรับหน่วยงานที่เกี่ยวข้อง", timeframe: "ภายใน ต.ค. 67", primary_unit: "กช.กบ.ทหาร", is_important: false }
+    { policy_id: "POL-1", policy_no: "1", category: "นโยบายหลัก", commander: "ผบ.ทสส.", meeting_ref: "กพช. ครั้งที่ 1/67", order: "ทดสอบการเชื่อมต่อระบบและรายงานผลเบื้องต้น", timeframe: "ภายใน ก.ย. 68", primary_unit: "กกล.กบ.ทหาร", is_important: true, note: "เป็นนโยบายเร่งด่วนประจำปีงบประมาณ" },
+    { policy_id: "POL-2", policy_no: "2", category: "สั่งการเพิ่มเติม", commander: "รอง ผบ.ทสส.", meeting_ref: "การประชุม ศปก. ครั้งที่ 5/67", order: "จัดเตรียมแผนงบประมาณปี 2568 สำหรับหน่วยงานที่เกี่ยวข้อง", timeframe: "ภายใน ต.ค. 67", primary_unit: "กช.กบ.ทหาร", is_important: false, note: "เน้นย้ำให้แต่ละหน่วยงานเร่งรัดการเบิกจ่ายให้ทันในไตรมาสแรก" }
   ],
   reports: [
     { report_id: "REP-1", policy_id: "POL-1", policy_no: "1", policy_snippet: "ทดสอบการเชื่อมต่อระบบ...", unit_name: "กกล.กบ.ทหาร", report_date: "2024-05-10", past_result: "ทดสอบระบบเสร็จสิ้น สามารถแสดงผลได้ตามปกติ", next_plan: "ขยายผลการใช้งานไปยังหน่วยอื่น", problems: "-", progress_percent: 100, approval_status: "อนุมัติแล้ว", created_at: "2024-05-10T10:00:00Z" }
@@ -334,283 +334,6 @@ function LoginScreen({ onLogin, isLoading, appDb, loadData, deployError }) {
 }
 
 // ============================================================
-// คอมโพเนนต์หลัก: App Component
-// ============================================================
-export default function App() {
-  const [user, setUser] = useState(null);
-  const [view, setView] = useState('DASHBOARD_POLICY');
-  const [appDb, setAppDb] = useState({ policies: [], reports: [], tasks: [], units: [], isLoaded: false, isDemoMode: false });
-  const [toastData, setToastData] = useState(null);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const [isWarRoomMode, setIsWarRoomMode] = useState(false);
-
-  const showToast = (msg, type = 'ok') => { 
-    setToastData({ msg, type }); 
-    setTimeout(() => setToastData(null), 3000); 
-  };
-
-  const loadData = async () => {
-    setIsSyncing(true); 
-    try {
-      const actions = ['units', 'policies', 'reports', 'tasks'];
-      const results = await Promise.all(actions.map(async (action) => {
-        const url = `${SCRIPT_URL}?action=${action}&t=${Date.now()}`;
-        const res = await fetch(url, { redirect: "follow" }); 
-        const text = await res.text();
-        if (text.trim().startsWith('<') || text.includes('<!DOCTYPE html>')) throw new Error("PERMISSION");
-        return JSON.parse(text);
-      }));
-
-      setAppDb({ units: results[0]||[], policies: results[1]||[], reports: results[2]||[], tasks: results[3]||[], isLoaded: true, isDemoMode: false });
-      if(user) showToast("ซิงค์ข้อมูลล่าสุดเรียบร้อย", "ok");
-    } catch (err) {
-      setAppDb({ ...MOCK_DB, isLoaded: true, isDemoMode: true });
-      if(!appDb.isDemoMode) showToast("ระบบออฟไลน์: เข้าสู่โหมดจำลองการทำงาน", "error");
-    } finally { 
-      setIsSyncing(false); 
-    }
-  };
-
-  useEffect(() => { 
-    if (SCRIPT_URL && !SCRIPT_URL.includes("URL_ที่คุณได้มา")) loadData(); 
-    else setAppDb({ ...MOCK_DB, isLoaded: true, isDemoMode: true });
-  }, []);
-
-  const callApi = async (method, action, data, idKey, idValue) => {
-    if (appDb.isDemoMode) {
-      setAppDb(prev => {
-          const newData = { ...prev };
-          if (method === 'insert') newData[action] = [...newData[action], data];
-          else if (method === 'update') newData[action] = newData[action].map(item => item[idKey] === idValue ? { ...item, ...data } : item);
-          else if (method === 'delete') newData[action] = newData[action].filter(item => item[idKey] !== idValue);
-          return newData;
-      });
-      return true;
-    }
-    try {
-      await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ method, action, data, idKey, idValue }) });
-      setTimeout(loadData, 2000); 
-      return true;
-    } catch (err) { 
-      showToast("บันทึกไม่สำเร็จ ตรวจสอบอินเทอร์เน็ต", "error"); 
-      return false; 
-    }
-  };
-
-  const handleLogin = (unitName, role) => {
-    setUser({ id: `session-${Date.now()}`, unitName, role: role || 'user' });
-    setView('DASHBOARD_POLICY');
-  };
-
-  const handleLogout = () => { 
-    setUser(null); 
-    setView('DASHBOARD_POLICY'); 
-  };
-
-  const navigateTo = (viewName) => {
-    setView(viewName);
-    setIsMobileMenuOpen(false);
-  };
-
-  const notificationsList = useMemo(() => {
-    if (!appDb.tasks) return [];
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    
-    return appDb.tasks.filter(t => {
-       if (t.status === 'เสร็จสิ้น') return false;
-       if (user?.role !== 'admin' && t.primary_unit !== user?.unitName) return false;
-       
-       const end = new Date(t.end_date);
-       const diffDays = Math.ceil((end - today) / 86400000);
-       return (t.status === 'ล่าช้า/ติดปัญหา' || diffDays <= 7);
-    }).map(t => {
-       const end = new Date(t.end_date);
-       const diffDays = Math.ceil((end - today) / 86400000);
-       let type = 'warning';
-       let msg = `ใกล้ถึงกำหนดในอีก ${diffDays} วัน`;
-       if (diffDays < 0 || t.status === 'ล่าช้า/ติดปัญหา') { type = 'danger'; msg = `เลยกำหนดชำระ / ติดปัญหา (${t.root_cause || 'ไม่ระบุสาเหตุ'})`; }
-       return { ...t, alertType: type, alertMsg: msg };
-    }).sort((a,b) => new Date(a.end_date) - new Date(b.end_date));
-  }, [appDb.tasks, user]);
-
-  if (!user || !appDb.isLoaded) {
-    return <LoginScreen onLogin={handleLogin} isLoading={!appDb.isLoaded} appDb={appDb} loadData={loadData} />;
-  }
-
-  const isAdminOrExec = user.role === 'admin' || user.role === 'executive';
-
-  return (
-    <div className="min-h-screen flex bg-slate-900 text-slate-100 font-sans selection:bg-amber-500 selection:text-white relative">
-      <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; } 
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; border: 2px solid #0f172a; } 
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
-        @keyframes fadeInUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } } 
-        .animate-fade-in-up { animation: fadeInUp 0.5s ease-out forwards; } 
-        @media print { .print-hide { display: none !important; } .bg-slate-900, .bg-slate-800 { background: white !important; color: black !important; border: 1px solid #ccc !important; box-shadow: none !important; } .text-slate-100, .text-slate-200, .text-slate-300, .text-slate-400 { color: #333 !important; } body { background: white !important; } }
-      `}</style>
-      
-      {isWarRoomMode && <WarRoomDashboard appDb={appDb} onClose={() => setIsWarRoomMode(false)} />}
-
-      <aside className="print-hide fixed left-0 top-0 h-screen z-40 bg-slate-800 border-r border-slate-700 flex flex-col w-72 hidden lg:flex shadow-2xl">
-        <div className="h-24 flex items-center justify-between px-6 border-b border-slate-700 shrink-0 bg-slate-900/30">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center p-1.5 shadow-md border border-amber-500/20"><img src={LOGO_URL} alt="Logo" className="w-full h-full object-contain" onError={(e) => { e.target.onerror=null; e.target.src='https://placehold.co/100x100/1e293b/f59e0b?text=J4'; }} /></div>
-            <div><h1 className="font-bold text-xl leading-tight text-white tracking-wide">J4 Tracker</h1><span className="text-[10px] text-amber-500 uppercase tracking-widest font-bold">G-Sheets App</span></div>
-          </div>
-        </div>
-        
-        <div className="p-6 border-b border-slate-700 bg-slate-800/80">
-          <p className="text-[10px] text-slate-400 mb-1.5 uppercase tracking-wider font-bold">บัญชีเข้าใช้งาน:</p>
-          <div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-500 border border-amber-500/30 shrink-0"><Users size={16}/></div><p className="font-bold text-amber-400 truncate text-sm leading-snug" title={user.unitName}>{user.unitName}</p></div>
-        </div>
-        
-        <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1.5 custom-scrollbar">
-          <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">ระบบรายงานภาพรวม</p>
-          <NavItem icon={<LayoutDashboard size={20}/>} label="ภาพรวมนโยบาย" isActive={view==='DASHBOARD_POLICY'} onClick={()=>navigateTo('DASHBOARD_POLICY')} />
-          <NavItem icon={<PieChart size={20}/>} label="ภาพรวมภารกิจ" isActive={view==='DASHBOARD_TASK'} onClick={()=>navigateTo('DASHBOARD_TASK')} />
-          <NavItem icon={<AlignLeft size={20}/>} label="แผนภูมิแกนต์ (Gantt)" isActive={view==='GANTT_CHART'} onClick={()=>navigateTo('GANTT_CHART')} />
-          <NavItem icon={<BarChart size={20}/>} label="วิเคราะห์ประสิทธิภาพ (KPI)" isActive={view==='ANALYTICS'} onClick={()=>navigateTo('ANALYTICS')} />
-          
-          <div className="border-t border-slate-700/50 my-6"></div>
-          
-          <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">ระบบปฏิบัติการ</p>
-          <NavItem icon={<ScrollText size={20}/>} label="ฐานข้อมูลนโยบาย" isActive={view==='POLICIES'} onClick={()=>navigateTo('POLICIES')} />
-          <NavItem icon={<CheckSquare size={20}/>} label="ติดตามภารกิจ (Tasks)" isActive={view==='TASKS'} onClick={()=>navigateTo('TASKS')} />
-          {user.role !== 'executive' && <NavItem icon={<FilePlus size={20}/>} label="บันทึกรายงานผล" isActive={view==='REPORT_FORM'} onClick={()=>navigateTo('REPORT_FORM')} />}
-          <NavItem icon={<HistoryIcon size={20}/>} label="ประวัติรายงานผล" isActive={view==='HISTORY'} onClick={()=>navigateTo('HISTORY')} />
-          
-          {user.role === 'admin' && (
-            <><div className="border-t border-slate-700/50 my-6"></div><NavItem icon={<Users size={20}/>} label="ตั้งค่าบัญชีใช้งาน" isActive={view==='UNITS_CONFIG'} onClick={()=>navigateTo('UNITS_CONFIG')} /></>
-          )}
-        </nav>
-        
-        <div className="p-5 border-t border-slate-700 bg-slate-900/30">
-          <button onClick={handleLogout} className="flex items-center justify-center gap-2 bg-slate-800 border border-slate-700 hover:bg-red-600 hover:border-red-500 hover:text-white text-slate-300 w-full py-3.5 rounded-xl transition-all font-bold shadow-sm"><LogOut size={18}/> ออกจากระบบ</button>
-        </div>
-      </aside>
-
-      <div className="lg:hidden print-hide fixed top-0 left-0 right-0 h-16 bg-slate-800 border-b border-slate-700 z-[100] flex items-center justify-between px-5 shadow-md">
-         <div className="flex items-center gap-3"><div className="w-8 h-8 bg-white rounded-md flex items-center justify-center p-1"><img src={LOGO_URL} alt="Logo" className="w-full h-full object-contain"/></div><h1 className="font-bold text-white tracking-wide">J4 Tracker</h1></div>
-         <button onClick={()=>setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-slate-300 p-2 hover:bg-slate-700 rounded-lg transition-colors">{isMobileMenuOpen ? <X size={24}/> : <List size={24}/>}</button>
-      </div>
-
-      {isMobileMenuOpen && (
-        <div className="lg:hidden print-hide fixed inset-0 top-16 bg-slate-900 z-40 overflow-y-auto pb-20 animate-fade-in-up">
-           <div className="p-4 space-y-1.5 mt-4">
-              <NavItem icon={<LayoutDashboard size={20}/>} label="ภาพรวมนโยบาย" isActive={view==='DASHBOARD_POLICY'} onClick={()=>navigateTo('DASHBOARD_POLICY')} />
-              <NavItem icon={<PieChart size={20}/>} label="ภาพรวมภารกิจ" isActive={view==='DASHBOARD_TASK'} onClick={()=>navigateTo('DASHBOARD_TASK')} />
-              <NavItem icon={<AlignLeft size={20}/>} label="แผนภูมิแกนต์ (Gantt)" isActive={view==='GANTT_CHART'} onClick={()=>navigateTo('GANTT_CHART')} />
-              <NavItem icon={<BarChart size={20}/>} label="วิเคราะห์ประสิทธิภาพ (KPI)" isActive={view==='ANALYTICS'} onClick={()=>navigateTo('ANALYTICS')} />
-              <div className="border-t border-slate-800 my-4"></div>
-              <NavItem icon={<ScrollText size={20}/>} label="ฐานข้อมูลนโยบาย" isActive={view==='POLICIES'} onClick={()=>navigateTo('POLICIES')} />
-              <NavItem icon={<CheckSquare size={20}/>} label="ติดตามภารกิจ (Tasks)" isActive={view==='TASKS'} onClick={()=>navigateTo('TASKS')} />
-              {user.role !== 'executive' && <NavItem icon={<FilePlus size={20}/>} label="บันทึกรายงานผล" isActive={view==='REPORT_FORM'} onClick={()=>navigateTo('REPORT_FORM')} />}
-              <NavItem icon={<HistoryIcon size={20}/>} label="ประวัติรายงานผล" isActive={view==='HISTORY'} onClick={()=>navigateTo('HISTORY')} />
-              
-              {user.role === 'admin' && <NavItem icon={<Users size={20}/>} label="ตั้งค่าผู้ใช้งาน" isActive={view==='UNITS_CONFIG'} onClick={()=>navigateTo('UNITS_CONFIG')} />}
-              
-              <div className="mt-8 p-4">
-                <button onClick={handleLogout} className="w-full bg-red-600 hover:bg-red-500 text-white py-4 rounded-xl flex items-center justify-center gap-2 font-bold shadow-lg">
-                  <LogOut size={20}/> ออกจากระบบ
-                </button>
-              </div>
-           </div>
-        </div>
-      )}
-
-      <main className={`flex-1 lg:ml-72 pt-20 lg:pt-0 p-4 md:p-8 min-h-screen overflow-y-auto custom-scrollbar relative ${isWarRoomMode ? 'hidden' : 'block'}`}>
-        <div className="max-w-7xl mx-auto pb-24">
-          
-          {appDb.isDemoMode && (
-            <div className="mb-6 bg-orange-950/80 border border-orange-500/50 p-4 rounded-2xl flex items-center gap-4 animate-pulse">
-              <div className="bg-orange-500/20 p-2 rounded-full text-orange-400"><AlertTriangle size={24}/></div>
-              <div><p className="font-bold text-orange-400">โหมดออฟไลน์ / จำลอง (Demo Mode)</p><p className="text-xs text-slate-300">ข้อมูลที่บันทึกตอนนี้ จะเก็บไว้ชั่วคราวและไม่ถูกส่งไปที่ฐานข้อมูลจริง</p></div>
-            </div>
-          )}
-
-          <div className="flex justify-between items-center mb-8 bg-slate-800/90 p-4 rounded-xl border border-slate-700 backdrop-blur-md print-hide shadow-md relative z-[100]">
-            <h2 className="text-slate-200 font-bold flex items-center gap-2 md:gap-3 text-sm md:text-base tracking-wide">
-              <ShieldCheck size={22} className="text-amber-500"/> J4 Command Center
-            </h2>
-            <div className="flex items-center gap-3 md:gap-4 relative">
-              {isSyncing && <span className="hidden md:flex text-amber-500 text-xs font-bold items-center gap-1.5 bg-amber-500/10 px-3 py-1.5 rounded-full border border-amber-500/20"><RefreshCcw size={12} className="animate-spin"/> ซิงค์</span>}
-              <button onClick={loadData} className="p-2.5 bg-slate-900 rounded-xl hover:bg-slate-700 text-slate-400 transition-colors border border-slate-700 shadow-sm hover:text-white" title="รีเฟรชข้อมูล"><RefreshCcw size={18}/></button>
-              
-              {isAdminOrExec && (
-                <button onClick={() => setIsWarRoomMode(true)} className="hidden md:flex p-2.5 bg-indigo-900/50 rounded-xl hover:bg-indigo-600 text-indigo-300 transition-colors border border-indigo-700 shadow-sm hover:text-white items-center gap-2" title="เปิดโหมดห้องบัญชาการ">
-                  <Tv size={18}/> <span className="text-xs font-bold uppercase tracking-wider">War Room</span>
-                </button>
-              )}
-
-              <div className="relative">
-                <button onClick={() => setIsNotificationOpen(!isNotificationOpen)} className="p-2.5 bg-slate-900 rounded-xl hover:bg-slate-700 text-slate-400 transition-colors border border-slate-700 shadow-sm hover:text-white relative">
-                  <Bell size={18} className={notificationsList.length > 0 ? "animate-pulse text-amber-400" : ""} />
-                  {notificationsList.length > 0 && <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full shadow-md border-2 border-slate-800">{notificationsList.length}</span>}
-                </button>
-              </div>
-
-              {isNotificationOpen && (
-                <>
-                  <div className="fixed inset-0 z-[9998]" onClick={() => setIsNotificationOpen(false)}></div>
-                  <div className="fixed top-24 right-4 md:right-8 w-80 md:w-96 bg-slate-800 rounded-2xl border border-slate-600 shadow-[0_10px_50px_rgba(0,0,0,0.5)] z-[9999] overflow-hidden flex flex-col max-h-[500px] animate-fade-in-up">
-                     <div className="p-4 bg-slate-900/80 border-b border-slate-700 flex justify-between items-center">
-                       <h3 className="font-bold text-slate-100 flex items-center gap-2"><Bell size={18} className="text-amber-500"/> แจ้งเตือนภารกิจ (Alerts)</h3>
-                       <span className="text-xs bg-red-500 text-white px-2 py-0.5 rounded-full font-bold">{notificationsList.length}</span>
-                     </div>
-                     <div className="overflow-y-auto flex-1 custom-scrollbar">
-                       {notificationsList.length > 0 ? notificationsList.map(n => (
-                         <div key={n.task_id} className={`p-4 border-b border-slate-700/50 hover:bg-slate-700/50 transition-colors cursor-pointer ${n.alertType === 'danger' ? 'bg-red-950/20' : 'bg-amber-950/10'}`} onClick={() => { navigateTo('TASKS'); setIsNotificationOpen(false); }}>
-                           <div className="flex justify-between items-start mb-1">
-                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${n.alertType === 'danger' ? 'bg-red-900/50 text-red-400 border-red-500/30' : 'bg-amber-900/50 text-amber-400 border-amber-500/30'}`}>{n.alertMsg}</span>
-                             <span className="text-[10px] text-slate-500 font-mono">{formatDate(n.end_date)}</span>
-                           </div>
-                           <p className="text-sm font-bold text-slate-200 mt-2 line-clamp-2">{n.task_name}</p>
-                           <p className="text-xs text-sky-400 mt-1 font-medium flex items-center gap-1"><Users size={12}/> {n.primary_unit}</p>
-                         </div>
-                       )) : (
-                         <div className="p-8 text-center text-slate-500">
-                           <CheckCircle size={40} className="mx-auto mb-3 opacity-20 text-emerald-500"/>
-                           <p className="text-sm font-bold">ไม่มีงานที่ล่าช้าหรือใกล้ถึงกำหนด</p>
-                         </div>
-                       )}
-                     </div>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-
-          {view === 'DASHBOARD_POLICY' && <PolicyDashboard appDb={appDb} user={user} />}
-          {view === 'DASHBOARD_TASK' && <TaskDashboard appDb={appDb} user={user} />}
-          {view === 'GANTT_CHART' && <GanttChartDashboard appDb={appDb} user={user} />}
-          {view === 'ANALYTICS' && <KpiAnalyticsDashboard appDb={appDb} user={user} />}
-          {view === 'POLICIES' && <Policies appDb={appDb} user={user} showToast={showToast} callApi={callApi} refresh={loadData} />}
-          {view === 'TASKS' && <TaskTracker appDb={appDb} user={user} showToast={showToast} callApi={callApi} refresh={loadData} />}
-          {view === 'REPORT_FORM' && <ReportForm appDb={appDb} user={user} showToast={showToast} setView={setView} callApi={callApi} refresh={loadData} />}
-          {view === 'HISTORY' && <History appDb={appDb} user={user} showToast={showToast} callApi={callApi} refresh={loadData} />}
-          {view === 'UNITS_CONFIG' && <UnitsConfig appDb={appDb} showToast={showToast} callApi={callApi} refresh={loadData} />}
-
-        </div>
-      </main>
-
-      {toastData && (
-        <div className="fixed top-6 right-6 z-[9999] px-6 py-4 rounded-xl shadow-2xl border bg-slate-800 text-white flex items-center gap-3 animate-fade-in-up" style={{borderColor: toastData.type === 'ok' ? '#10b981' : '#ef4444'}}>
-          {toastData.type === 'ok' ? <CheckCircle className="text-emerald-500" size={24}/> : <AlertTriangle className="text-red-500" size={24}/>}
-          <span className="font-bold text-sm">{toastData.msg}</span>
-        </div>
-      )}
-
-      {!isWarRoomMode && <Chatbot appDb={appDb} />}
-    </div>
-  );
-}
-
-// ============================================================
 // 📈 วิเคราะห์ประสิทธิภาพและคอขวด (KPI Analytics Dashboard)
 // ============================================================
 function KpiAnalyticsDashboard({ appDb, user }) {
@@ -677,7 +400,7 @@ function KpiAnalyticsDashboard({ appDb, user }) {
                 return (
                   <div key={u.name} className={`p-5 rounded-2xl border flex items-center gap-4 transition-all shadow-sm ${isTop3 ? 'bg-gradient-to-r from-amber-950/40 to-slate-900/40 border-amber-500/30' : 'bg-slate-900/50 border-slate-700/50'}`}>
                      <div className={`w-12 h-12 shrink-0 rounded-full flex items-center justify-center text-xl font-black shadow-inner border ${index===0 ? 'bg-yellow-500/20 text-yellow-500 border-yellow-500' : index===1 ? 'bg-slate-400/20 text-slate-300 border-slate-400' : index===2 ? 'bg-orange-600/20 text-orange-500 border-orange-600' : 'bg-slate-800 text-slate-500 border-slate-700'}`}>
-                        #{index + 1}
+                       #{index + 1}
                      </div>
                      <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-end mb-2">
@@ -862,6 +585,7 @@ function GanttChartDashboard({ appDb, user }) {
                                </div>
                            </div>
                            
+                           {/* Expanded Subtasks */}
                            {isExpanded && hasSubtasks && (
                               <div className="bg-slate-800/80 border-t border-slate-700/50 p-4 animate-fade-in-up">
                                  <div className="pl-9 space-y-2">
@@ -869,8 +593,8 @@ function GanttChartDashboard({ appDb, user }) {
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                                       {parsedSubtasks.map((st, i) => (
                                          <div key={i} className={`flex items-start gap-2.5 p-3 rounded-lg border shadow-sm ${st.done ? 'bg-emerald-950/20 border-emerald-900/30' : 'bg-slate-900 border-slate-700/50'}`}>
-                                            <div className="mt-0.5 shrink-0">{st.done ? <CheckCircle2 size={12} className="text-emerald-500" /> : <Circle size={12} className="text-slate-500" />}</div>
-                                            <span className={`text-[11px] leading-relaxed ${st.done ? 'text-slate-500 line-through' : 'text-slate-300'}`}>{st.text}</span>
+                                            <div className="mt-0.5 shrink-0">{st.done ? <CheckCircle2 size={16} className="text-emerald-500 drop-shadow-md" /> : <Circle size={16} className="text-slate-500" />}</div>
+                                            <span className={`text-xs leading-relaxed ${st.done ? 'text-slate-400 line-through' : 'text-slate-200'}`}>{st.text}</span>
                                          </div>
                                       ))}
                                     </div>
@@ -954,7 +678,7 @@ function PolicyDashboard({ appDb, user }) {
     };
   }, [basePolicies, baseReports, currentUnits]);
 
-  // ดึงภารกิจทั้งหมดที่เชื่อมโยงกับนโยบายมาแสดงใน Timeline (ไม่ว่างานนั้นจะติดดาวหรือไม่ก็ตาม)
+  // กรองเอาเฉพาะภารกิจที่ "ติดดาว (is_important)" มาแสดงใน Timeline ของหน้านโยบายเท่านั้น
   const tasksByPolicy = useMemo(() => {
     const map = {};
     (appDb.tasks || []).forEach(t => {
@@ -985,6 +709,41 @@ function PolicyDashboard({ appDb, user }) {
     return tks.filter(t => (t.status === 'ล่าช้า/ติดปัญหา' || t.progress_percent < 20) && t.is_important);
   }, [appDb.tasks, filterUnit]);
   
+  // AI คาดการณ์ความเสี่ยง: งานที่ยังไม่ถึงสถานะล่าช้าแต่มีแนวโน้มล่าช้า (Progress ช้ากว่าระยะเวลาที่ผ่านไป)
+  const predictedRiskTasks = useMemo(() => {
+    let tks = appDb.tasks || [];
+    if (filterUnit !== 'ALL') tks = tks.filter(t => t.primary_unit === filterUnit);
+    
+    return tks.filter(t => {
+      // พิจารณาเฉพาะงานที่ยังไม่เสร็จและยังไม่ถูกขึ้นป้ายล่าช้า
+      if (t.status === 'เสร็จสิ้น' || t.status === 'ล่าช้า/ติดปัญหา') return false;
+      if (!t.start_date || !t.end_date) return false;
+      
+      const start = new Date(t.start_date).getTime();
+      const end = new Date(t.end_date).getTime();
+      const today = new Date().setHours(0,0,0,0);
+      
+      const totalDays = (end - start) / 86400000;
+      const daysPassed = (today - start) / 86400000;
+      
+      if (totalDays <= 0) return false;
+      
+      // คำนวณเปอร์เซ็นต์เวลาที่ใช้ไป เพื่อเทียบกับความคืบหน้างานที่ควรเป็น
+      let expectedProgress = (daysPassed / totalDays) * 100;
+      if (expectedProgress < 0) expectedProgress = 0;
+      if (expectedProgress > 100) expectedProgress = 100;
+
+      // เงื่อนไขที่ 1: เปอร์เซ็นต์งานช้ากว่าเวลาที่ผ่านไปมากกว่า 25%
+      const isLagging = daysPassed > 0 && t.progress_percent < (expectedProgress - 25);
+      
+      // เงื่อนไขที่ 2: เหลือเวลาอีกไม่เกิน 14 วัน แต่ความคืบหน้าน้อยกว่า 60%
+      const daysLeft = (end - today) / 86400000;
+      const isDeadlineRisk = daysLeft >= 0 && daysLeft <= 14 && t.progress_percent < 60;
+
+      return isLagging || isDeadlineRisk;
+    });
+  }, [appDb.tasks, filterUnit]);
+
   const priorityPolicies = useMemo(() => basePolicies.filter(p => p.is_important), [basePolicies]);
 
   if (showBrief) {
@@ -1000,36 +759,66 @@ function PolicyDashboard({ appDb, user }) {
                <p className="text-sm text-slate-500 mt-3">ข้อมูล ณ วันที่ {new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
             </div>
             
-            <div className="grid grid-cols-3 gap-6 mb-10">
-              <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 text-center"><h3 className="text-5xl font-bold text-slate-800">{basePolicies.length}</h3><p className="text-sm font-bold text-slate-500 mt-2 uppercase tracking-wider">นโยบาย/ข้อสั่งการ</p></div>
-              <div className="bg-emerald-50 p-6 rounded-xl border border-emerald-200 text-center"><h3 className="text-5xl font-bold text-emerald-600">{overallStats.completed}</h3><p className="text-sm font-bold text-emerald-600/80 mt-2 uppercase tracking-wider">นโยบายที่สำเร็จ</p></div>
-              <div className="bg-red-50 p-6 rounded-xl border border-red-200 text-center"><h3 className="text-5xl font-bold text-red-600">{riskTasks.length}</h3><p className="text-sm font-bold text-red-500 mt-2 uppercase tracking-wider">งานสำคัญที่ต้องเร่งรัด</p></div>
+            <div className="grid grid-cols-4 gap-4 mb-10">
+              <div className="bg-slate-50 p-4 lg:p-6 rounded-xl border border-slate-200 text-center"><h3 className="text-3xl lg:text-5xl font-bold text-slate-800">{basePolicies.length}</h3><p className="text-[10px] lg:text-xs font-bold text-slate-500 mt-2 uppercase tracking-wider">ข้อสั่งการทั้งหมด</p></div>
+              <div className="bg-emerald-50 p-4 lg:p-6 rounded-xl border border-emerald-200 text-center"><h3 className="text-3xl lg:text-5xl font-bold text-emerald-600">{overallStats.completed}</h3><p className="text-[10px] lg:text-xs font-bold text-emerald-600/80 mt-2 uppercase tracking-wider">สำเร็จแล้ว</p></div>
+              <div className="bg-red-50 p-4 lg:p-6 rounded-xl border border-red-200 text-center"><h3 className="text-3xl lg:text-5xl font-bold text-red-600">{riskTasks.length}</h3><p className="text-[10px] lg:text-xs font-bold text-red-500 mt-2 uppercase tracking-wider">วิกฤต/ล่าช้า</p></div>
+              <div className="bg-fuchsia-50 p-4 lg:p-6 rounded-xl border border-fuchsia-200 text-center relative overflow-hidden"><div className="absolute -right-2 -top-2 opacity-10"><Sparkles size={40}/></div><h3 className="text-3xl lg:text-5xl font-bold text-fuchsia-600">{predictedRiskTasks.length}</h3><p className="text-[10px] lg:text-xs font-bold text-fuchsia-600/80 mt-2 uppercase tracking-wider">คาดการณ์เสี่ยงล่าช้า</p></div>
             </div>
             
             <div className="mb-10">
               <h3 className="font-bold text-xl border-b-2 border-amber-500 pb-2 mb-4 text-slate-800 flex items-center gap-2"><Star className="text-amber-500 fill-amber-500"/> นโยบายเร่งด่วน (Top Priority)</h3>
               {priorityPolicies.length > 0 ? (
                 <ul className="list-disc pl-6 space-y-3 text-base text-slate-700">
-                   {priorityPolicies.map(p=><li key={p.policy_id}><b className="text-slate-900">[{p.policy_no}] {p.commander}:</b> {p.order} <span className="text-emerald-600 font-bold ml-2">({getPolicyProgress(p.policy_id)}%)</span></li>)}
+                   {priorityPolicies.map(p=>(
+                     <li key={p.policy_id} className="pb-2">
+                       <b className="text-slate-900">[{p.policy_no}] {p.commander}:</b> {p.order} <span className="text-emerald-600 font-bold ml-2">({getPolicyProgress(p.policy_id)}%)</span>
+                       {p.category === 'สั่งการเพิ่มเติม' && p.meeting_ref && p.meeting_ref !== '-' && (
+                         <div className="text-sm text-indigo-700 mt-1 flex items-center gap-1.5"><FileText size={14}/> <b>จากการสั่งการ/ประชุม:</b> {p.meeting_ref}</div>
+                       )}
+                       {p.note && (
+                         <div className="text-sm text-slate-600 mt-1 flex items-start gap-1.5"><Paperclip size={14} className="mt-0.5 shrink-0"/> <b>หมายเหตุ:</b> {p.note}</div>
+                       )}
+                     </li>
+                   ))}
                 </ul>
               ) : <p className="text-slate-500 text-sm italic">ไม่มีนโยบายที่ถูกตั้งเป็น Priority ในขณะนี้</p>}
             </div>
             
-            <div className="mb-10">
-              <h3 className="font-bold text-xl border-b-2 border-red-500 pb-2 mb-4 text-slate-800 flex items-center gap-2"><AlertTriangle className="text-red-500"/> ประเด็นข้อขัดข้องที่ต้องพิจารณา</h3>
-              {riskTasks.length > 0 ? (
-                <div className="space-y-4">
-                   {riskTasks.map(t=>(
-                     <div key={t.task_id} className="bg-red-50/50 p-4 rounded-lg border border-red-100">
-                        <div className="flex justify-between items-start mb-1">
-                          <b className="text-slate-900">{t.task_name}</b>
-                          <span className="text-xs font-bold text-red-600 bg-red-100 px-2 py-1 rounded">{t.primary_unit}</span>
-                        </div>
-                        <p className="text-sm text-red-700 mt-2"><b className="font-semibold">สาเหตุหลัก:</b> {t.root_cause || 'ไม่ระบุ'}</p>
-                     </div>
-                   ))}
-                </div>
-              ) : <p className="text-emerald-600 text-sm italic font-bold"><CheckCircle2 className="inline mr-1" size={16}/> ไม่พบภารกิจสำคัญที่ล่าช้าหรือติดปัญหาในระบบ</p>}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+              <div>
+                <h3 className="font-bold text-lg border-b-2 border-red-500 pb-2 mb-4 text-slate-800 flex items-center gap-2"><AlertTriangle className="text-red-500"/> งานวิกฤต/ล่าช้าแล้ว</h3>
+                {riskTasks.length > 0 ? (
+                  <div className="space-y-4">
+                     {riskTasks.map(t=>(
+                       <div key={t.task_id} className="bg-red-50/50 p-4 rounded-lg border border-red-100">
+                          <div className="flex justify-between items-start mb-1">
+                            <b className="text-slate-900">{t.task_name}</b>
+                            <span className="text-xs font-bold text-red-600 bg-red-100 px-2 py-1 rounded shrink-0 ml-2">{t.primary_unit}</span>
+                          </div>
+                          <p className="text-sm text-red-700 mt-2"><b className="font-semibold">สาเหตุหลัก:</b> {t.root_cause || 'ไม่ระบุ'}</p>
+                       </div>
+                     ))}
+                  </div>
+                ) : <p className="text-emerald-600 text-sm italic font-bold"><CheckCircle2 className="inline mr-1" size={16}/> ไม่พบภารกิจวิกฤต/ล่าช้าในระบบ</p>}
+              </div>
+
+              <div>
+                <h3 className="font-bold text-lg border-b-2 border-fuchsia-500 pb-2 mb-4 text-slate-800 flex items-center gap-2"><TrendingUp className="text-fuchsia-500"/> AI คาดการณ์ความเสี่ยง</h3>
+                {predictedRiskTasks.length > 0 ? (
+                  <div className="space-y-4">
+                     {predictedRiskTasks.map(t=>(
+                       <div key={t.task_id} className="bg-fuchsia-50/50 p-4 rounded-lg border border-fuchsia-100">
+                          <div className="flex justify-between items-start mb-1">
+                            <b className="text-slate-900">{t.task_name}</b>
+                            <span className="text-xs font-bold text-fuchsia-600 bg-fuchsia-100 px-2 py-1 rounded shrink-0 ml-2">{t.primary_unit}</span>
+                          </div>
+                          <p className="text-sm text-fuchsia-700 mt-2 flex justify-between items-center"><span className="font-semibold">ความคืบหน้าจริง:</span> <span>{t.progress_percent}%</span></p>
+                       </div>
+                     ))}
+                  </div>
+                ) : <p className="text-emerald-600 text-sm italic font-bold"><CheckCircle2 className="inline mr-1" size={16}/> ไม่มีงานที่อยู่ในเกณฑ์เฝ้าระวังความเสี่ยง</p>}
+              </div>
             </div>
 
             <div>
@@ -1093,7 +882,7 @@ function PolicyDashboard({ appDb, user }) {
       return (
         <div className="bg-slate-900/80 p-5 rounded-xl text-center border border-slate-700/50 mt-3 shadow-inner">
            <CalendarDays size={24} className="mx-auto text-slate-500 mb-3 opacity-30"/>
-           <p className="text-slate-400 text-xs font-medium">ยังไม่มีการเพิ่มภารกิจหรือรายการย่อยภายใต้ข้อสั่งการนี้</p>
+           <p className="text-slate-400 text-xs font-medium">ยังไม่มีภารกิจที่เชื่อมโยงกับนโยบายนี้ (เพิ่มภารกิจในหน้า "ติดตามภารกิจ" และเลือกสนับสนุนนโยบายนี้เพื่อนำมาแสดงที่นี่)</p>
         </div>
       );
     }
@@ -1168,7 +957,7 @@ function PolicyDashboard({ appDb, user }) {
     let list = sectionPolicies.map(po => {
       const rs = baseReports.filter(r => r.policy_id === po.policy_id).sort((a,b) => new Date(b.report_date) - new Date(a.report_date));
       const prog = rs.length ? (rs[0].progress_percent || 0) : 0;
-      return { id: po.policy_id, short: `[${po.policy_no||'-'}] ${po.order.substring(0,80)}...`, order: po.order, meeting_ref: po.meeting_ref, prog: prog, bucket: getStatusBucket(prog), is_important: po.is_important, cmd: po.commander };
+      return { id: po.policy_id, fullTitle: `[${po.policy_no||'-'}] ${po.order}`, short: `[${po.policy_no||'-'}] ${po.order.substring(0,80)}...`, order: po.order, meeting_ref: po.meeting_ref, prog: prog, bucket: getStatusBucket(prog), is_important: po.is_important, cmd: po.commander, category: po.category, note: po.note };
     });
     
     const cmds = [...new Set(sectionPolicies.map(p => p.commander))];
@@ -1239,18 +1028,26 @@ function PolicyDashboard({ appDb, user }) {
                      {filtered.map(p => (
                        <div key={p.id} className={`p-5 rounded-2xl border transition-all shadow-sm ${expandedPolicyId === p.id ? 'bg-slate-700/60 border-amber-500' : 'bg-slate-900 border-slate-700 hover:border-amber-500/50'}`}>
                          <div className="flex justify-between cursor-pointer group" onClick={() => setExpandedPolicyId(expandedPolicyId === p.id ? null : p.id)}>
-                           <div className="text-sm font-bold text-slate-200 pr-6 leading-relaxed flex flex-col items-start gap-2">
-                             <div className="flex items-start gap-2">
+                           <div className="text-sm font-bold text-slate-200 pr-6 leading-relaxed flex flex-col items-start gap-2 w-full">
+                             <div className="flex items-start gap-2 w-full">
                                {p.is_important && <Star size={16} className="shrink-0 text-amber-500 fill-amber-500 mt-0.5 drop-shadow-md"/>}
-                               <span className="group-hover:text-amber-400 transition-colors" title={p.order}>{p.short}</span>
+                               <span className="group-hover:text-amber-400 transition-colors block w-full">{p.fullTitle}</span>
                              </div>
-                             {p.meeting_ref && p.meeting_ref !== '-' && (
-                               <span className="text-[10px] text-indigo-300 bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-500/30 md:ml-6 mt-1 flex items-center gap-1">
-                                 <FileText size={10}/> อ้างอิง: {p.meeting_ref}
-                               </span>
-                             )}
+                             <div className="flex flex-col gap-2 md:ml-6 mt-1 w-full max-w-4xl">
+                               {p.category === 'สั่งการเพิ่มเติม' && p.meeting_ref && p.meeting_ref !== '-' && (
+                                 <span className="text-xs text-indigo-300 bg-indigo-950/50 px-3 py-1.5 rounded-lg border border-indigo-500/30 flex items-center gap-1.5 w-max shadow-sm">
+                                   <FileText size={14}/> สั่งการครั้งที่ / จากการประชุม: {p.meeting_ref}
+                                 </span>
+                               )}
+                               {p.note && (
+                                 <div className="text-xs text-slate-300 bg-slate-800/80 p-3 rounded-lg border border-slate-600 mt-1.5 leading-relaxed shadow-inner font-medium">
+                                   <span className="text-sky-400 font-bold block mb-1 text-[11px] uppercase tracking-wider flex items-center gap-1.5"><Paperclip size={14}/> หมายเหตุ:</span>
+                                   {p.note}
+                                 </div>
+                               )}
+                             </div>
                            </div>
-                           <div className="flex flex-col items-end shrink-0"><span className="font-mono font-bold text-xl drop-shadow-md" style={{ color: getBarColor(p.prog) }}>{p.prog}%</span>{expandedPolicyId === p.id ? <ChevronUp size={18} className="text-amber-500 mt-1"/> : <ChevronDown size={18} className="text-slate-500 mt-1 group-hover:text-amber-500 transition-colors"/>}</div>
+                           <div className="flex flex-col items-end shrink-0 ml-4"><span className="font-mono font-bold text-xl drop-shadow-md" style={{ color: getBarColor(p.prog) }}>{p.prog}%</span>{expandedPolicyId === p.id ? <ChevronUp size={18} className="text-amber-500 mt-1"/> : <ChevronDown size={18} className="text-slate-500 mt-1 group-hover:text-amber-500 transition-colors"/>}</div>
                          </div>
                          <div className="w-full bg-slate-800 h-2 mt-4 rounded-full overflow-hidden border border-slate-700 shadow-inner"><div className="h-full rounded-full transition-all duration-1000 relative" style={{ width: `${p.prog}%`, background: getBarColor(p.prog) }}><div className="absolute inset-0 bg-white/20"></div></div></div>
                          
@@ -1316,6 +1113,40 @@ function PolicyDashboard({ appDb, user }) {
         </div>
       )}
 
+      {/* เพิ่มกระดานคาดการณ์ความเสี่ยง (Predicted Risks) ตรงนี้ */}
+      {predictedRiskTasks.length > 0 && (
+        <div className="bg-fuchsia-950/20 border-l-4 border-fuchsia-500 p-6 md:p-8 rounded-2xl mb-8 shadow-lg relative overflow-hidden group">
+          <div className="absolute right-0 bottom-0 opacity-5 transform group-hover:scale-110 transition-transform duration-500"><TrendingUp size={150} className="text-fuchsia-500"/></div>
+          <h3 className="text-fuchsia-400 font-bold flex items-center gap-2 mb-6 text-xl relative z-10"><Sparkles className="text-fuchsia-500"/> AI คาดการณ์แนวโน้มความเสี่ยง/ล่าช้า (Predicted Risks)</h3>
+          <p className="text-xs text-fuchsia-300/80 mb-6 -mt-4 relative z-10 block">วิเคราะห์จากความคืบหน้าของงานจริง ที่ช้ากว่าระยะเวลาที่ใช้ไปเกิน 25% หรือใกล้ครบกำหนด</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 relative z-10">
+            {predictedRiskTasks.slice(0,6).map(t => {
+              const start = new Date(t.start_date).getTime();
+              const end = new Date(t.end_date).getTime();
+              const today = new Date().setHours(0,0,0,0);
+              const totalDays = (end - start) / 86400000;
+              const daysPassed = (today - start) / 86400000;
+              const expected = Math.min(100, Math.max(0, Math.round((daysPassed / totalDays) * 100)));
+              
+              return (
+                <div key={t.task_id} className="bg-slate-900/60 p-5 rounded-xl border border-fuchsia-500/20 hover:border-fuchsia-500/50 transition-colors shadow-sm">
+                   <div className="flex justify-between items-start mb-2">
+                     <span className="text-[10px] font-bold bg-fuchsia-500/20 text-fuchsia-400 px-2.5 py-1 rounded inline-block border border-fuchsia-500/20 uppercase tracking-wider">{t.primary_unit}</span>
+                     <span className="text-[10px] bg-slate-800 border border-slate-700 text-slate-400 px-2 py-1 rounded shadow-inner" title="ความคืบหน้าที่ควรได้เมื่อเทียบกับเวลา">ควรได้: {expected}%</span>
+                   </div>
+                   <p className="text-sm text-slate-200 line-clamp-2 leading-relaxed font-medium">{t.task_name}</p>
+                   <div className="flex justify-between items-center mt-4 pt-3 border-t border-slate-700/50">
+                     <span className="text-[11px] text-fuchsia-400 font-bold flex items-center gap-1"><Clock size={12}/> สถานะ: {t.status}</span>
+                     <span className="text-sm font-mono text-fuchsia-400 font-bold bg-slate-800 px-2 py-0.5 rounded shadow-inner">จริง: {t.progress_percent}%</span>
+                   </div>
+                </div>
+              )
+            })}
+          </div>
+          {predictedRiskTasks.length > 6 && <p className="text-xs text-fuchsia-400/80 mt-4 text-center">และอีก {predictedRiskTasks.length - 6} รายการที่อาจมีความเสี่ยง...</p>}
+        </div>
+      )}
+
       {priorityPolicies.length > 0 && (
         <div className="mb-8 relative z-10">
           <h3 className="text-amber-500 font-bold flex items-center gap-2 mb-4 text-xl"><Star className="fill-amber-500"/> ไฮไลท์นโยบายเร่งด่วน (Top Priority)</h3>
@@ -1323,7 +1154,7 @@ function PolicyDashboard({ appDb, user }) {
             {priorityPolicies.slice(0,4).map(p => {
               const prog = getPolicyProgress(p.policy_id);
               return (
-                <div key={p.policy_id} className="bg-gradient-to-br from-slate-800 to-slate-900 p-6 md:p-8 rounded-3xl border border-amber-500/40 shadow-xl relative overflow-hidden hover:border-amber-400 transition-colors cursor-pointer group">
+                <div key={p.policy_id} className="bg-gradient-to-br from-slate-800 to-slate-900 p-6 md:p-8 rounded-3xl border border-amber-500/40 shadow-xl relative overflow-hidden hover:border-amber-400 transition-colors cursor-pointer group flex flex-col">
                   <div className="absolute right-[-20px] top-[-20px] opacity-5 text-amber-500 group-hover:scale-110 transition-transform duration-500"><Star size={180} className="fill-amber-500"/></div>
                   <div className="flex justify-between items-start mb-6 relative z-10">
                     <span className="bg-amber-500/20 text-amber-400 text-xs font-bold px-3 py-1.5 rounded-full border border-amber-500/30 shadow-sm flex items-center gap-1.5">
@@ -1331,9 +1162,23 @@ function PolicyDashboard({ appDb, user }) {
                     </span>
                     <span className="text-3xl font-mono font-bold text-amber-400 drop-shadow-md">{prog}%</span>
                   </div>
-                  <p className="text-base md:text-lg text-slate-100 font-medium leading-relaxed relative z-10 line-clamp-3">{p.order}</p>
+                  <p className="text-base md:text-lg text-slate-100 font-medium leading-relaxed relative z-10 line-clamp-3 mb-6">{p.order}</p>
                   
-                  <div className="w-full bg-slate-800/80 h-1.5 mt-6 rounded-full overflow-hidden shadow-inner relative z-10">
+                  <div className="relative z-10 flex flex-col gap-2 mt-auto mb-6">
+                     {p.category === 'สั่งการเพิ่มเติม' && p.meeting_ref && p.meeting_ref !== '-' && (
+                        <span className="text-xs text-indigo-300 bg-indigo-950/60 px-3 py-1.5 rounded-lg border border-indigo-500/30 flex items-center gap-1.5 w-max">
+                          <FileText size={14}/> สั่งการครั้งที่ / จากการประชุม: {p.meeting_ref}
+                        </span>
+                     )}
+                     {p.note && (
+                        <div className="text-xs text-slate-300 bg-slate-900/60 p-3 rounded-lg border border-slate-700/50 flex items-start gap-1.5 shadow-inner">
+                          <Paperclip size={14} className="shrink-0 mt-0.5 text-sky-400"/> 
+                          <span className="line-clamp-2"><b className="text-sky-400 mr-1">หมายเหตุ:</b> {p.note}</span>
+                        </div>
+                     )}
+                  </div>
+                  
+                  <div className="w-full bg-slate-800/80 h-1.5 rounded-full overflow-hidden shadow-inner relative z-10">
                     <div className="h-full rounded-full transition-all duration-1000 bg-amber-500" style={{ width: `${prog}%` }}></div>
                   </div>
                 </div>
@@ -1657,10 +1502,10 @@ function TaskDashboard({ appDb, user }) {
               </thead>
               <tbody className="divide-y divide-slate-700/50">
                 {filteredTasksList.map(t => {
-                  let tSubtasks = [];
-                  if (t.subtasks) { try { tSubtasks = typeof t.subtasks === 'string' ? JSON.parse(t.subtasks) : t.subtasks; } catch(e) {} }
-                  const completedSt = tSubtasks.filter(s=>s.done).length;
-                  const hasSubtasks = tSubtasks && tSubtasks.length > 0;
+                  let parsedSubtasks = [];
+                  if (t.subtasks) { try { parsedSubtasks = typeof t.subtasks === 'string' ? JSON.parse(t.subtasks) : t.subtasks; } catch(e) {} }
+                  const completedSt = parsedSubtasks.filter(s=>s.done).length;
+                  const hasSubtasks = parsedSubtasks && parsedSubtasks.length > 0;
                   const isExpanded = expandedTaskId === t.task_id;
                   const deadline = getDeadlineStatus(t.end_date, t.status);
                   const linkedPolicy = appDb.policies?.find(p => p.policy_id === t.policy_id);
@@ -1691,7 +1536,7 @@ function TaskDashboard({ appDb, user }) {
                                 )}
                               </div>
 
-                              {hasSubtasks && <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium mb-3 bg-slate-900/50 px-2 py-1.5 rounded-lg border border-slate-700/50 w-max"><CheckSquare size={14} className="text-emerald-500"/> งานย่อย: <span className="text-white ml-1">{completedSt}/{tSubtasks.length}</span></div>}
+                              {hasSubtasks && <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium mb-3 bg-slate-900/50 px-2 py-1.5 rounded-lg border border-slate-700/50 w-max"><CheckSquare size={14} className="text-emerald-500"/> งานย่อย: <span className="text-white ml-1">{completedSt}/{parsedSubtasks.length}</span></div>}
                               {t.status === 'ล่าช้า/ติดปัญหา' && t.root_cause && <div className="block mt-2 mb-3"><div className="text-[11px] text-red-400 bg-red-950/40 border border-red-900/50 px-3 py-2 rounded-lg inline-flex items-center gap-1.5"><AlertOctagon size={14}/> <span className="font-bold">สาเหตุหลัก:</span> {t.root_cause}</div></div>}
                               
                               {t.admin_feedback && (
@@ -1720,9 +1565,9 @@ function TaskDashboard({ appDb, user }) {
                         <tr className="bg-slate-900/40 border-b border-slate-700/50">
                           <td colSpan={4} className="p-0">
                             <div className="pl-8 py-5 pr-5 border-l-4 border-sky-500 ml-[18px] animate-fade-in-up shadow-inner">
-                              <h5 className="text-[11px] font-bold text-sky-400 mb-3 flex items-center gap-2 uppercase tracking-widest"><GitMerge size={14} /> แผนงาน/ภารกิจย่อย ({tSubtasks.filter(s=>s.done).length}/{tSubtasks.length})</h5>
+                              <h5 className="text-[11px] font-bold text-sky-400 mb-3 flex items-center gap-2 uppercase tracking-widest"><GitMerge size={14} /> แผนงาน/ภารกิจย่อย ({parsedSubtasks.filter(s=>s.done).length}/{parsedSubtasks.length})</h5>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                {tSubtasks.map((st, i) => (
+                                {parsedSubtasks.map((st, i) => (
                                   <div key={i} className={`flex items-start gap-3 p-3 rounded-xl border ${st.done ? 'bg-emerald-950/20 border-emerald-900/30' : 'bg-slate-800 border-slate-700/50'}`}>
                                     <div className="mt-0.5 shrink-0">{st.done ? <CheckCircle2 size={16} className="text-emerald-500 drop-shadow-md" /> : <Circle size={16} className="text-slate-500" />}</div>
                                     <span className={`text-sm leading-relaxed ${st.done ? 'text-slate-400 line-through' : 'text-slate-200'}`}>{st.text}</span>
@@ -1861,9 +1706,9 @@ function Policies({ appDb, user, showToast, callApi, refresh }) {
         <div className="overflow-x-auto custom-scrollbar">
           <table className="w-full text-sm text-left text-slate-200">
              <thead className="bg-slate-900/80 text-slate-400 border-b border-slate-700 uppercase tracking-wider text-xs">
-                <tr>
-                  <th className="p-6 font-bold w-20 text-center">ลำดับ</th><th className="p-6 font-bold whitespace-nowrap w-40">ผู้สั่งการ</th><th className="p-6 font-bold min-w-[400px]">รายละเอียดข้อสั่งการ</th><th className="p-6 font-bold whitespace-nowrap w-36">กำหนดเสร็จ</th><th className="p-6 font-bold whitespace-nowrap w-48">หน่วยรับผิดชอบ</th>{isAdmin&&<th className="p-6 font-bold text-center w-32">จัดการ</th>}
-                </tr>
+               <tr>
+                 <th className="p-6 font-bold w-20 text-center">ลำดับ</th><th className="p-6 font-bold whitespace-nowrap w-40">ผู้สั่งการ</th><th className="p-6 font-bold min-w-[400px]">รายละเอียดข้อสั่งการ</th><th className="p-6 font-bold whitespace-nowrap w-36">กำหนดเสร็จ</th><th className="p-6 font-bold whitespace-nowrap w-48">หน่วยรับผิดชอบ</th>{isAdmin&&<th className="p-6 font-bold text-center w-32">จัดการ</th>}
+               </tr>
              </thead>
              <tbody className="divide-y divide-slate-700/50">
                 {paginated.map(p=>(
@@ -1872,11 +1717,18 @@ function Policies({ appDb, user, showToast, callApi, refresh }) {
                      <td className="p-6 whitespace-nowrap font-bold text-slate-300"><span className="bg-slate-700/50 px-3 py-1.5 rounded-lg border border-slate-600 shadow-sm">{p.commander}</span></td>
                      <td className="p-6 leading-relaxed text-slate-200 text-base">
                        {p.order}
-                       {p.meeting_ref && p.meeting_ref !== '-' && (
-                         <div className="mt-2 text-[11px] text-indigo-300 bg-indigo-950/40 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-indigo-500/30">
-                           <FileText size={12}/> อ้างอิง: {p.meeting_ref}
-                         </div>
-                       )}
+                       <div className="flex flex-wrap gap-2 mt-2">
+                         {p.meeting_ref && p.meeting_ref !== '-' && (
+                           <span className="text-[11px] text-indigo-300 bg-indigo-950/40 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-indigo-500/30">
+                             <FileText size={12}/> {p.category === 'สั่งการเพิ่มเติม' ? 'สั่งการครั้งที่/อ้างอิง:' : 'อ้างอิง:'} {p.meeting_ref}
+                           </span>
+                         )}
+                         {p.note && (
+                           <span className="text-[11px] text-sky-300 bg-sky-950/40 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-sky-500/30">
+                             <Paperclip size={12}/> หมายเหตุ: {p.note}
+                           </span>
+                         )}
+                       </div>
                      </td>
                      <td className="p-6 text-emerald-400 font-bold whitespace-nowrap flex items-center gap-2 mt-1 bg-slate-900/30 px-3 py-1.5 rounded-lg border border-slate-700 w-max"><CalendarDays size={16}/> {p.timeframe||'-'}</td>
                      <td className="p-6 text-sky-400 font-bold whitespace-nowrap tracking-wide">{p.primary_unit}</td>
@@ -1890,7 +1742,7 @@ function Policies({ appDb, user, showToast, callApi, refresh }) {
                      )}
                   </tr>
                 ))}
-                {filtered.length===0&&<tr><td colSpan="6" className="p-20 text-center text-slate-500 text-xl border-dashed border-2 border-slate-700/50 m-4 rounded-2xl bg-slate-900/30">ไม่พบข้อมูลที่ค้นหา</td></tr>}
+                {filtered.length===0&&<tr><td colSpan={6} className="p-20 text-center text-slate-500 text-xl border-dashed border-2 border-slate-700/50 m-4 rounded-2xl bg-slate-900/30">ไม่พบข้อมูลที่ค้นหา</td></tr>}
              </tbody>
           </table>
         </div>
@@ -1926,11 +1778,15 @@ function Policies({ appDb, user, showToast, callApi, refresh }) {
                   <div className="bg-slate-900/50 p-5 rounded-2xl border border-slate-700"><label className="text-sm font-bold text-slate-300 mb-3 block flex items-center gap-2"><FileText size={18} className="text-amber-500"/> รายละเอียดข้อสั่งการ / นโยบาย <span className="text-red-500">*</span></label><textarea name="order" defaultValue={editData?.order} required rows="5" className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-amber-500 leading-relaxed transition-colors text-base shadow-inner" placeholder="พิมพ์รายละเอียดข้อสั่งการที่นี่..."></textarea></div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-slate-900/50 p-6 rounded-2xl border border-slate-700">
                      <div>
-                       <label className="text-sm font-bold text-slate-300 mb-3 block flex items-center gap-2"><Users size={18} className="text-indigo-500"/> อ้างอิงการประชุม / เอกสาร</label>
+                       <label className="text-sm font-bold text-slate-300 mb-3 block flex items-center gap-2"><Users size={18} className="text-indigo-500"/> สั่งการครั้งที่ / การประชุม</label>
                        <input name="meeting_ref" defaultValue={editData?.meeting_ref} placeholder="เช่น ครั้งที่ 1/67" className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-indigo-500 transition-colors font-medium shadow-inner"/>
                      </div>
                      <div><label className="text-sm font-bold text-slate-300 mb-3 block flex items-center gap-2"><CalendarDays size={18} className="text-emerald-500"/> กรอบเวลา / กำหนดเสร็จ (ถ้ามี)</label><input name="timeframe" defaultValue={editData?.timeframe} placeholder="เช่น ภายใน ก.ย. 68" className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-emerald-500 transition-colors font-medium shadow-inner"/></div>
                      <div><label className="text-sm font-bold text-slate-300 mb-3 block flex items-center gap-2"><Target size={18} className="text-sky-500"/> หน่วยงานรับผิดชอบหลัก</label><select name="primary_unit" defaultValue={editData?.primary_unit||'ทุกหน่วย'} className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-sky-500 transition-colors font-bold text-sky-400 shadow-inner"><option value="ทุกหน่วย">- ทุกหน่วยงาน -</option>{(appDb.units||[]).filter(u=>u.role==='user'||!u.role).map(u=><option key={u.id} value={u.name}>{u.name}</option>)}</select></div>
+                  </div>
+                  <div className="bg-slate-900/50 p-5 rounded-2xl border border-slate-700 mt-6">
+                     <label className="text-sm font-bold text-slate-300 mb-3 block flex items-center gap-2"><Paperclip size={18} className="text-sky-500"/> หมายเหตุเพิ่มเติม (ถ้ามี)</label>
+                     <textarea name="note" defaultValue={editData?.note} rows="2" className="w-full bg-slate-800 p-4 rounded-xl border border-slate-600 outline-none focus:border-sky-500 leading-relaxed transition-colors text-base shadow-inner" placeholder="ระบุหมายเหตุสำหรับนโยบายหรือข้อสั่งการนี้..."></textarea>
                   </div>
                   <div className="flex justify-end gap-4 pt-8 mt-8 border-t border-slate-700">
                     <button type="button" onClick={()=>setModalOpen(false)} className="px-8 py-4 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold transition-colors text-lg">ยกเลิก</button>
@@ -1959,7 +1815,6 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
   const [formProgress, setFormProgress] = useState(0);
   const [formStatus, setFormStatus] = useState('รอดำเนินการ');
   
-  // State สำหรับกระดานสนทนา (Task Logs)
   const [taskLogs, setTaskLogs] = useState([]);
   const [newLogMsg, setNewLogMsg] = useState('');
   const logsEndRef = useRef(null);
@@ -1993,7 +1848,6 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
     setSubtasks(parsedSubtasks);
     setNewSubtask('');
 
-    // แปลงข้อความในฟิลด์ note ให้กลายเป็นกล่องสนทนา
     let parsedLogs = [];
     if (data && data.note) { 
       try { 
@@ -2059,7 +1913,6 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
     if (subtasks.length > 0) payload.subtasks = JSON.stringify(subtasks); else payload.subtasks = "";
     if(payload.status !== 'ล่าช้า/ติดปัญหา') payload.root_cause = '';
     
-    // บันทึกระบบสนทนาลงใน note
     if (taskLogs.length > 0) {
       payload.note = JSON.stringify(taskLogs);
     } else {
@@ -2106,14 +1959,14 @@ function TaskTracker({ appDb, user, showToast, callApi, refresh }) {
                   const completedSt = tSubtasks.filter(s=>s.done).length;
                   const hasSubtasks = tSubtasks && tSubtasks.length > 0;
                   const isExpanded = expandedTaskId === t.task_id;
-                  const deadline = getDeadlineStatus(t.end_date, t.status);
                   const linkedPolicy = appDb.policies?.find(p => p.policy_id === t.policy_id);
                   
-                  // สำหรับดึงจำนวนข้อความสนทนา
                   let parsedLogs = [];
                   if (t.note) {
                     try { const maybeLogs = JSON.parse(t.note); if(Array.isArray(maybeLogs)) parsedLogs = maybeLogs; } catch(e) {}
                   }
+
+                  const deadline = getDeadlineStatus(t.end_date, t.status);
 
                   return (
                   <React.Fragment key={t.task_id}>
@@ -2476,11 +2329,11 @@ function UnitsConfig({ appDb, showToast, callApi, refresh }) {
        
        <div className="bg-slate-800 rounded-3xl border border-slate-700 overflow-hidden shadow-2xl">
           <div className="overflow-x-auto custom-scrollbar">
-            <table className="w-full text-sm text-left text-slate-200">
-               <thead className="bg-slate-900 text-slate-400 border-b border-slate-700 uppercase tracking-widest text-xs">
-                 <tr><th className="p-6 font-bold">Ref ID</th><th className="p-6 font-bold">ชื่อหน่วยงาน / ชื่อบัญชี</th><th className="p-6 font-bold text-center">สิทธิ์ (Role)</th><th className="p-6 font-bold text-center">รหัสผ่าน (Passcode)</th><th className="p-6 font-bold text-center">จัดการ</th></tr>
-               </thead>
-               <tbody className="divide-y divide-slate-700/50">
+             <table className="w-full text-sm text-left text-slate-200">
+                <thead className="bg-slate-900 text-slate-400 border-b border-slate-700 uppercase tracking-widest text-xs">
+                  <tr><th className="p-6 font-bold">Ref ID</th><th className="p-6 font-bold">ชื่อหน่วยงาน / ชื่อบัญชี</th><th className="p-6 font-bold text-center">สิทธิ์ (Role)</th><th className="p-6 font-bold text-center">รหัสผ่าน (Passcode)</th><th className="p-6 font-bold text-center">จัดการ</th></tr>
+                </thead>
+                <tbody className="divide-y divide-slate-700/50">
                   {units.map(u => (
                     <tr key={u.id} className="hover:bg-slate-700/40 transition-colors">
                        <td className="p-6 text-xs font-mono text-slate-500 font-bold">{u.id}</td><td className="p-6 font-bold text-slate-100 text-base">{u.name}</td>
@@ -2490,8 +2343,8 @@ function UnitsConfig({ appDb, showToast, callApi, refresh }) {
                     </tr>
                   ))}
                   {units.length === 0 && <tr><td colSpan="5" className="p-20 text-center text-slate-500 text-xl border-dashed border-2 border-slate-700/50 m-4 rounded-3xl bg-slate-900/30">ไม่พบข้อมูลบัญชีผู้ใช้</td></tr>}
-               </tbody>
-            </table>
+                </tbody>
+             </table>
           </div>
        </div>
 
@@ -2559,6 +2412,283 @@ function Chatbot({ appDb }) {
         </div>
       )}
       {!isOpen && (<button onClick={() => setIsOpen(true)} className="text-white rounded-full p-4 md:p-5 shadow-2xl hover:scale-110 transition-all border border-amber-500/50 bg-amber-600 hover:bg-amber-500 group relative"><div className="absolute inset-0 rounded-full bg-amber-400 animate-ping opacity-20"></div><MessageCircle size={28} className="group-hover:animate-pulse"/></button>)}
+    </div>
+  );
+}
+
+// ============================================================
+// คอมโพเนนต์หลัก: App Component
+// ============================================================
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [view, setView] = useState('DASHBOARD_POLICY');
+  const [appDb, setAppDb] = useState({ policies: [], reports: [], tasks: [], units: [], isLoaded: false, isDemoMode: false });
+  const [toastData, setToastData] = useState(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [isWarRoomMode, setIsWarRoomMode] = useState(false);
+
+  const showToast = (msg, type = 'ok') => { 
+    setToastData({ msg, type }); 
+    setTimeout(() => setToastData(null), 3000); 
+  };
+
+  const loadData = async () => {
+    setIsSyncing(true); 
+    try {
+      const actions = ['units', 'policies', 'reports', 'tasks'];
+      const results = await Promise.all(actions.map(async (action) => {
+        const url = `${SCRIPT_URL}?action=${action}&t=${Date.now()}`;
+        const res = await fetch(url, { redirect: "follow" }); 
+        const text = await res.text();
+        if (text.trim().startsWith('<') || text.includes('<!DOCTYPE html>')) throw new Error("PERMISSION");
+        return JSON.parse(text);
+      }));
+
+      setAppDb({ units: results[0]||[], policies: results[1]||[], reports: results[2]||[], tasks: results[3]||[], isLoaded: true, isDemoMode: false });
+      if(user) showToast("ซิงค์ข้อมูลล่าสุดเรียบร้อย", "ok");
+    } catch (err) {
+      setAppDb({ ...MOCK_DB, isLoaded: true, isDemoMode: true });
+      if(!appDb.isDemoMode && user) showToast("ระบบออฟไลน์: เข้าสู่โหมดจำลองการทำงาน", "error");
+    } finally { 
+      setIsSyncing(false); 
+    }
+  };
+
+  useEffect(() => { 
+    if (SCRIPT_URL && !SCRIPT_URL.includes("URL_ที่คุณได้มา")) loadData(); 
+    else setAppDb({ ...MOCK_DB, isLoaded: true, isDemoMode: true });
+  }, []);
+
+  const callApi = async (method, action, data, idKey, idValue) => {
+    if (appDb.isDemoMode) {
+      setAppDb(prev => {
+          const newData = { ...prev };
+          if (method === 'insert') newData[action] = [...newData[action], data];
+          else if (method === 'update') newData[action] = newData[action].map(item => item[idKey] === idValue ? { ...item, ...data } : item);
+          else if (method === 'delete') newData[action] = newData[action].filter(item => item[idKey] !== idValue);
+          return newData;
+      });
+      return true;
+    }
+    try {
+      await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ method, action, data, idKey, idValue }) });
+      setTimeout(loadData, 2000); 
+      return true;
+    } catch (err) { 
+      showToast("บันทึกไม่สำเร็จ ตรวจสอบอินเทอร์เน็ต", "error"); 
+      return false; 
+    }
+  };
+
+  const handleLogin = (unitName, role) => {
+    setUser({ id: `session-${Date.now()}`, unitName, role: role || 'user' });
+    setView('DASHBOARD_POLICY');
+  };
+
+  const handleLogout = () => { 
+    setUser(null); 
+    setView('DASHBOARD_POLICY'); 
+  };
+
+  const navigateTo = (viewName) => {
+    setView(viewName);
+    setIsMobileMenuOpen(false);
+  };
+
+  const notificationsList = useMemo(() => {
+    if (!appDb.tasks) return [];
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    
+    return appDb.tasks.filter(t => {
+       if (t.status === 'เสร็จสิ้น') return false;
+       if (user?.role !== 'admin' && t.primary_unit !== user?.unitName) return false;
+       
+       const end = new Date(t.end_date);
+       const diffDays = Math.ceil((end - today) / 86400000);
+       return (t.status === 'ล่าช้า/ติดปัญหา' || diffDays <= 7);
+    }).map(t => {
+       const end = new Date(t.end_date);
+       const diffDays = Math.ceil((end - today) / 86400000);
+       let type = 'warning';
+       let msg = `ใกล้ถึงกำหนดในอีก ${diffDays} วัน`;
+       if (diffDays < 0 || t.status === 'ล่าช้า/ติดปัญหา') { type = 'danger'; msg = `เลยกำหนดชำระ / ติดปัญหา (${t.root_cause || 'ไม่ระบุสาเหตุ'})`; }
+       return { ...t, alertType: type, alertMsg: msg };
+    }).sort((a,b) => new Date(a.end_date) - new Date(b.end_date));
+  }, [appDb.tasks, user]);
+
+  if (!user || !appDb.isLoaded) {
+    return <LoginScreen onLogin={handleLogin} isLoading={!appDb.isLoaded} appDb={appDb} loadData={loadData} />;
+  }
+
+  const isAdminOrExec = user.role === 'admin' || user.role === 'executive';
+
+  return (
+    <div className="min-h-screen flex bg-slate-900 text-slate-100 font-sans selection:bg-amber-500 selection:text-white relative">
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; } 
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; border: 2px solid #0f172a; } 
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } } 
+        .animate-fade-in-up { animation: fadeInUp 0.5s ease-out forwards; } 
+        @media print { .print-hide { display: none !important; } .bg-slate-900, .bg-slate-800 { background: white !important; color: black !important; border: 1px solid #ccc !important; box-shadow: none !important; } .text-slate-100, .text-slate-200, .text-slate-300, .text-slate-400 { color: #333 !important; } body { background: white !important; } }
+      `}</style>
+      
+      {isWarRoomMode && <WarRoomDashboard appDb={appDb} onClose={() => setIsWarRoomMode(false)} />}
+
+      <aside className="print-hide fixed left-0 top-0 h-screen z-40 bg-slate-800 border-r border-slate-700 flex flex-col w-72 hidden lg:flex shadow-2xl">
+        <div className="h-24 flex items-center justify-between px-6 border-b border-slate-700 shrink-0 bg-slate-900/30">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center p-1.5 shadow-md border border-amber-500/20"><img src={LOGO_URL} alt="Logo" className="w-full h-full object-contain" onError={(e) => { e.target.onerror=null; e.target.src='https://placehold.co/100x100/1e293b/f59e0b?text=J4'; }} /></div>
+            <div><h1 className="font-bold text-xl leading-tight text-white tracking-wide">J4 Tracker</h1><span className="text-[10px] text-amber-500 uppercase tracking-widest font-bold">G-Sheets App</span></div>
+          </div>
+        </div>
+        
+        <div className="p-6 border-b border-slate-700 bg-slate-800/80">
+          <p className="text-[10px] text-slate-400 mb-1.5 uppercase tracking-wider font-bold">บัญชีเข้าใช้งาน:</p>
+          <div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-500 border border-amber-500/30 shrink-0"><Users size={16}/></div><p className="font-bold text-amber-400 truncate text-sm leading-snug" title={user.unitName}>{user.unitName}</p></div>
+        </div>
+        
+        <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1.5 custom-scrollbar">
+          <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">ระบบรายงานภาพรวม</p>
+          <NavItem icon={<LayoutDashboard size={20}/>} label="ภาพรวมนโยบาย" isActive={view==='DASHBOARD_POLICY'} onClick={()=>navigateTo('DASHBOARD_POLICY')} />
+          <NavItem icon={<PieChart size={20}/>} label="ภาพรวมภารกิจ" isActive={view==='DASHBOARD_TASK'} onClick={()=>navigateTo('DASHBOARD_TASK')} />
+          <NavItem icon={<AlignLeft size={20}/>} label="แผนภูมิแกนต์ (Gantt)" isActive={view==='GANTT_CHART'} onClick={()=>navigateTo('GANTT_CHART')} />
+          <NavItem icon={<BarChart size={20}/>} label="วิเคราะห์ประสิทธิภาพ (KPI)" isActive={view==='ANALYTICS'} onClick={()=>navigateTo('ANALYTICS')} />
+          
+          <div className="border-t border-slate-700/50 my-6"></div>
+          
+          <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">ระบบปฏิบัติการ</p>
+          <NavItem icon={<ScrollText size={20}/>} label="ฐานข้อมูลนโยบาย" isActive={view==='POLICIES'} onClick={()=>navigateTo('POLICIES')} />
+          <NavItem icon={<CheckSquare size={20}/>} label="ติดตามภารกิจ (Tasks)" isActive={view==='TASKS'} onClick={()=>navigateTo('TASKS')} />
+          {user.role !== 'executive' && <NavItem icon={<FilePlus size={20}/>} label="บันทึกรายงานผล" isActive={view==='REPORT_FORM'} onClick={()=>navigateTo('REPORT_FORM')} />}
+          <NavItem icon={<HistoryIcon size={20}/>} label="ประวัติรายงานผล" isActive={view==='HISTORY'} onClick={()=>navigateTo('HISTORY')} />
+          
+          {user.role === 'admin' && (
+            <><div className="border-t border-slate-700/50 my-6"></div><NavItem icon={<Users size={20}/>} label="ตั้งค่าบัญชีใช้งาน" isActive={view==='UNITS_CONFIG'} onClick={()=>navigateTo('UNITS_CONFIG')} /></>
+          )}
+        </nav>
+        
+        <div className="p-5 border-t border-slate-700 bg-slate-900/30">
+          <button onClick={handleLogout} className="flex items-center justify-center gap-2 bg-slate-800 border border-slate-700 hover:bg-red-600 hover:border-red-500 hover:text-white text-slate-300 w-full py-3.5 rounded-xl transition-all font-bold shadow-sm"><LogOut size={18}/> ออกจากระบบ</button>
+        </div>
+      </aside>
+
+      <div className="lg:hidden print-hide fixed top-0 left-0 right-0 h-16 bg-slate-800 border-b border-slate-700 z-[100] flex items-center justify-between px-5 shadow-md">
+         <div className="flex items-center gap-3"><div className="w-8 h-8 bg-white rounded-md flex items-center justify-center p-1"><img src={LOGO_URL} alt="Logo" className="w-full h-full object-contain"/></div><h1 className="font-bold text-white tracking-wide">J4 Tracker</h1></div>
+         <button onClick={()=>setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-slate-300 p-2 hover:bg-slate-700 rounded-lg transition-colors">{isMobileMenuOpen ? <X size={24}/> : <List size={24}/>}</button>
+      </div>
+
+      {isMobileMenuOpen && (
+        <div className="lg:hidden print-hide fixed inset-0 top-16 bg-slate-900 z-40 overflow-y-auto pb-20 animate-fade-in-up">
+           <div className="p-4 space-y-1.5 mt-4">
+              <NavItem icon={<LayoutDashboard size={20}/>} label="ภาพรวมนโยบาย" isActive={view==='DASHBOARD_POLICY'} onClick={()=>navigateTo('DASHBOARD_POLICY')} />
+              <NavItem icon={<PieChart size={20}/>} label="ภาพรวมภารกิจ" isActive={view==='DASHBOARD_TASK'} onClick={()=>navigateTo('DASHBOARD_TASK')} />
+              <NavItem icon={<AlignLeft size={20}/>} label="แผนภูมิแกนต์ (Gantt)" isActive={view==='GANTT_CHART'} onClick={()=>navigateTo('GANTT_CHART')} />
+              <NavItem icon={<BarChart size={20}/>} label="วิเคราะห์ประสิทธิภาพ (KPI)" isActive={view==='ANALYTICS'} onClick={()=>navigateTo('ANALYTICS')} />
+              <div className="border-t border-slate-800 my-4"></div>
+              <NavItem icon={<ScrollText size={20}/>} label="ฐานข้อมูลนโยบาย" isActive={view==='POLICIES'} onClick={()=>navigateTo('POLICIES')} />
+              <NavItem icon={<CheckSquare size={20}/>} label="ติดตามภารกิจ (Tasks)" isActive={view==='TASKS'} onClick={()=>navigateTo('TASKS')} />
+              {user.role !== 'executive' && <NavItem icon={<FilePlus size={20}/>} label="บันทึกรายงานผล" isActive={view==='REPORT_FORM'} onClick={()=>navigateTo('REPORT_FORM')} />}
+              <NavItem icon={<HistoryIcon size={20}/>} label="ประวัติรายงานผล" isActive={view==='HISTORY'} onClick={()=>navigateTo('HISTORY')} />
+              
+              {user.role === 'admin' && <NavItem icon={<Users size={20}/>} label="ตั้งค่าผู้ใช้งาน" isActive={view==='UNITS_CONFIG'} onClick={()=>navigateTo('UNITS_CONFIG')} />}
+              
+              <div className="mt-8 p-4">
+                <button onClick={handleLogout} className="w-full bg-red-600 hover:bg-red-500 text-white py-4 rounded-xl flex items-center justify-center gap-2 font-bold shadow-lg">
+                  <LogOut size={20}/> ออกจากระบบ
+                </button>
+              </div>
+           </div>
+        </div>
+      )}
+
+      <main className={`flex-1 lg:ml-72 pt-20 lg:pt-0 p-4 md:p-8 min-h-screen overflow-y-auto custom-scrollbar relative ${isWarRoomMode ? 'hidden' : 'block'}`}>
+        <div className="max-w-7xl mx-auto pb-24">
+          
+          {appDb.isDemoMode && (
+            <div className="mb-6 bg-orange-950/80 border border-orange-500/50 p-4 rounded-2xl flex items-center gap-4 animate-pulse">
+              <div className="bg-orange-500/20 p-2 rounded-full text-orange-400"><AlertTriangle size={24}/></div>
+              <div><p className="font-bold text-orange-400">โหมดออฟไลน์ / จำลอง (Demo Mode)</p><p className="text-xs text-slate-300">ข้อมูลที่บันทึกตอนนี้ จะเก็บไว้ชั่วคราวและไม่ถูกส่งไปที่ฐานข้อมูลจริง</p></div>
+            </div>
+          )}
+
+          <div className="flex justify-between items-center mb-8 bg-slate-800/90 p-4 rounded-xl border border-slate-700 backdrop-blur-md print-hide shadow-md relative z-[100]">
+            <h2 className="text-slate-200 font-bold flex items-center gap-2 md:gap-3 text-sm md:text-base tracking-wide">
+              <ShieldCheck size={22} className="text-amber-500"/> J4 Command Center
+            </h2>
+            <div className="flex items-center gap-3 md:gap-4 relative">
+              {isSyncing && <span className="hidden md:flex text-amber-500 text-xs font-bold items-center gap-1.5 bg-amber-500/10 px-3 py-1.5 rounded-full border border-amber-500/20"><RefreshCcw size={12} className="animate-spin"/> ซิงค์</span>}
+              <button onClick={loadData} className="p-2.5 bg-slate-900 rounded-xl hover:bg-slate-700 text-slate-400 transition-colors border border-slate-700 shadow-sm hover:text-white" title="รีเฟรชข้อมูล"><RefreshCcw size={18}/></button>
+              
+              {isAdminOrExec && (
+                <button onClick={() => setIsWarRoomMode(true)} className="hidden md:flex p-2.5 bg-indigo-900/50 rounded-xl hover:bg-indigo-600 text-indigo-300 transition-colors border border-indigo-700 shadow-sm hover:text-white items-center gap-2" title="เปิดโหมดห้องบัญชาการ">
+                  <Tv size={18}/> <span className="text-xs font-bold uppercase tracking-wider">War Room</span>
+                </button>
+              )}
+
+              <div className="relative">
+                <button onClick={() => setIsNotificationOpen(!isNotificationOpen)} className="p-2.5 bg-slate-900 rounded-xl hover:bg-slate-700 text-slate-400 transition-colors border border-slate-700 shadow-sm hover:text-white relative">
+                  <Bell size={18} className={notificationsList.length > 0 ? "animate-pulse text-amber-400" : ""} />
+                  {notificationsList.length > 0 && <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full shadow-md border-2 border-slate-800">{notificationsList.length}</span>}
+                </button>
+              </div>
+
+              {isNotificationOpen && (
+                <>
+                  <div className="fixed inset-0 z-[9998]" onClick={() => setIsNotificationOpen(false)}></div>
+                  <div className="fixed top-24 right-4 md:right-8 w-80 md:w-96 bg-slate-800 rounded-2xl border border-slate-600 shadow-[0_10px_50px_rgba(0,0,0,0.5)] z-[9999] overflow-hidden flex flex-col max-h-[500px] animate-fade-in-up">
+                     <div className="p-4 bg-slate-900/80 border-b border-slate-700 flex justify-between items-center">
+                       <h3 className="font-bold text-slate-100 flex items-center gap-2"><Bell size={18} className="text-amber-500"/> แจ้งเตือนภารกิจ (Alerts)</h3>
+                       <span className="text-xs bg-red-500 text-white px-2 py-0.5 rounded-full font-bold">{notificationsList.length}</span>
+                     </div>
+                     <div className="overflow-y-auto flex-1 custom-scrollbar">
+                       {notificationsList.length > 0 ? notificationsList.map(n => (
+                         <div key={n.task_id} className={`p-4 border-b border-slate-700/50 hover:bg-slate-700/50 transition-colors cursor-pointer ${n.alertType === 'danger' ? 'bg-red-950/20' : 'bg-amber-950/10'}`} onClick={() => { navigateTo('TASKS'); setIsNotificationOpen(false); }}>
+                           <div className="flex justify-between items-start mb-1">
+                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${n.alertType === 'danger' ? 'bg-red-900/50 text-red-400 border-red-500/30' : 'bg-amber-900/50 text-amber-400 border-amber-500/30'}`}>{n.alertMsg}</span>
+                             <span className="text-[10px] text-slate-500 font-mono">{formatDate(n.end_date)}</span>
+                           </div>
+                           <p className="text-sm font-bold text-slate-200 mt-2 line-clamp-2">{n.task_name}</p>
+                           <p className="text-xs text-sky-400 mt-1 font-medium flex items-center gap-1"><Users size={12}/> {n.primary_unit}</p>
+                         </div>
+                       )) : (
+                         <div className="p-8 text-center text-slate-500">
+                           <CheckCircle size={40} className="mx-auto mb-3 opacity-20 text-emerald-500"/>
+                           <p className="text-sm font-bold">ไม่มีงานที่ล่าช้าหรือใกล้ถึงกำหนด</p>
+                         </div>
+                       )}
+                     </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {view === 'DASHBOARD_POLICY' && <PolicyDashboard appDb={appDb} user={user} />}
+          {view === 'DASHBOARD_TASK' && <TaskDashboard appDb={appDb} user={user} />}
+          {view === 'GANTT_CHART' && <GanttChartDashboard appDb={appDb} user={user} />}
+          {view === 'ANALYTICS' && <KpiAnalyticsDashboard appDb={appDb} user={user} />}
+          {view === 'POLICIES' && <Policies appDb={appDb} user={user} showToast={showToast} callApi={callApi} refresh={loadData} />}
+          {view === 'TASKS' && <TaskTracker appDb={appDb} user={user} showToast={showToast} callApi={callApi} refresh={loadData} />}
+          {view === 'REPORT_FORM' && <ReportForm appDb={appDb} user={user} showToast={showToast} setView={setView} callApi={callApi} refresh={loadData} />}
+          {view === 'HISTORY' && <History appDb={appDb} user={user} showToast={showToast} callApi={callApi} refresh={loadData} />}
+          {view === 'UNITS_CONFIG' && <UnitsConfig appDb={appDb} showToast={showToast} callApi={callApi} refresh={loadData} />}
+
+        </div>
+      </main>
+
+      {toastData && (
+        <div className="fixed top-6 right-6 z-[9999] px-6 py-4 rounded-xl shadow-2xl border bg-slate-800 text-white flex items-center gap-3 animate-fade-in-up" style={{borderColor: toastData.type === 'ok' ? '#10b981' : '#ef4444'}}>
+          {toastData.type === 'ok' ? <CheckCircle className="text-emerald-500" size={24}/> : <AlertTriangle className="text-red-500" size={24}/>}
+          <span className="font-bold text-sm">{toastData.msg}</span>
+        </div>
+      )}
+
+      {!isWarRoomMode && <Chatbot appDb={appDb} />}
     </div>
   );
 }
