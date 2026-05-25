@@ -808,7 +808,14 @@ function GanttChartDashboard({ appDb, user }) {
            </div>
         ) : (
           <div className="overflow-x-auto custom-scrollbar pb-4">
-             <div className="min-w-[800px]">
+             <div className="min-w-[800px] relative pb-6">
+                {/* Background Grid Lines */}
+                <div className="absolute inset-y-0 right-0 w-2/3 flex pointer-events-none z-0 mt-[45px]">
+                   {monthHeaders.map((_, i) => (
+                      <div key={i} className="flex-1 border-l border-slate-700/30"></div>
+                   ))}
+                </div>
+
                 {/* Timeline Header */}
                 <div className="flex border-b border-slate-700 pb-3 mb-4 sticky top-0 bg-slate-800 z-20">
                    <div className="w-1/3 shrink-0 font-bold text-slate-400 text-sm pl-4 flex items-center gap-2">
@@ -816,10 +823,8 @@ function GanttChartDashboard({ appDb, user }) {
                    </div>
                    <div className="w-2/3 flex text-xs text-slate-500 font-bold relative">
                       {monthHeaders.map((m, i) => (
-                         <div key={i} className="flex-1 text-center relative border-l border-slate-700/50 pt-1 pb-1">
+                         <div key={i} className="flex-1 text-center border-l border-slate-700/50 pt-1 pb-1">
                             {m}
-                            {/* Vertical Guide Line */}
-                            <div className="absolute left-0 top-full h-[800px] w-px bg-slate-700/30 pointer-events-none"></div>
                          </div>
                       ))}
                    </div>
@@ -1159,16 +1164,22 @@ function PolicyDashboard({ appDb, user, setView }) {
 
     return (
       <div className="bg-slate-900/80 p-5 rounded-xl mt-4 overflow-x-auto border border-slate-700/50 shadow-inner custom-scrollbar relative">
-        <div className="min-w-[800px] space-y-3 relative">
+        <div className="min-w-[800px] space-y-3 relative pb-6">
+          {/* Background Grid Lines */}
+          <div className="absolute inset-y-0 right-0 w-2/3 flex pointer-events-none z-0 mt-[40px]">
+             {monthHeaders.map((_, i) => (
+                 <div key={i} className="flex-1 border-l border-slate-700/30"></div>
+             ))}
+          </div>
+
           <div className="flex border-b border-slate-700 pb-3 mb-4 sticky top-0 bg-slate-900/90 z-20 backdrop-blur-sm">
             <div className="w-1/3 shrink-0 text-amber-500 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 pl-2">
                <CalendarDays size={14}/> ภารกิจและรายการย่อย
             </div>
             <div className="w-2/3 flex text-[10px] text-slate-500 font-mono font-bold tracking-widest relative">
                {monthHeaders.map((m, i) => (
-                   <div key={i} className="flex-1 text-center relative border-l border-slate-700/50 pt-1 pb-1">
+                   <div key={i} className="flex-1 text-center border-l border-slate-700/50 pt-1 pb-1">
                       {m}
-                      <div className="absolute left-0 top-full h-[500px] w-px bg-slate-700/30 pointer-events-none"></div>
                    </div>
                ))}
             </div>
