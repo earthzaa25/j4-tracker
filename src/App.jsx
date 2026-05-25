@@ -475,7 +475,7 @@ export default function App() {
           )}
           <NavItem icon={<LayoutDashboard size={20}/>} label="ภาพรวมนโยบาย" isActive={view==='DASHBOARD_POLICY'} onClick={()=>navigateTo('DASHBOARD_POLICY')} />
           <NavItem icon={<PieChart size={20}/>} label="ภาพรวมภารกิจ" isActive={view==='DASHBOARD_TASK'} onClick={()=>navigateTo('DASHBOARD_TASK')} />
-          <NavItem icon={<AlignLeft size={20}/>} label="แผนภูมิแกนต์ (Gantt)" isActive={view==='GANTT_CHART'} onClick={()=>navigateTo('GANTT_CHART')} />
+          <NavItem icon={<AlignLeft size={20}/>} label="แผนปฏิบัติราชการ" isActive={view==='GANTT_CHART'} onClick={()=>navigateTo('GANTT_CHART')} />
           <NavItem icon={<BarChart size={20}/>} label="วิเคราะห์ประสิทธิภาพ (KPI)" isActive={view==='ANALYTICS'} onClick={()=>navigateTo('ANALYTICS')} />
           
           <div className="border-t border-slate-700/50 my-6"></div>
@@ -509,7 +509,7 @@ export default function App() {
                  <NavItem icon={<Zap size={20}/>} label="แผงควบคุมผู้บริหาร (Cockpit)" isActive={view==='EXECUTIVE_COCKPIT'} onClick={()=>navigateTo('EXECUTIVE_COCKPIT')} />
               )}
               <NavItem icon={<PieChart size={20}/>} label="ภาพรวมภารกิจ" isActive={view==='DASHBOARD_TASK'} onClick={()=>navigateTo('DASHBOARD_TASK')} />
-              <NavItem icon={<AlignLeft size={20}/>} label="แผนภูมิแกนต์ (Gantt)" isActive={view==='GANTT_CHART'} onClick={()=>navigateTo('GANTT_CHART')} />
+              <NavItem icon={<AlignLeft size={20}/>} label="แผนปฏิบัติราชการ" isActive={view==='GANTT_CHART'} onClick={()=>navigateTo('GANTT_CHART')} />
               <NavItem icon={<BarChart size={20}/>} label="วิเคราะห์ประสิทธิภาพ (KPI)" isActive={view==='ANALYTICS'} onClick={()=>navigateTo('ANALYTICS')} />
               <div className="border-t border-slate-800 my-4"></div>
               <NavItem icon={<ScrollText size={20}/>} label="ฐานข้อมูลนโยบาย" isActive={view==='POLICIES'} onClick={()=>navigateTo('POLICIES')} />
@@ -794,7 +794,7 @@ function GanttChartDashboard({ appDb, user }) {
     <div className="space-y-6 animate-fade-in-up text-slate-100">
       <div className="bg-slate-800 p-6 md:p-8 rounded-2xl border border-slate-700 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
-          <h2 className="text-2xl md:text-3xl font-bold flex gap-3 text-sky-400 mb-1.5"><AlignLeft size={32}/> แผนภูมิแกนต์ภาพรวมตลอดปี</h2>
+          <h2 className="text-2xl md:text-3xl font-bold flex gap-3 text-sky-400 mb-1.5"><AlignLeft size={32}/> แผนปฏิบัติราชการ</h2>
           <p className="text-sm text-slate-400 font-medium">มุมมองแผนงาน (Timeline) และความคาบเกี่ยวของภารกิจ</p>
         </div>
         <select value={filterUnit} onChange={e => setFilterUnit(e.target.value)} disabled={!isAdminOrExec} className="w-full md:w-auto bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-sm font-bold disabled:opacity-50 outline-none focus:border-sky-500 shadow-inner transition-colors"><option value="ALL">- ทุกหน่วยงาน -</option>{(appDb.units||[]).map(u => <option key={u.id} value={u.name}>{u.name}</option>)}</select>
@@ -804,7 +804,7 @@ function GanttChartDashboard({ appDb, user }) {
         {baseTasks.length === 0 ? (
            <div className="text-center py-20 text-slate-500 border-2 border-dashed border-slate-700 rounded-2xl bg-slate-900/30">
              <AlignLeft size={48} className="mx-auto mb-4 opacity-20"/>
-             <p className="text-xl font-bold">ไม่มีข้อมูลภารกิจสำหรับแสดงแผนภูมิแกนต์</p>
+             <p className="text-xl font-bold">ไม่มีข้อมูลภารกิจสำหรับแสดงแผนปฏิบัติราชการ</p>
            </div>
         ) : (
           <div className="overflow-x-auto custom-scrollbar pb-4">
@@ -1125,71 +1125,104 @@ function PolicyDashboard({ appDb, user, setView }) {
       return (
         <div className="bg-slate-900/80 p-5 rounded-xl text-center border border-slate-700/50 mt-3 shadow-inner">
            <CalendarDays size={24} className="mx-auto text-slate-500 mb-3 opacity-30"/>
-           <p className="text-slate-400 text-xs font-medium">ยังไม่มีการเพิ่มภารกิจที่อ้างอิงนโยบายข้อนี้ในระบบ</p>
+           <p className="text-slate-400 text-xs font-medium">ยังไม่มีการเพิ่มภารกิจที่เชื่อมโยงกับนโยบายข้อนี้ในระบบ</p>
         </div>
       );
     }
 
-    const minDate = Math.min(...validTasks.map(t => new Date(t.start_date).getTime())); 
-    const maxDate = Math.max(...validTasks.map(t => new Date(t.end_date).getTime()));
-    const totalDuration = maxDate - minDate || 1; 
+    let tStart, tEnd;
+    if (fiscalYear !== 'ALL') {
+        const dates = getFiscalYearDates(fiscalYear);
+        tStart = new Date(dates.start).getTime();
+        tEnd = new Date(dates.end).getTime();
+    } else {
+        const minDate = Math.min(...validTasks.map(t => new Date(t.start_date).getTime()));
+        const maxDate = Math.max(...validTasks.map(t => new Date(t.end_date).getTime()));
+        const minD = new Date(minDate);
+        const maxD = new Date(maxDate);
+
+        const startYear = minD.getMonth() >= 9 ? minD.getFullYear() : minD.getFullYear() - 1;
+        const endYear = maxD.getMonth() >= 9 ? maxD.getFullYear() + 1 : maxD.getFullYear();
+
+        tStart = new Date(startYear, 9, 1).getTime();
+        tEnd = new Date(endYear, 8, 30, 23, 59, 59).getTime();
+    }
+
+    const totalDuration = tEnd - tStart || 1;
+
+    const monthHeaders = [];
+    let curr = new Date(tStart);
+    while (curr <= new Date(tEnd)) {
+       monthHeaders.push(curr.toLocaleDateString('th-TH', { month: 'short', year: '2-digit' }));
+       curr.setMonth(curr.getMonth() + 1);
+    }
 
     return (
-      <div className="bg-slate-900/80 p-5 rounded-xl mt-4 overflow-x-auto border border-slate-700/50 shadow-inner custom-scrollbar">
-        <div className="min-w-[600px] space-y-5">
-          <div className="flex border-b border-slate-700 pb-3 mb-4">
-            <div className="w-1/3 text-amber-500 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"><CalendarDays size={14}/> ภารกิจและรายการย่อย</div>
-            <div className="w-2/3 flex justify-between text-[10px] text-slate-500 font-mono font-bold tracking-widest px-2">
-              <span>{formatDate(minDate)}</span>
-              <span>{formatDate(maxDate)}</span>
+      <div className="bg-slate-900/80 p-5 rounded-xl mt-4 overflow-x-auto border border-slate-700/50 shadow-inner custom-scrollbar relative">
+        <div className="min-w-[800px] space-y-3 relative">
+          <div className="flex border-b border-slate-700 pb-3 mb-4 sticky top-0 bg-slate-900/90 z-20 backdrop-blur-sm">
+            <div className="w-1/3 shrink-0 text-amber-500 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 pl-2">
+               <CalendarDays size={14}/> ภารกิจและรายการย่อย
+            </div>
+            <div className="w-2/3 flex text-[10px] text-slate-500 font-mono font-bold tracking-widest relative">
+               {monthHeaders.map((m, i) => (
+                   <div key={i} className="flex-1 text-center relative border-l border-slate-700/50 pt-1 pb-1">
+                      {m}
+                      <div className="absolute left-0 top-full h-[500px] w-px bg-slate-700/30 pointer-events-none"></div>
+                   </div>
+               ))}
             </div>
           </div>
           
-          {validTasks.sort((a,b) => new Date(a.start_date) - new Date(b.start_date)).map(t => {
-            const leftPercent = Math.max(0, ((new Date(t.start_date).getTime() - minDate) / totalDuration) * 100); 
-            const widthPercent = Math.max(1, ((new Date(t.end_date).getTime() - new Date(t.start_date).getTime()) / totalDuration) * 100);
-            
-            let tSubtasks = [];
-            if(t.subtasks) { try { tSubtasks = typeof t.subtasks === 'string' ? JSON.parse(t.subtasks) : t.subtasks; } catch(e) {} }
-
-            return (
-              <div key={t.task_id} className="flex flex-col text-xs group bg-slate-800/50 p-3 rounded-xl border border-slate-700/50 hover:border-sky-500/50 transition-colors">
-                <div className="flex items-center">
-                  <div className="w-1/3 truncate pr-4 flex flex-col border-r border-slate-700/50 shrink-0">
-                    <span className="text-slate-200 font-bold truncate mb-0.5" title={t.task_name}>{t.task_name}</span>
-                    <span className="text-[10px] text-slate-500 font-medium flex items-center gap-1"><Users size={10}/> {t.primary_unit} | {formatDate(t.start_date)} - {formatDate(t.end_date)}</span>
-                  </div>
-                  <div className="w-2/3 relative bg-slate-900 rounded-md h-6 border border-slate-700 overflow-hidden shadow-inner ml-4">
-                    <div 
-                      className={`absolute h-full rounded-md shadow flex items-center px-1.5 transition-all duration-500 ease-out ${
-                        t.status === 'เสร็จสิ้น' ? 'bg-emerald-500/90' : 
-                        t.status === 'ล่าช้า/ติดปัญหา' ? 'bg-red-500/90 animate-pulse' : 
-                        'bg-sky-500/90'
-                      }`} 
-                      style={{left: `${leftPercent}%`, width: `${widthPercent}%`, minWidth: '6px'}}
-                      title={`${t.status} - ${t.progress_percent}%`}
-                    >
-                      {widthPercent > 10 && <span className="text-[10px] font-bold text-white drop-shadow-md truncate font-mono">{t.progress_percent}%</span>}
-                    </div>
-                  </div>
-                </div>
+          <div className="relative z-10 space-y-3">
+             {validTasks.sort((a,b) => new Date(a.start_date) - new Date(b.start_date)).map(t => {
+                const leftPercent = Math.max(0, ((new Date(t.start_date).getTime() - tStart) / totalDuration) * 100); 
+                const widthPercent = Math.max(1, ((new Date(t.end_date).getTime() - new Date(t.start_date).getTime()) / totalDuration) * 100);
                 
-                {tSubtasks.length > 0 && (
-                  <div className="mt-3 ml-4 pl-4 border-l-2 border-sky-500/30 space-y-2 py-1">
-                     <p className="text-[10px] text-sky-400 font-bold tracking-wider uppercase mb-1 flex items-center gap-1.5"><GitMerge size={12}/> รายการย่อย ({tSubtasks.filter(s=>s.done).length}/{tSubtasks.length})</p>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                       {tSubtasks.map((st, i) => (
-                         <div key={i} className={`flex items-start gap-2 p-2 rounded-lg border ${st.done ? 'bg-emerald-950/20 border-emerald-900/30' : 'bg-slate-900/50 border-slate-700/50'}`}>
-                            <div className="mt-0.5 shrink-0">{st.done ? <CheckCircle2 size={12} className="text-emerald-500" /> : <Circle size={12} className="text-slate-500" />}</div>
-                            <span className={`text-[11px] leading-relaxed ${st.done ? 'text-slate-500 line-through' : 'text-slate-300'}`}>{st.text}</span>
+                let tSubtasks = [];
+                if(t.subtasks) { try { tSubtasks = typeof t.subtasks === 'string' ? JSON.parse(t.subtasks) : t.subtasks; } catch(e) {} }
+
+                return (
+                  <div key={t.task_id} className="flex flex-col text-xs group bg-slate-800/80 p-3 rounded-xl border border-slate-700/50 hover:border-sky-500/50 transition-colors">
+                    <div className="flex items-center">
+                      <div className="w-1/3 truncate pr-4 flex flex-col border-r border-slate-700/50 shrink-0">
+                        <span className="text-slate-200 font-bold truncate mb-0.5" title={t.task_name}>{t.task_name}</span>
+                        <span className="text-[10px] text-slate-500 font-medium flex items-center gap-1"><Users size={10}/> {t.primary_unit} | {formatDate(t.start_date)} - {formatDate(t.end_date)}</span>
+                      </div>
+                      <div className="w-2/3 relative h-8 ml-4 flex items-center">
+                        <div className="absolute inset-y-1 w-full bg-slate-900/50 rounded-lg overflow-hidden border border-slate-800 shadow-inner">
+                          <div 
+                            className={`absolute h-full rounded-md shadow flex items-center px-1.5 transition-all duration-500 ease-out ${
+                              t.status === 'เสร็จสิ้น' ? 'bg-emerald-500/90' : 
+                              t.status === 'ล่าช้า/ติดปัญหา' ? 'bg-red-500/90 animate-pulse' : 
+                              'bg-sky-500/90'
+                            }`} 
+                            style={{left: `${leftPercent}%`, width: `${widthPercent}%`, minWidth: '6px'}}
+                            title={`${t.status} - ${t.progress_percent}%`}
+                          >
+                            {widthPercent > 10 && <span className="text-[10px] font-bold text-white drop-shadow-md truncate font-mono">{t.progress_percent}%</span>}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {tSubtasks.length > 0 && (
+                      <div className="mt-3 ml-4 pl-4 border-l-2 border-sky-500/30 space-y-2 py-1">
+                         <p className="text-[10px] text-sky-400 font-bold tracking-wider uppercase mb-1 flex items-center gap-1.5"><GitMerge size={12}/> รายการย่อย ({tSubtasks.filter(s=>s.done).length}/{tSubtasks.length})</p>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                           {tSubtasks.map((st, i) => (
+                             <div key={i} className={`flex items-start gap-2 p-2 rounded-lg border ${st.done ? 'bg-emerald-950/20 border-emerald-900/30' : 'bg-slate-900/50 border-slate-700/50'}`}>
+                                <div className="mt-0.5 shrink-0">{st.done ? <CheckCircle2 size={12} className="text-emerald-500" /> : <Circle size={12} className="text-slate-500" />}</div>
+                                <span className={`text-[11px] leading-relaxed ${st.done ? 'text-slate-500 line-through' : 'text-slate-300'}`}>{st.text}</span>
+                             </div>
+                           ))}
                          </div>
-                       ))}
-                     </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            )
-          })}
+                )
+             })}
+          </div>
         </div>
       </div>
     );
@@ -1321,19 +1354,17 @@ function PolicyDashboard({ appDb, user, setView }) {
       {isAdminOrExec && (
          <div 
            onClick={() => setView('EXECUTIVE_COCKPIT')}
-           className="relative group cursor-pointer mb-8 animate-pulse hover:animate-none transition-all print-hide"
+           className="relative group cursor-pointer mb-8 transition-all print-hide"
          >
-            {/* Glowing Neon Outline Box based on user reference */}
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-2xl blur opacity-60 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
-            <div className="relative bg-slate-900 rounded-xl px-8 py-5 flex items-center justify-between border border-purple-500/50 shadow-[0_0_20px_rgba(168,85,247,0.4)] group-hover:shadow-[0_0_30px_rgba(168,85,247,0.6)]">
+            <div className="relative bg-slate-900 rounded-xl px-8 py-5 flex items-center justify-between border-2 border-purple-200 shadow-[0_0_15px_rgba(192,132,252,0.6),inset_0_0_15px_rgba(192,132,252,0.2)] group-hover:shadow-[0_0_25px_rgba(192,132,252,0.9),inset_0_0_20px_rgba(192,132,252,0.4)] group-hover:border-white transition-all duration-300">
                <div className="flex items-center gap-4">
-                  <div className="bg-purple-500/20 p-3 rounded-full"><Zap size={28} className="text-purple-400 drop-shadow-[0_0_8px_rgba(168,85,247,0.8)]"/></div>
+                  <div className="bg-purple-900/40 p-3 rounded-full"><Zap size={28} className="text-purple-200 drop-shadow-[0_0_8px_rgba(192,132,252,1)]"/></div>
                   <div>
-                    <h3 className="text-xl font-bold text-white tracking-wider uppercase">Executive Cockpit <span className="text-purple-400 ml-2 text-sm normal-case font-normal">(คลิกเพื่อเปิดแผงควบคุม)</span></h3>
-                    <p className="text-sm text-slate-400 mt-1">มุมมองสรุปภาพรวมสำหรับผู้บริหาร (AI Briefing, Traffic Light, Bottlenecks)</p>
+                    <h3 className="text-xl font-bold text-white tracking-wider uppercase drop-shadow-[0_0_8px_rgba(192,132,252,0.5)]">Executive Cockpit <span className="text-purple-300 ml-2 text-sm normal-case font-normal drop-shadow-none">(คลิกเพื่อเปิดแผงควบคุม)</span></h3>
+                    <p className="text-sm text-purple-200/70 mt-1">มุมมองสรุปภาพรวมสำหรับผู้บริหาร (AI Briefing, Traffic Light, Bottlenecks)</p>
                   </div>
                </div>
-               <ChevronRight size={24} className="text-purple-400 transform group-hover:translate-x-2 transition-transform"/>
+               <ChevronRight size={24} className="text-purple-200 transform group-hover:translate-x-2 transition-transform drop-shadow-[0_0_8px_rgba(192,132,252,1)]"/>
             </div>
          </div>
       )}
@@ -1350,7 +1381,7 @@ function PolicyDashboard({ appDb, user, setView }) {
           </button>
           
           <select value={filterUnit} onChange={e => setFilterUnit(e.target.value)} disabled={!isAdminOrExec} className="flex-1 md:w-auto bg-slate-900 px-4 py-3 rounded-xl border border-slate-600 text-sm font-bold text-white outline-none focus:border-amber-500 shadow-inner"><option value="ALL">- ทุกหน่วยงาน -</option>{(appDb.units||[]).filter(u => u.role === 'user' || !u.role).map(u => <option key={u.id} value={u.name}>{u.name}</option>)}</select>
-          <select value={fiscalYear} onChange={e => setFiscalYear(e.target.value)} className="flex-1 md:w-auto bg-slate-900 px-4 py-3 rounded-xl border border-slate-600 text-sm font-bold text-white outline-none focus:border-amber-500 shadow-inner"><option value="ALL">- ทุกปีงบประมาณ -</option><option value="2567">ปีงบประมาณ 2567</option><option value="2568">ปีงบประมาณ 2568</option></select>
+          <select value={fiscalYear} onChange={e => setFiscalYear(e.target.value)} className="flex-1 md:w-auto bg-slate-900 px-4 py-3 rounded-xl border border-slate-600 text-sm font-bold text-white outline-none focus:border-amber-500 shadow-inner"><option value="ALL">- ทุกปีงบประมาณ -</option><option value="2567">ปีงบประมาณ 2567</option><option value="2568">ปีงบประมาณ 2568</option><option value="2569">ปีงบประมาณ 2569</option></select>
         </div>
       </div>
 
@@ -1877,6 +1908,7 @@ function TaskDashboard({ appDb, user }) {
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto relative z-10">
           {(selectedStatus || selectedRootCause) && <button onClick={clearFilters} className="text-sm font-bold bg-red-500/20 text-red-400 px-5 py-3 rounded-xl flex items-center gap-2 hover:bg-red-500 hover:text-white transition-colors shadow-sm"><FilterX size={18}/> ล้างตัวกรอง</button>}
           <select value={filterUnit} onChange={e => setFilterUnit(e.target.value)} disabled={!isAdminOrExec} className="flex-1 md:w-auto bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-sm font-bold disabled:opacity-50 outline-none focus:border-amber-500 shadow-inner transition-colors"><option value="ALL">- ทุกหน่วยงาน -</option>{currentUnits.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}</select>
+          <select value={fiscalYear} onChange={e => setFiscalYear(e.target.value)} className="flex-1 md:w-auto bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-amber-500 shadow-inner transition-colors text-white"><option value="ALL">- ทุกปีงบประมาณ -</option><option value="2567">ปีงบประมาณ 2567</option><option value="2568">ปีงบประมาณ 2568</option><option value="2569">ปีงบประมาณ 2569</option></select>
         </div>
       </div>
 
